@@ -1,0 +1,87 @@
+package rheon.wsd_lora_community.model.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import rheon.wsd_lora_community.model.entity.LoraModel;
+
+import java.time.LocalDateTime;
+
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Schema(description = "LoRA 모델 응답 (목록용)")
+public class LoraModelResponse {
+
+    @Schema(description = "모델 ID", example = "1")
+    private Long id;
+
+    @Schema(description = "유저 ID", example = "1")
+    private Long userId;
+
+    @Schema(description = "유저 닉네임", example = "길동이")
+    private String userNickname;
+
+    @Schema(description = "제목", example = "소녀 전선 캐릭터 LoRA")
+    private String title;
+
+    @Schema(description = "설명", example = "소녀 전선 게임 캐릭터를 학습한 LoRA 모델입니다.")
+    private String description;
+
+    @Schema(description = "캐릭터 이름", example = "M4A1")
+    private String characterName;
+
+    @Schema(description = "스타일", example = "애니메이션, 일러스트")
+    private String style;
+
+    @Schema(description = "학습 이미지 수", example = "50")
+    private Integer trainingImagesCount;
+
+    @Schema(description = "베이스 모델", example = "stablediffusionapi/anything-v5")
+    private String baseModel;
+
+    @Schema(description = "공개 여부", example = "true")
+    private Boolean isPublic;
+
+    @Schema(description = "상태", example = "COMPLETED")
+    private String status;
+
+    @Schema(description = "조회수", example = "150")
+    private Integer viewCount;
+
+    @Schema(description = "좋아요 수", example = "30")
+    private Integer likeCount;
+
+    @Schema(description = "즐겨찾기 수", example = "20")
+    private Integer favoriteCount;
+
+    @Schema(description = "생성일", example = "2025-01-13T10:00:00")
+    private LocalDateTime createdAt;
+
+    @Schema(description = "수정일", example = "2025-01-13T10:00:00")
+    private LocalDateTime updatedAt;
+
+    public static LoraModelResponse from(LoraModel model) {
+        return LoraModelResponse.builder()
+                .id(model.getId())
+                .userId(model.getUser().getId())
+                .userNickname(model.getUser().getNickname())
+                .title(model.getTitle())
+                .description(model.getDescription())
+                .characterName(model.getCharacterName())
+                .style(model.getStyle())
+                .trainingImagesCount(model.getTrainingImagesCount())
+                .baseModel(model.getBaseModel())
+                .isPublic(model.getIsPublic())
+                .status(model.getStatus().name())
+                .viewCount(model.getViewCount())
+                .likeCount(model.getLikeCount())
+                .favoriteCount(model.getFavoriteCount())
+                .createdAt(model.getCreatedAt())
+                .updatedAt(model.getUpdatedAt())
+                .build();
+    }
+}
