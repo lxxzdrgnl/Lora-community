@@ -2,7 +2,30 @@
 
 > **프로젝트명**: WSD_Lora_community
 > **목표**: 만화/웹툰 캐릭터 LoRA 모델 학습, 공유, 생성을 위한 커뮤니티 플랫폼
-> **마지막 업데이트**: 2025-11-12
+> **마지막 업데이트**: 2025-11-13
+> **현재 진행률**: Phase 1-6 완료 (기본 인프라 구축 완료) ✅
+
+---
+
+## ⚡ 빠른 시작 (이어서 개발하기)
+
+### 현재 상태
+- ✅ **Entity, Repository, Security 모두 구현 완료**
+- ✅ **빌드 및 실행 테스트 성공**
+- ✅ **Swagger UI 접속 가능** (`http://localhost:8080/swagger-ui.html`)
+- 🚧 **다음 작업: Service 레이어 구현**
+
+### 실행 방법
+```bash
+cd /home/rheon/Desktop/Semester/3-2/WSD/WSD_Lora_community
+./gradlew bootRun
+```
+
+### 다음에 할 일 (순서대로)
+1. **DTO 클래스 작성** → `dto/request`, `dto/response` 패키지
+2. **Service 레이어 구현** → `AuthService`, `UserService`, `LoraModelService` 등
+3. **Controller 레이어 구현** → REST API 엔드포인트
+4. **FastAPI 클라이언트 구현** → 학습/생성 연동
 
 ---
 

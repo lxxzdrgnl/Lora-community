@@ -1,0 +1,131 @@
+spring:
+  application:
+    name: WSD_Lora_community
+
+  # H2 Database (인메모리 - 개발용)
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:loradb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+
+  # H2 Console 활성화 (개발 편의용)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # JPA 설정
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop  # 개발: create-drop, 프로덕션: validate
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+        use_sql_comments: true
+        highlight_sql: true
+    show-sql: true
+    open-in-view: false  # 멀티 인스턴스 환경에서 권장
+
+  # OAuth2 설정 (Google)
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
+            scope:
+              - email
+              - profile
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            authorization-grant-type: authorization_code
+
+  # 파일 업로드 설정
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 100MB
+      file-size-threshold: 2MB
+
+  # JSON 설정
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: Asia/Seoul
+    default-property-inclusion: non_null
+
+# JWT 설정
+jwt:
+  secret: ${JWT_SECRET:your-jwt-secret-key-at-least-256-bits-long-for-hs256-algorithm}
+  access-token-validity: 3600000    # 1시간 (밀리초)
+  refresh-token-validity: 604800000  # 7일 (밀리초)
+
+# FastAPI 연동 설정
+fastapi:
+  url: ${FASTAPI_URL:http://localhost:8000}
+  connect-timeout: 10000  # 10초
+  read-timeout: 300000    # 5분 (학습/생성은 시간이 오래 걸림)
+
+# 파일 저장 경로 (로컬 - 개발용, 나중에 S3로 전환)
+file:
+  upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+  static-url: ${FILE_STATIC_URL:http://localhost:8080/static}
+
+# 페이징 기본 설정
+pagination:
+  default-page-size: 20
+  max-page-size: 100
+
+# CORS 설정 (멀티 인스턴스 고려)
+cors:
+  allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:5173}
+  allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+  allowed-headers: "*"
+  allow-credentials: true
+  max-age: 3600
+
+# Swagger 설정
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+    doc-expansion: none
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+
+# 서버 설정
+server:
+  port: 8080
+  compression:
+    enabled: true
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# 로깅 설정
+logging:
+  level:
+    root: INFO
+    rheon.wsd_lora_community: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# 멀티 인스턴스 환경 고려사항
+# - 세션 사용 안 함 (JWT 기반 Stateless)
+# - 파일 저장은 S3 사용 (프로덕션)
+# - 좋아요/조회수는 DB에 직접 저장
+# - SSE 연결은 각 인스턴스별 관리
