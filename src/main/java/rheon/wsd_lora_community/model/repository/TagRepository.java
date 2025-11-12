@@ -23,4 +23,7 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
 
     // 인기 태그 (사용 횟수 순)
     List<Tag> findTop20ByOrderByUsageCountDesc();
+
+    // 태그 이름 리스트로 검색 (LoraModelService에서 사용)
+    List<Tag> findByNameIn(List<String> names);
 }

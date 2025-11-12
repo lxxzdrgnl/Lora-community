@@ -51,4 +51,11 @@ public interface LoraModelRepository extends JpaRepository<LoraModel, Long> {
     Page<LoraModel> searchByTitleOrDescription(@Param("query") String query, Pageable pageable);
 
     Page<LoraModel> findByIsPublicAndStatusOrderByLikeCountDesc(Boolean isPublic, LoraModel.ModelStatus status, Pageable pageable);
+
+    // 추가 메서드 (LoraModelService에서 사용)
+    @Query("SELECT m FROM LoraModel m WHERE m.isPublic = :isPublic AND m.status = :status AND m.deletedAt IS NULL ORDER BY m.createdAt DESC")
+    Page<LoraModel> findByIsPublicTrueAndStatusOrderByCreatedAtDesc(@Param("isPublic") Boolean isPublic, @Param("status") LoraModel.ModelStatus status, Pageable pageable);
+
+    @Query("SELECT m FROM LoraModel m WHERE m.isPublic = :isPublic AND m.status = :status AND m.deletedAt IS NULL ORDER BY m.likeCount DESC")
+    Page<LoraModel> findByIsPublicTrueAndStatusOrderByLikeCountDesc(@Param("isPublic") Boolean isPublic, @Param("status") LoraModel.ModelStatus status, Pageable pageable);
 }

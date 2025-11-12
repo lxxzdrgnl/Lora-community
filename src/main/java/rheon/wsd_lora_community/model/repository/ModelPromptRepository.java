@@ -11,4 +11,7 @@ import java.util.List;
 public interface ModelPromptRepository extends JpaRepository<ModelPrompt, Long> {
 
     List<ModelPrompt> findByModelOrderByDisplayOrderAsc(LoraModel model);
+
+    // modelId로 검색 (LoraModelService에서 사용)
+    List<ModelPrompt> findByModelIdOrderByDisplayOrder(Long modelId);
 }

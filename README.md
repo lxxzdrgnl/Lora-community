@@ -21,7 +21,7 @@ Vue.js (Frontend) ↔ Spring Boot 3 (Backend) ↔ FastAPI (AI Service)
 
 ---
 
-## 🚀 현재 상태 (2025-01-13)
+## 🚀 현재 상태
 
 ### ✅ 완료된 작업
 - ✅ **Package-by-Feature 구조 완성** (도메인별 분리)
@@ -29,14 +29,18 @@ Vue.js (Frontend) ↔ Spring Boot 3 (Backend) ↔ FastAPI (AI Service)
 - ✅ **Repository 13개 작성** (JPA + 커스텀 쿼리)
 - ✅ **Security 구현** (JWT + OAuth2 Google)
 - ✅ **DTO 20개 작성** (Request/Response)
-- ✅ **Service 3개 작성** (UserService, AuthService, LoraModelService)
+- ✅ **Service 11개 작성** (모든 도메인 Service 완료)
+  - UserService, AuthService, LoraModelService
+  - SampleService, PromptService, TagService
+  - CommentService, LikeService, FavoriteService
+  - TrainingService, GenerationService
 - ✅ **전역 예외 처리** (40+ ErrorCode)
 - ✅ **Swagger UI** (API 문서 자동 생성)
+- ✅ **Phase 2 완료** - 빌드 성공 ✅
 
-### 🚧 진행 중
-- 🚧 Service 레이어 (8개 추가 필요)
-- 🚧 Controller 레이어 (8개 필요)
-- 🚧 FastAPI 클라이언트
+### 🚧 다음 작업
+- 🚧 **Phase 3: Controller 레이어** (8개 필요)
+- 🚧 **Phase 4: FastAPI 클라이언트**
 
 ---
 
@@ -79,25 +83,25 @@ src/main/java/rheon/wsd_lora_community/
 ├── model/                       # LoRA 모델 도메인 ✅
 │   ├── entity/                 # LoraModel, ModelSample, Tag 등
 │   ├── repository/
-│   ├── service/                # ✅ LoraModelService
+│   ├── service/                # ✅ LoraModelService, SampleService, PromptService, TagService
 │   ├── controller/             # 🚧 예정
 │   └── dto/
 ├── community/                   # 커뮤니티 도메인 ✅
 │   ├── entity/                 # Comment, Like, Favorite
 │   ├── repository/
-│   ├── service/                # 🚧 예정
+│   ├── service/                # ✅ CommentService, LikeService, FavoriteService
 │   ├── controller/             # 🚧 예정
 │   └── dto/
 ├── training/                    # 학습 도메인 ✅
 │   ├── entity/                 # TrainingJob
 │   ├── repository/
-│   ├── service/                # 🚧 예정
+│   ├── service/                # ✅ TrainingService
 │   ├── controller/             # 🚧 예정
 │   └── dto/
 └── generation/                  # 생성 도메인 ✅
     ├── entity/                 # GenerationHistory
     ├── repository/
-    ├── service/                # 🚧 예정
+    ├── service/                # ✅ GenerationService
     ├── controller/             # 🚧 예정
     └── dto/
 ```
@@ -227,19 +231,23 @@ GET /
 
 ## 🚧 다음 작업
 
-### Phase 1: Repository 메서드 추가
-- ModelPromptRepository, ModelTagRepository 등
+### ~~Phase 1: Repository 메서드 추가~~ ✅
+- ~~ModelPromptRepository, ModelTagRepository 등~~
 
-### Phase 2: Service 레이어 (8개)
-- SampleService, PromptService, TagService
-- CommentService, LikeService, FavoriteService
-- TrainingService, GenerationService
+### ~~Phase 2: Service 레이어 (8개)~~ ✅ 완료 (2025-01-13)
+- ~~SampleService, PromptService, TagService~~
+- ~~CommentService, LikeService, FavoriteService~~
+- ~~TrainingService, GenerationService~~
 
-### Phase 3: Controller 레이어 (8개)
-- AuthController, UserController
-- LoraModelController, TagController
-- CommentController, SearchController
-- TrainingController, GenerationController
+### Phase 3: Controller 레이어 (8개) 🚧 다음 작업
+1. `user/controller/AuthController.java` - `/api/auth` (로그인, 로그아웃, 토큰 갱신)
+2. `user/controller/UserController.java` - `/api/users` (프로필 조회/수정)
+3. `model/controller/LoraModelController.java` - `/api/models` (모델 CRUD, 검색)
+4. `model/controller/TagController.java` - `/api/tags` (태그 관리)
+5. `community/controller/CommentController.java` - `/api/models/{id}/comments` (댓글)
+6. `training/controller/TrainingController.java` - `/api/training` (학습 작업)
+7. `generation/controller/GenerationController.java` - `/api/generate` (이미지 생성)
+8. `global/controller/SearchController.java` - `/api/search` (통합 검색)
 
 ### Phase 4: FastAPI 연동
 - FastApiClient (RestTemplate/WebClient)
@@ -300,3 +308,4 @@ MIT License
 **Last Updated**: 2025-01-13
 **Version**: 1.0.0-SNAPSHOT
 **Status**: In Development
+**Progress**: Phase 2 완료 (Service 레이어) → Phase 3 진행 예정 (Controller 레이어)

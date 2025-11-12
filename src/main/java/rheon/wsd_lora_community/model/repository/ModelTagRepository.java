@@ -19,4 +19,7 @@ public interface ModelTagRepository extends JpaRepository<ModelTag, Long> {
     boolean existsByModelAndTag(LoraModel model, Tag tag);
 
     void deleteByModel(LoraModel model);
+
+    // modelId로 검색 (LoraModelService에서 사용)
+    List<ModelTag> findByModelId(Long modelId);
 }

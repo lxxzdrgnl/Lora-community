@@ -186,4 +186,12 @@ public class LoraModel extends BaseEntity {
     public boolean isOwner(User user) {
         return this.user.getId().equals(user.getId());
     }
+
+    public void updateStatus(ModelStatus status) {
+        this.status = status;
+    }
+
+    public void updateModelFileUrl(String modelPath) {
+        this.modelPath = modelPath;
+    }
 }

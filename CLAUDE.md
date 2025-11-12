@@ -1,12 +1,11 @@
 # LoRA 모델 공유 플랫폼 개발 가이드
 
 > **프로젝트명**: WSD_Lora_community
-> **마지막 업데이트**: 2025-01-13
-> **현재 진행률**: Package-by-Feature 구조 재구성 완료 ✅
+> **현재 진행률**: Phase 2 완료 - 모든 Service 작성 완료 ✅
 
 ---
 
-## ⚡ 현재 상태 (2025-01-13)
+## ⚡ 현재 상태
 
 ### ✅ 완료된 작업
 
@@ -58,35 +57,48 @@ src/main/java/rheon/wsd_lora_community/
 - **Security**: 4개 (완료)
 - **Exception**: 3개 (완료, ErrorCode 2개 추가됨)
 - **DTO**: 20개 (Request 8개, Response 9개, Common 3개)
-- **Service**: 3개 완료
+- **Service**: 11개 완료
   - ✅ `user/service/UserService.java` - 프로필 CRUD, 검색
   - ✅ `user/service/AuthService.java` - 토큰 갱신, 로그아웃
   - ✅ `model/service/LoraModelService.java` - 모델 CRUD, 검색, 필터링
+  - ✅ `model/service/SampleService.java` - 샘플 이미지 관리
+  - ✅ `model/service/PromptService.java` - 프롬프트 CRUD
+  - ✅ `model/service/TagService.java` - 태그 관리
+  - ✅ `community/service/CommentService.java` - 댓글 CRUD
+  - ✅ `community/service/LikeService.java` - 좋아요 토글
+  - ✅ `community/service/FavoriteService.java` - 즐겨찾기 토글
+  - ✅ `training/service/TrainingService.java` - 학습 작업 관리
+  - ✅ `generation/service/GenerationService.java` - 이미지 생성 관리
 
-#### 3. 빌드 상태
-- **Status**: 컴파일 오류 있음 (Repository 메서드 추가 필요)
-- **에러**: Repository에 일부 메서드 미구현
+#### 3. Phase 1: Repository 메서드 추가 완료 ✅
+- **추가된 메서드**:
+  - `LoraModelRepository`: findByIsPublicTrueAndStatusOrderByCreatedAtDesc, findByIsPublicTrueAndStatusOrderByLikeCountDesc
+  - `ModelPromptRepository`: findByModelIdOrderByDisplayOrder
+  - `ModelTagRepository`: findByModelId
+  - `TagRepository`: findByNameIn
+  - `ModelLikeRepository`: existsByModelIdAndUserId
+  - `ModelFavoriteRepository`: existsByModelIdAndUserId
+
+#### 4. Phase 2: Service 작성 완료 ✅
+- **Status**: 빌드 성공 ✅
+- **작성된 Service**:
+  - `SampleService` - 샘플 이미지 CRUD, 대표 이미지 설정, 표시 순서 관리
+  - `PromptService` - 프롬프트 예시 CRUD, 표시 순서 관리
+  - `TagService` - 태그 생성/조회, 모델-태그 연결, 인기 태그, 카테고리별 조회
+  - `CommentService` - 댓글/대댓글 CRUD, 좋아요 토글, 페이징 조회
+  - `LikeService` - 모델 좋아요 토글, 좋아요 여부 확인
+  - `FavoriteService` - 모델 즐겨찾기 토글, 즐겨찾기 목록 조회
+  - `TrainingService` - 학습 작업 생성/시작/진행률 업데이트/완료/실패 처리
+  - `GenerationService` - 이미지 생성 기록 저장/조회, 샘플 등록/해제
+- **추가된 ErrorCode**:
+  - RESOURCE_NOT_FOUND (COMMON_007)
+  - DUPLICATE_RESOURCE (COMMON_008)
+- **추가된 Entity 메서드**:
+  - `LoraModel`: updateStatus(), updateModelFileUrl()
 
 ---
 
 ## 🚧 다음 작업 (우선순위 순)
-
-### Phase 1: Repository 메서드 추가 (1시간)
-다음 Repository에 메서드 추가 필요:
-- `ModelPromptRepository.findByModelIdOrderByDisplayOrder()`
-- `ModelTagRepository.findByModelId()`
-- `TagRepository.findByNameIn()`
-- 기타 Service에서 호출하는 메서드들
-
-### Phase 2: 나머지 Service 작성 (2-3시간)
-1. `model/service/SampleService.java` - 샘플 이미지 관리
-2. `model/service/PromptService.java` - 프롬프트 CRUD
-3. `model/service/TagService.java` - 태그 관리
-4. `community/service/CommentService.java` - 댓글 CRUD
-5. `community/service/LikeService.java` - 좋아요 토글
-6. `community/service/FavoriteService.java` - 즐겨찾기 토글
-7. `training/service/TrainingService.java` - 학습 작업 관리
-8. `generation/service/GenerationService.java` - 이미지 생성 관리
 
 ### Phase 3: Controller 작성 (3-4시간)
 1. `user/controller/AuthController.java` - `/api/auth`
@@ -206,6 +218,5 @@ cd /home/rheon/Desktop/Semester/3-2/WSD/WSD_Lora_community
 
 ---
 
-**Last Updated**: 2025-01-13
 **Author**: Claude Code Assistant
 **Project**: WSD_Lora_community

@@ -20,4 +20,7 @@ public interface ModelFavoriteRepository extends JpaRepository<ModelFavorite, Lo
     void deleteByModelAndUser(LoraModel model, User user);
 
     Page<ModelFavorite> findByUser(User user, Pageable pageable);
+
+    // modelId와 userId로 존재 여부 확인 (LoraModelService에서 사용)
+    boolean existsByModelIdAndUserId(Long modelId, Long userId);
 }
