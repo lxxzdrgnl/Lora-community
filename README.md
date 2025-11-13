@@ -1,46 +1,43 @@
-# LoRA 모델 공유 플랫폼 - Backend
+# LoRA 모델 공유 플랫폼
 
-> 만화/웹툰 캐릭터 LoRA 모델 학습, 생성, 공유를 위한 커뮤니티 플랫폼 백엔드 API
+> 만화/웹툰 캐릭터 LoRA 모델 학습, 생성, 공유를 위한 커뮤니티 플랫폼
 
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.7-brightgreen.svg)](https://spring.io/projects/spring-boot)
-[![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://www.oracle.com/java/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-
----
-
-## 📌 프로젝트 개요
-
-만화/웹툰 캐릭터 LoRA 모델을 학습하고 공유하며, AI 이미지를 생성할 수 있는 커뮤니티 플랫폼의 백엔드 서버입니다.
-
-### 시스템 구성
-```
-Vue.js (Frontend) ↔ Spring Boot 3 (Backend) ↔ FastAPI (AI Service)
-                              ↕
-                    H2 / MySQL (Database)
-```
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.7-6DB33F?style=flat-square&logo=springboot&logoColor=white)
+![Java](https://img.shields.io/badge/Java-17-007396?style=flat-square&logo=openjdk&logoColor=white)
+![Gradle](https://img.shields.io/badge/Gradle-8.14-02303A?style=flat-square&logo=gradle&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=flat-square&logo=mysql&logoColor=white)
+![Spring Security](https://img.shields.io/badge/Spring%20Security-OAuth2%20%2B%20JWT-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
+![Swagger](https://img.shields.io/badge/Swagger-API%20Docs-85EA2D?style=flat-square&logo=swagger&logoColor=black)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Active-success?style=flat-square)
 
 ---
 
-## 🚀 현재 상태
+## 📌 소개
 
-### ✅ 완료된 작업
-- ✅ **Package-by-Feature 구조 완성** (도메인별 분리)
-- ✅ **Entity 14개 작성** (User, LoraModel, Comment 등)
-- ✅ **Repository 13개 작성** (JPA + 커스텀 쿼리)
-- ✅ **Security 구현** (JWT + OAuth2 Google)
-- ✅ **DTO 20개 작성** (Request/Response)
-- ✅ **Service 11개 작성** (모든 도메인 Service 완료)
-  - UserService, AuthService, LoraModelService
-  - SampleService, PromptService, TagService
-  - CommentService, LikeService, FavoriteService
-  - TrainingService, GenerationService
-- ✅ **전역 예외 처리** (40+ ErrorCode)
-- ✅ **Swagger UI** (API 문서 자동 생성)
-- ✅ **Phase 2 완료** - 빌드 성공 ✅
+만화/웹툰 캐릭터에 특화된 LoRA 모델을 학습하고, AI 이미지를 생성하며, 커뮤니티와 공유할 수 있는 통합 플랫폼입니다.
 
-### 🚧 다음 작업
-- 🚧 **Phase 3: Controller 레이어** (8개 필요)
-- 🚧 **Phase 4: FastAPI 클라이언트**
+### 주요 기능
+
+- 🎨 **LoRA 모델 학습**: FastAPI 기반 분산 학습 시스템
+- 🖼️ **AI 이미지 생성**: 실시간 진행률 모니터링
+- 💬 **커뮤니티**: 댓글, 좋아요, 즐겨찾기, 인기 랭킹
+- 🔍 **스마트 검색**: 태그 필터링, 키워드 검색
+- 🔐 **간편 로그인**: Google OAuth2 인증
+
+### 시스템 아키텍처
+
+```
+┌─────────────┐      ┌──────────────────┐      ┌─────────────────┐
+│   Vue.js    │ ←──→ │  Spring Boot 3   │ ←──→ │    FastAPI      │
+│  (Frontend) │      │    (Backend)     │      │  (AI Service)   │
+└─────────────┘      └────────┬─────────┘      └─────────────────┘
+                              │
+                              ↓
+                     ┌─────────────────┐
+                     │ H2 / MySQL (DB) │
+                     └─────────────────┘
+```
 
 ---
 
@@ -50,21 +47,30 @@ Vue.js (Frontend) ↔ Spring Boot 3 (Backend) ↔ FastAPI (AI Service)
 - **Framework**: Spring Boot 3.5.7
 - **Language**: Java 17
 - **Build Tool**: Gradle 8.14.3
-- **Database**: H2 (dev) / MySQL (prod)
 - **ORM**: Spring Data JPA
 
 ### Security & Auth
 - **Authentication**: OAuth2 (Google) + JWT
 - **Authorization**: Spring Security
-- **Session**: Stateless (멀티 인스턴스 지원)
+- **Session Management**: Stateless (멀티 인스턴스 지원)
 
-### API & Docs
-- **API Docs**: SpringDoc OpenAPI 3 (Swagger)
-- **Realtime**: Server-Sent Events (SSE)
+### Database
+- **Development**: H2 (In-memory)
+- **Production**: MySQL 8.0+
+
+### API & Communication
+- **API Documentation**: SpringDoc OpenAPI 3 (Swagger UI)
+- **Real-time Communication**: Server-Sent Events (SSE)
+- **Async HTTP Client**: Spring WebFlux WebClient
+
+### AI Service Integration
+- **Framework**: FastAPI
+- **Communication**: Reactive Streams (Mono, Flux)
+- **Progress Tracking**: SSE Streaming
 
 ---
 
-## 📁 프로젝트 구조 (Package-by-Feature)
+## 📁 프로젝트 구조
 
 ```
 src/main/java/rheon/wsd_lora_community/
@@ -72,51 +78,57 @@ src/main/java/rheon/wsd_lora_community/
 ├── global/                      # 공통 기능
 │   ├── config/                 # Security, JPA, Swagger, CORS
 │   ├── security/               # JWT, OAuth2, Filter
+│   ├── client/                 # FastAPI HTTP Client
+│   ├── controller/             # 통합 검색 API
 │   ├── exception/              # 전역 예외 처리
 │   └── dto/                    # 공통 DTO
-├── user/                        # 유저 도메인 ✅
+├── user/                        # 유저 관리
 │   ├── entity/                 # User, RefreshToken
 │   ├── repository/
-│   ├── service/                # ✅ UserService, AuthService
-│   ├── controller/             # 🚧 예정
+│   ├── service/                # 인증, 프로필 관리
+│   ├── controller/
 │   └── dto/
-├── model/                       # LoRA 모델 도메인 ✅
-│   ├── entity/                 # LoraModel, ModelSample, Tag 등
+├── model/                       # LoRA 모델
+│   ├── entity/                 # LoraModel, ModelSample, Tag
 │   ├── repository/
-│   ├── service/                # ✅ LoraModelService, SampleService, PromptService, TagService
-│   ├── controller/             # 🚧 예정
+│   ├── service/                # 모델, 샘플, 프롬프트, 태그 관리
+│   ├── controller/
 │   └── dto/
-├── community/                   # 커뮤니티 도메인 ✅
+├── community/                   # 커뮤니티
 │   ├── entity/                 # Comment, Like, Favorite
 │   ├── repository/
-│   ├── service/                # ✅ CommentService, LikeService, FavoriteService
-│   ├── controller/             # 🚧 예정
+│   ├── service/                # 댓글, 좋아요, 즐겨찾기
+│   ├── controller/
 │   └── dto/
-├── training/                    # 학습 도메인 ✅
+├── training/                    # 학습 관리
 │   ├── entity/                 # TrainingJob
 │   ├── repository/
-│   ├── service/                # ✅ TrainingService
-│   ├── controller/             # 🚧 예정
+│   ├── service/                # 학습 작업 관리
+│   ├── controller/             # FastAPI 연동
 │   └── dto/
-└── generation/                  # 생성 도메인 ✅
+└── generation/                  # 이미지 생성
     ├── entity/                 # GenerationHistory
     ├── repository/
-    ├── service/                # ✅ GenerationService
-    ├── controller/             # 🚧 예정
+    ├── service/                # 생성 기록 관리
+    ├── controller/             # FastAPI 연동
     └── dto/
 ```
 
 ---
 
-## 🚀 실행 방법
+## 🚀 시작하기
 
-### 1. 요구사항
-- Java 17+
-- Gradle 8.14+
+### 요구사항
 
-### 2. 빌드 및 실행
+- Java 17 이상
+- Gradle 8.14 이상
+
+### 빌드 및 실행
+
 ```bash
-cd /home/rheon/Desktop/Semester/3-2/WSD/WSD_Lora_community
+# 프로젝트 클론
+git clone <repository-url>
+cd WSD_Lora_community
 
 # 빌드
 ./gradlew clean build -x test
@@ -125,7 +137,8 @@ cd /home/rheon/Desktop/Semester/3-2/WSD/WSD_Lora_community
 ./gradlew bootRun
 ```
 
-### 3. 접속
+### 접속
+
 - **API 서버**: http://localhost:8080
 - **Swagger UI**: http://localhost:8080/swagger-ui.html
 - **H2 Console**: http://localhost:8080/h2-console
@@ -135,14 +148,15 @@ cd /home/rheon/Desktop/Semester/3-2/WSD/WSD_Lora_community
 
 ---
 
-## 📡 API 구조
+## 📡 API 문서
 
 ### 헬스 체크
+
 ```bash
 GET /
 ```
 
-**Response:**
+**응답 예시:**
 ```json
 {
   "success": true,
@@ -154,20 +168,71 @@ GET /
 }
 ```
 
-### API 엔드포인트 (예정)
-- `/api/auth/**` - 인증 (OAuth2, JWT)
-- `/api/users/**` - 유저 관리
-- `/api/models/**` - LoRA 모델 CRUD
-- `/api/training/**` - 학습 작업 (SSE)
-- `/api/generate/**` - 이미지 생성 (SSE)
-- `/api/tags/**` - 태그 관리
-- `/api/search/**` - 검색
+### 주요 엔드포인트
+
+#### 인증
+- `GET /oauth2/authorization/google` - Google OAuth2 로그인
+- `POST /api/auth/refresh` - 액세스 토큰 갱신
+- `POST /api/auth/logout` - 로그아웃
+- `GET /api/auth/me` - 현재 유저 정보 조회
+
+#### 유저
+- `GET /api/users/me` - 내 프로필 조회
+- `PUT /api/users/me` - 내 프로필 수정
+- `GET /api/users/{userId}` - 유저 프로필 조회
+- `GET /api/users/search` - 유저 검색
+
+#### LoRA 모델
+- `POST /api/models` - 모델 생성
+- `GET /api/models` - 공개 모델 목록 조회
+- `GET /api/models/{modelId}` - 모델 상세 조회
+- `PUT /api/models/{modelId}` - 모델 수정
+- `DELETE /api/models/{modelId}` - 모델 삭제
+- `GET /api/models/search` - 모델 검색
+- `POST /api/models/{modelId}/samples` - 샘플 이미지 추가
+- `POST /api/models/{modelId}/prompts` - 프롬프트 추가
+
+#### 커뮤니티
+- `POST /api/models/{modelId}/comments` - 댓글 작성
+- `GET /api/models/{modelId}/comments` - 댓글 목록 조회
+- `POST /api/models/{modelId}/like` - 모델 좋아요 토글
+- `POST /api/models/{modelId}/favorite` - 즐겨찾기 토글
+- `POST /api/models/{modelId}/comments/{commentId}/like` - 댓글 좋아요 토글
+
+#### 태그
+- `GET /api/tags` - 전체 태그 조회
+- `GET /api/tags/popular` - 인기 태그 조회
+- `GET /api/tags/category/{category}` - 카테고리별 태그 조회
+- `POST /api/tags/models/{modelId}` - 모델에 태그 추가
+
+#### 학습
+- `POST /api/training/models/{modelId}` - 학습 작업 생성
+- `POST /api/training/jobs/{jobId}/start` - 학습 시작
+- `GET /api/training/jobs/{jobId}` - 학습 작업 조회
+- `GET /api/training/my` - 내 학습 작업 목록
+- `GET /api/training/stream` - 실시간 진행률 스트리밍 (SSE)
+- `GET /api/training/fastapi/status` - FastAPI 학습 상태 조회
+
+#### 이미지 생성
+- `POST /api/generate` - 이미지 생성 요청
+- `GET /api/generate/history` - 생성 기록 조회
+- `POST /api/generate/history/{historyId}/sample` - 샘플로 등록
+- `GET /api/generate/stream` - 실시간 진행률 스트리밍 (SSE)
+- `GET /api/generate/fastapi/status` - FastAPI 생성 상태 조회
+
+#### 검색
+- `GET /api/search` - 통합 검색 (모델 + 유저)
+- `GET /api/search/models` - 모델 검색
+- `GET /api/search/models/tags` - 태그로 모델 필터링
+- `GET /api/search/models/popular` - 인기 모델 조회
+- `GET /api/search/users` - 유저 검색
 
 ---
 
 ## 🔒 인증 방식
 
 ### JWT 기반 Stateless 인증
+
 1. **Google OAuth2 로그인**
    ```
    GET /oauth2/authorization/google
@@ -182,109 +247,218 @@ GET /
    Authorization: Bearer {accessToken}
    ```
 
-### Stateless 설계
-- JWT 기반 인증 (서버 메모리 세션 없음)
+4. **토큰 갱신**
+   ```
+   POST /api/auth/refresh
+   Content-Type: application/json
+
+   {
+     "refreshToken": "{refreshToken}"
+   }
+   ```
+
+### Stateless 설계의 장점
+
+- JWT 기반 인증으로 서버 메모리 세션 불필요
 - Refresh Token만 DB 저장
-- 멀티 인스턴스 환경 지원
+- 멀티 인스턴스 환경에서 수평 확장 가능
+- 로드밸런서 없이도 인스턴스 간 세션 공유
 
 ---
 
-## 🎯 주요 기능
+## 📊 데이터베이스 스키마
 
-### 1. 유저 관리
-- OAuth2 Google 로그인
-- 프로필 관리 (닉네임, 프로필 이미지)
+### 주요 테이블
 
-### 2. LoRA 모델 관리
-- 모델 CRUD (생성, 조회, 수정, 삭제)
-- 검색 (제목, 설명, 태그)
-- 공개/비공개 설정
-- 좋아요/즐겨찾기
+| 테이블 | 설명 |
+|--------|------|
+| `users` | 유저 정보 (OAuth2 연동) |
+| `lora_models` | LoRA 모델 메타데이터 |
+| `model_samples` | 샘플 이미지 |
+| `model_prompts` | 프롬프트 예시 |
+| `tags` | 태그 (스타일, 캐릭터, 장르) |
+| `model_tags` | 모델-태그 매핑 |
+| `training_jobs` | 학습 작업 (진행률 추적) |
+| `generation_history` | 이미지 생성 기록 |
+| `comments` | 댓글 및 대댓글 |
+| `comment_likes` | 댓글 좋아요 |
+| `model_likes` | 모델 좋아요 |
+| `model_favorites` | 모델 즐겨찾기 |
+| `refresh_tokens` | 리프레시 토큰 |
 
-### 3. 커뮤니티
-- 댓글 및 대댓글
-- 좋아요 시스템
+---
+
+## 🎯 핵심 기능 상세
+
+### 1. LoRA 모델 학습
+
+- FastAPI 서버로 학습 요청 전송 (비동기)
+- 실시간 진행률 모니터링 (SSE)
+- 학습 완료 시 자동으로 모델 상태 업데이트
+- 학습 이력 및 로그 관리
+
+### 2. AI 이미지 생성
+
+- 프롬프트 기반 이미지 생성
+- 생성 파라미터 커스터마이징 (steps, guidance_scale, seed 등)
+- 실시간 진행률 추적
+- 생성 이미지 자동 저장 및 샘플 등록
+
+### 3. 커뮤니티 기능
+
+- 모델 좋아요/즐겨찾기
+- 댓글 및 대댓글 (무한 depth)
 - 인기 모델 랭킹
+- 유저 팔로우 시스템 (예정)
 
-### 4. AI 학습 & 생성
-- FastAPI 연동 (예정)
-- 실시간 진행률 추적 (SSE)
-- 학습 기록 관리
+### 4. 검색 및 필터링
 
----
-
-## 📊 데이터베이스
-
-### 주요 테이블 (14개)
-- `users` - 유저 정보
-- `lora_models` - LoRA 모델
-- `model_samples` - 샘플 이미지
-- `model_prompts` - 프롬프트 예시
-- `tags`, `model_tags` - 태그 시스템
-- `training_jobs` - 학습 작업
-- `generation_history` - 생성 기록
-- `comments`, `comment_likes` - 댓글/좋아요
-- `model_likes`, `model_favorites` - 모델 좋아요/즐겨찾기
-- `refresh_tokens` - 리프레시 토큰
+- 키워드 검색 (제목, 설명)
+- 다중 태그 필터링
+- 정렬 (최신순, 인기순)
+- 유저별 모델 조회
 
 ---
 
-## 🚧 다음 작업
+## 🌐 프로덕션 환경 설정
 
-### ~~Phase 1: Repository 메서드 추가~~ ✅
-- ~~ModelPromptRepository, ModelTagRepository 등~~
+### 환경 변수 설정
 
-### ~~Phase 2: Service 레이어 (8개)~~ ✅ 완료 (2025-01-13)
-- ~~SampleService, PromptService, TagService~~
-- ~~CommentService, LikeService, FavoriteService~~
-- ~~TrainingService, GenerationService~~
+```properties
+# Database (MySQL)
+spring.datasource.url=jdbc:mysql://localhost:3306/lora_platform
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
 
-### Phase 3: Controller 레이어 (8개) 🚧 다음 작업
-1. `user/controller/AuthController.java` - `/api/auth` (로그인, 로그아웃, 토큰 갱신)
-2. `user/controller/UserController.java` - `/api/users` (프로필 조회/수정)
-3. `model/controller/LoraModelController.java` - `/api/models` (모델 CRUD, 검색)
-4. `model/controller/TagController.java` - `/api/tags` (태그 관리)
-5. `community/controller/CommentController.java` - `/api/models/{id}/comments` (댓글)
-6. `training/controller/TrainingController.java` - `/api/training` (학습 작업)
-7. `generation/controller/GenerationController.java` - `/api/generate` (이미지 생성)
-8. `global/controller/SearchController.java` - `/api/search` (통합 검색)
+# JWT Secret
+jwt.secret=${JWT_SECRET}
 
-### Phase 4: FastAPI 연동
-- FastApiClient (RestTemplate/WebClient)
-- SSE 스트리밍 처리
+# OAuth2 Google
+spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID}
+spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET}
+
+# FastAPI Server URL
+fastapi.base-url=${FASTAPI_BASE_URL}
+
+# File Storage (S3)
+cloud.aws.credentials.access-key=${AWS_ACCESS_KEY}
+cloud.aws.credentials.secret-key=${AWS_SECRET_KEY}
+cloud.aws.s3.bucket=${S3_BUCKET_NAME}
+```
+
+### Docker Compose 예시
+
+```yaml
+version: '3.8'
+services:
+  backend:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DB_HOST=mysql
+      - FASTAPI_BASE_URL=http://fastapi:8000
+    depends_on:
+      - mysql
+      - fastapi
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: lora_platform
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  fastapi:
+    image: your-fastapi-image
+    ports:
+      - "8000:8000"
+
+volumes:
+  mysql_data:
+```
 
 ---
 
 ## 📝 개발 가이드
 
-### Service 작성 시
+### Service 레이어 패턴
+
 ```java
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional(readOnly = true)  // 기본은 읽기 전용
 public class ExampleService {
 
-    @Transactional
-    public void writeMethod() {
-        // Write 메서드에만 @Transactional
-        throw new CustomException(ErrorCode.EXAMPLE_ERROR);
+    private final ExampleRepository repository;
+
+    @Transactional  // Write 메서드에만 명시
+    public ExampleResponse create(ExampleRequest request) {
+        // Entity 생성 및 저장
+        Example entity = Example.builder()
+            .name(request.getName())
+            .build();
+
+        Example saved = repository.save(entity);
+        return ExampleResponse.from(saved);
+    }
+
+    public ExampleResponse getById(Long id) {
+        Example entity = repository.findById(id)
+            .orElseThrow(() -> new CustomException(ErrorCode.EXAMPLE_NOT_FOUND));
+        return ExampleResponse.from(entity);
     }
 }
 ```
 
-### Controller 작성 시
+### Controller 레이어 패턴
+
 ```java
 @RestController
 @RequestMapping("/api/example")
 @RequiredArgsConstructor
-@Tag(name = "Example API")
+@Tag(name = "Example", description = "예시 API")
 public class ExampleController {
 
-    @GetMapping
-    @Operation(summary = "예시 조회")
-    public ApiResponse<ExampleResponse> get() {
-        return ApiResponse.success(data);
+    private final ExampleService exampleService;
+
+    @PostMapping
+    @Operation(summary = "생성", description = "새로운 리소스를 생성합니다.")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<ExampleResponse> create(
+            @Valid @RequestBody ExampleRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        ExampleResponse response = exampleService.create(request);
+        return ApiResponse.success(response);
     }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "조회", description = "ID로 리소스를 조회합니다.")
+    public ApiResponse<ExampleResponse> get(
+            @PathVariable Long id
+    ) {
+        ExampleResponse response = exampleService.getById(id);
+        return ApiResponse.success(response);
+    }
+}
+```
+
+### 예외 처리
+
+```java
+// CustomException 발생
+throw new CustomException(ErrorCode.RESOURCE_NOT_FOUND);
+
+// ErrorCode 정의
+public enum ErrorCode {
+    RESOURCE_NOT_FOUND("COMMON_001", "리소스를 찾을 수 없습니다.", HttpStatus.NOT_FOUND);
+
+    private final String code;
+    private final String message;
+    private final HttpStatus status;
 }
 ```
 
@@ -292,20 +466,6 @@ public class ExampleController {
 
 ## 🔗 참고 자료
 
+### 문서
 - **상세 개발 문서**: [CLAUDE.md](./CLAUDE.md)
-- **Spring Boot Docs**: https://docs.spring.io/spring-boot/
-- **Spring Security OAuth2**: https://spring.io/guides/tutorials/spring-boot-oauth2/
-- **SpringDoc OpenAPI**: https://springdoc.org/
-
----
-
-## 📄 라이센스
-
-MIT License
-
----
-
-**Last Updated**: 2025-01-13
-**Version**: 1.0.0-SNAPSHOT
-**Status**: In Development
-**Progress**: Phase 2 완료 (Service 레이어) → Phase 3 진행 예정 (Controller 레이어)
+- **API 문서**: http://localhost:8080/swagger-ui.html (실행 후 접속)

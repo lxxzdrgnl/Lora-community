@@ -1,7 +1,7 @@
 # LoRA 모델 공유 플랫폼 개발 가이드
 
 > **프로젝트명**: WSD_Lora_community
-> **현재 진행률**: Phase 2 완료 - 모든 Service 작성 완료 ✅
+> **현재 진행률**: Phase 5 완료 - FastAPI 통합 완료 ✅
 
 ---
 
@@ -17,45 +17,47 @@ src/main/java/rheon/wsd_lora_community/
 │   ├── config/               # 설정 (Security, JPA, Swagger, Web, CORS)
 │   ├── security/             # JWT, OAuth2, Filter
 │   ├── exception/            # 전역 예외 처리
+│   ├── client/              # ✅ FastApiClient (HTTP 클라이언트, SSE 스트림)
+│   ├── controller/          # ✅ SearchController
 │   └── dto/                  # 공통 DTO (ApiResponse, PageResponse, ErrorResponse, BaseEntity)
 ├── user/                     # 유저 도메인
 │   ├── entity/              # User, RefreshToken
 │   ├── repository/          # UserRepository, RefreshTokenRepository
 │   ├── service/             # ✅ UserService, AuthService
-│   ├── controller/          # ❌ (미작성)
+│   ├── controller/          # ✅ AuthController, UserController
 │   └── dto/                 # ✅ UserResponse, UserUpdateRequest
 ├── model/                    # LoRA 모델 도메인
 │   ├── entity/              # LoraModel, ModelSample, ModelPrompt, Tag, ModelTag
-│   ├── repository/          # 5개 Repository (일부 메서드 추가 필요)
-│   ├── service/             # ✅ LoraModelService (작성 완료)
-│   ├── controller/          # ❌ (미작성)
+│   ├── repository/          # 5개 Repository
+│   ├── service/             # ✅ LoraModelService, SampleService, PromptService, TagService
+│   ├── controller/          # ✅ LoraModelController, TagController
 │   └── dto/                 # ✅ 10개 DTO (Request 5개, Response 5개)
 ├── community/                # 커뮤니티 도메인
 │   ├── entity/              # Comment, CommentLike, ModelLike, ModelFavorite
 │   ├── repository/          # 4개 Repository
-│   ├── service/             # ❌ (미작성)
-│   ├── controller/          # ❌ (미작성)
+│   ├── service/             # ✅ CommentService, LikeService, FavoriteService
+│   ├── controller/          # ✅ CommentController
 │   └── dto/                 # ✅ CommentCreateRequest, CommentResponse
 ├── training/                 # 학습 도메인
 │   ├── entity/              # TrainingJob
 │   ├── repository/          # TrainingJobRepository
-│   ├── service/             # ❌ (미작성)
-│   ├── controller/          # ❌ (미작성)
+│   ├── service/             # ✅ TrainingService
+│   ├── controller/          # ✅ TrainingController
 │   └── dto/                 # ✅ TrainingJobResponse
 └── generation/               # 생성 도메인
     ├── entity/              # GenerationHistory
     ├── repository/          # GenerationHistoryRepository
-    ├── service/             # ❌ (미작성)
-    ├── controller/          # ❌ (미작성)
+    ├── service/             # ✅ GenerationService
+    ├── controller/          # ✅ GenerationController
     └── dto/                 # ✅ GenerateImageRequest, GenerationHistoryResponse
 ```
 
 #### 2. 작성 완료된 파일
 - **Entity**: 14개 (모두 완료)
-- **Repository**: 13개 (기본 완료, 일부 메서드 추가 필요)
+- **Repository**: 13개 (모두 완료)
 - **Config**: 5개 (완료)
 - **Security**: 4개 (완료)
-- **Exception**: 3개 (완료, ErrorCode 2개 추가됨)
+- **Exception**: 3개 (완료)
 - **DTO**: 20개 (Request 8개, Response 9개, Common 3개)
 - **Service**: 11개 완료
   - ✅ `user/service/UserService.java` - 프로필 CRUD, 검색
@@ -69,6 +71,15 @@ src/main/java/rheon/wsd_lora_community/
   - ✅ `community/service/FavoriteService.java` - 즐겨찾기 토글
   - ✅ `training/service/TrainingService.java` - 학습 작업 관리
   - ✅ `generation/service/GenerationService.java` - 이미지 생성 관리
+- **Controller**: 8개 완료
+  - ✅ `user/controller/AuthController.java` - `/api/auth` (토큰 갱신, 로그아웃)
+  - ✅ `user/controller/UserController.java` - `/api/users` (프로필 관리)
+  - ✅ `model/controller/LoraModelController.java` - `/api/models` (모델 CRUD, 샘플, 프롬프트)
+  - ✅ `model/controller/TagController.java` - `/api/tags` (태그 관리)
+  - ✅ `community/controller/CommentController.java` - `/api/models/{id}/comments` (댓글, 좋아요, 즐겨찾기)
+  - ✅ `training/controller/TrainingController.java` - `/api/training` (학습 작업)
+  - ✅ `generation/controller/GenerationController.java` - `/api/generate` (이미지 생성)
+  - ✅ `global/controller/SearchController.java` - `/api/search` (통합 검색)
 
 #### 3. Phase 1: Repository 메서드 추가 완료 ✅
 - **추가된 메서드**:
@@ -96,23 +107,58 @@ src/main/java/rheon/wsd_lora_community/
 - **추가된 Entity 메서드**:
   - `LoraModel`: updateStatus(), updateModelFileUrl()
 
+#### 5. Phase 3: Controller 작성 완료 ✅
+- **Status**: 빌드 성공 ✅
+- **작성된 Controller**:
+  - `AuthController` - 토큰 갱신, 로그아웃, 현재 유저 정보 조회
+  - `UserController` - 프로필 조회/수정, 유저 검색
+  - `LoraModelController` - 모델 CRUD, 검색, 태그 필터링, 샘플/프롬프트 관리
+  - `TagController` - 태그 조회, 인기 태그, 카테고리별 조회, 모델-태그 연결
+  - `CommentController` - 댓글 CRUD, 댓글 좋아요, 모델 좋아요/즐겨찾기
+  - `TrainingController` - 학습 작업 생성/시작/진행률 업데이트/완료/실패 처리
+  - `GenerationController` - 이미지 생성 요청, 생성 기록 조회/관리
+  - `SearchController` - 통합 검색, 모델/유저 검색, 태그 필터링
+
+#### 6. Phase 4: FastAPI 클라이언트 작성 완료 ✅
+- **Status**: 빌드 성공 ✅
+- **작성된 파일**:
+  - `global/client/FastApiClient.java` - FastAPI 서버 통신 클라이언트
+- **주요 기능**:
+  - **학습 API**: startTraining(), getTrainingStatus(), streamTrainingStatus() (SSE)
+  - **이미지 생성 API**: startImageGeneration(), getGenerationStatus(), streamGenerationStatus() (SSE)
+  - **생성 이미지 조회**: getGeneratedImageUrls()
+  - **서버 상태 확인**: checkServerHealth()
+- **기술 스택**:
+  - Spring WebFlux WebClient (비동기 HTTP 클라이언트)
+  - Server-Sent Events (SSE) 스트리밍 지원
+  - Reactive Streams (Mono, Flux)
+
+#### 7. Phase 5: Controller와 FastAPI 연동 완료 ✅
+- **Status**: 빌드 성공 ✅
+- **연동 완료**:
+  - `TrainingController` - FastAPIClient로 학습 시작 요청 전송 (비동기)
+  - `GenerationController` - FastAPIClient로 이미지 생성 요청 전송 (비동기)
+  - `GenerationService` - validateGenerationRequest()가 모델 경로 반환하도록 수정
+- **추가된 엔드포인트**:
+  - `GET /api/training/stream` - 학습 진행률 SSE 스트리밍
+  - `GET /api/training/fastapi/status` - FastAPI 학습 상태 조회
+  - `GET /api/generate/stream` - 이미지 생성 진행률 SSE 스트리밍
+  - `GET /api/generate/fastapi/status` - FastAPI 생성 상태 조회
+  - `GET /api/generate/fastapi/images` - 생성된 이미지 URL 목록 조회
+- **주요 특징**:
+  - 비동기 처리: .subscribe()를 사용한 non-blocking 방식
+  - 에러 처리: FastAPI 요청 실패 시 TrainingService.failTraining() 자동 호출
+  - 실시간 모니터링: SSE를 통한 진행률 실시간 스트리밍
+
 ---
 
 ## 🚧 다음 작업 (우선순위 순)
 
-### Phase 3: Controller 작성 (3-4시간)
-1. `user/controller/AuthController.java` - `/api/auth`
-2. `user/controller/UserController.java` - `/api/users`
-3. `model/controller/LoraModelController.java` - `/api/models`
-4. `model/controller/TagController.java` - `/api/tags`
-5. `community/controller/CommentController.java` - `/api/models/{id}/comments`
-6. `training/controller/TrainingController.java` - `/api/training`
-7. `generation/controller/GenerationController.java` - `/api/generate`
-8. `global/controller/SearchController.java` - `/api/search`
-
-### Phase 4: FastAPI 클라이언트 (2-3시간)
-- `global/client/FastApiClient.java` - HTTP 클라이언트
-- SSE 스트리밍 구현
+### Phase 6: 테스트 및 문서화 (1-2시간)
+1. FastAPI 서버 실행 후 통합 테스트
+2. Swagger UI 문서 검증
+3. API 사용 예제 작성
+4. 프로덕션 배포 가이드 작성 (MySQL, S3, 환경변수 설정)
 
 ---
 

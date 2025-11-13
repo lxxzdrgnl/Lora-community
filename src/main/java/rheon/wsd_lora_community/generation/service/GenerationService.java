@@ -84,8 +84,9 @@ public class GenerationService {
      * 이미지 생성 요청 검증
      *
      * Controller에서 FastAPI 호출 전에 이 메서드로 검증합니다.
+     * @return LoRA 모델 파일 경로
      */
-    public void validateGenerationRequest(GenerateImageRequest request, Long userId) {
+    public String validateGenerationRequest(GenerateImageRequest request, Long userId) {
         // 모델 존재 여부 확인
         LoraModel model = loraModelRepository.findById(request.getModelId())
                 .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
@@ -98,6 +99,9 @@ public class GenerationService {
         // 사용자 존재 여부 확인
         userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 모델 파일 경로 반환 (없으면 기본 경로)
+        return model.getModelPath() != null ? model.getModelPath() : "my_lora_model";
     }
 
     /**

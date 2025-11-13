@@ -7,6 +7,8 @@ import rheon.wsd_lora_community.user.entity.User;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * LoRA 모델 엔티티
@@ -86,6 +88,11 @@ public class LoraModel extends BaseEntity {
 
     @Column
     private LocalDateTime deletedAt;
+
+    // 연관관계
+    @OneToMany(mappedBy = "model", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ModelTag> modelTags = new ArrayList<>();
 
     /**
      * 모델 상태
