@@ -14,8 +14,8 @@ import rheon.wsd_lora_community.user.entity.User;
                 @UniqueConstraint(name = "unique_comment_like", columnNames = {"comment_id", "user_id"})
         },
         indexes = {
-                @Index(name = "idx_comment", columnList = "comment_id"),
-                @Index(name = "idx_user", columnList = "user_id")
+                @Index(name = "idx_comment_like_comment", columnList = "comment_id"),
+                @Index(name = "idx_comment_like_user", columnList = "user_id")
         })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

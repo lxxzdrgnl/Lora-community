@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -152,7 +153,7 @@ public class GenerationController {
     public ResponseEntity<ApiResponse<PageResponse<GenerationHistoryResponse>>> getMyGenerationHistory(
             @Parameter(hidden = true)
             @AuthenticationPrincipal OAuth2User principal,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Long userId = Long.valueOf(principal.getAttribute("id").toString());
@@ -171,7 +172,7 @@ public class GenerationController {
     public ResponseEntity<ApiResponse<PageResponse<GenerationHistoryResponse>>> getModelGenerationHistory(
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         PageResponse<GenerationHistoryResponse> history = generationService.getModelGenerationHistory(modelId, pageable);
@@ -192,7 +193,7 @@ public class GenerationController {
             @AuthenticationPrincipal OAuth2User principal,
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Long userId = Long.valueOf(principal.getAttribute("id").toString());

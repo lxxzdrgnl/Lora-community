@@ -13,9 +13,8 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "comments", indexes = {
-        @Index(name = "idx_model", columnList = "model_id"),
-        @Index(name = "idx_user", columnList = "user_id"),
-        @Index(name = "idx_parent", columnList = "parent_comment_id")
+        @Index(name = "idx_comment_model", columnList = "model_id"),
+        @Index(name = "idx_comment_user", columnList = "user_id")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -34,10 +33,6 @@ public class Comment extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_comment_id")
-    private Comment parentComment;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
@@ -74,9 +69,5 @@ public class Comment extends BaseEntity {
 
     public boolean isOwner(User user) {
         return this.user.getId().equals(user.getId());
-    }
-
-    public boolean isReply() {
-        return parentComment != null;
     }
 }

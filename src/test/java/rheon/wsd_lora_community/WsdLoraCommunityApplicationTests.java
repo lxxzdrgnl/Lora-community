@@ -8,6 +8,6 @@ class WsdLoraCommunityApplicationTests {
 
     @Test
     void contextLoads() {
+        // Spring Context가 정상적으로 로드되는지 확인
     }
-
 }

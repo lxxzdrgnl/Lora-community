@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -64,7 +65,7 @@ public class LoraModelController {
     @GetMapping
     @Operation(summary = "공개 모델 목록 조회", description = "공개된 모델 목록을 최신순으로 조회합니다.")
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> getPublicModels(
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<LoraModelResponse> models = loraModelService.getPublicModels(pageable);
@@ -80,7 +81,7 @@ public class LoraModelController {
     @GetMapping("/popular")
     @Operation(summary = "인기 모델 목록 조회", description = "좋아요가 많은 순서로 모델 목록을 조회합니다.")
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> getPopularModels(
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "likeCount", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<LoraModelResponse> models = loraModelService.getPopularModels(pageable);
@@ -161,7 +162,7 @@ public class LoraModelController {
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> getMyModels(
             @Parameter(hidden = true)
             @AuthenticationPrincipal OAuth2User principal,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Long userId = Long.valueOf(principal.getAttribute("id").toString());
@@ -180,7 +181,7 @@ public class LoraModelController {
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> getUserModels(
             @Parameter(description = "유저 ID", required = true)
             @PathVariable Long userId,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<LoraModelResponse> models = loraModelService.getModelsByUser(userId, pageable);
@@ -198,7 +199,7 @@ public class LoraModelController {
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> searchModels(
             @Parameter(description = "검색 키워드", required = true)
             @RequestParam String query,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<LoraModelResponse> models = loraModelService.searchModels(query, pageable);
@@ -216,7 +217,7 @@ public class LoraModelController {
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> filterModelsByTags(
             @Parameter(description = "태그 이름 목록 (쉼표로 구분)", required = true)
             @RequestParam List<String> tags,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<LoraModelResponse> models = loraModelService.searchModelsByTags(tags, pageable);

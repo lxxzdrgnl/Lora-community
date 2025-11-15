@@ -13,8 +13,8 @@ import rheon.wsd_lora_community.global.dto.BaseEntity;
                 @UniqueConstraint(name = "unique_model_tag", columnNames = {"model_id", "tag_id"})
         },
         indexes = {
-                @Index(name = "idx_model", columnList = "model_id"),
-                @Index(name = "idx_tag", columnList = "tag_id")
+                @Index(name = "idx_model_tag_model", columnList = "model_id"),
+                @Index(name = "idx_model_tag_tag", columnList = "tag_id")
         })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

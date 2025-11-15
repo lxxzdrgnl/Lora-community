@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -93,7 +94,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<Page<UserResponse>>> searchUsers(
             @Parameter(description = "검색할 닉네임", required = true)
             @RequestParam String nickname,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<UserResponse> users = userService.searchUsersByNickname(nickname, pageable);

@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -47,7 +48,7 @@ public class SearchController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> search(
             @Parameter(description = "검색 키워드", required = true)
             @RequestParam String query,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         // 모델 검색
@@ -76,7 +77,7 @@ public class SearchController {
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> searchModels(
             @Parameter(description = "검색 키워드", required = true)
             @RequestParam String query,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<LoraModelResponse> models = loraModelService.searchModels(query, pageable);
@@ -97,7 +98,7 @@ public class SearchController {
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> searchModelsByTags(
             @Parameter(description = "태그 이름 목록 (쉼표로 구분)", required = true)
             @RequestParam List<String> tags,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<LoraModelResponse> models = loraModelService.searchModelsByTags(tags, pageable);
@@ -118,7 +119,7 @@ public class SearchController {
     public ResponseEntity<ApiResponse<Page<UserResponse>>> searchUsers(
             @Parameter(description = "검색할 닉네임", required = true)
             @RequestParam String nickname,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<UserResponse> users = userService.searchUsersByNickname(nickname, pageable);
@@ -137,7 +138,7 @@ public class SearchController {
             description = "좋아요가 많은 순서로 모델을 조회합니다."
     )
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> getPopularModels(
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "likeCount", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<LoraModelResponse> models = loraModelService.getPopularModels(pageable);
@@ -156,7 +157,7 @@ public class SearchController {
             description = "최근에 등록된 모델을 조회합니다."
     )
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> getRecentModels(
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<LoraModelResponse> models = loraModelService.getPublicModels(pageable);
@@ -176,7 +177,7 @@ public class SearchController {
     )
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> advancedSearch(
             @RequestBody Map<String, Object> filters,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         // TODO: 고급 검색 로직 구현

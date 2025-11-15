@@ -13,9 +13,9 @@ import java.math.BigDecimal;
  */
 @Entity
 @Table(name = "generation_history", indexes = {
-        @Index(name = "idx_model", columnList = "model_id"),
-        @Index(name = "idx_user", columnList = "user_id"),
-        @Index(name = "idx_created", columnList = "created_at")
+        @Index(name = "idx_generation_model", columnList = "model_id"),
+        @Index(name = "idx_generation_user", columnList = "user_id"),
+        @Index(name = "idx_generation_created", columnList = "created_at")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

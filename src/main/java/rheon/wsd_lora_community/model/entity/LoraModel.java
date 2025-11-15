@@ -15,9 +15,9 @@ import java.util.List;
  */
 @Entity
 @Table(name = "lora_models", indexes = {
-        @Index(name = "idx_user", columnList = "user_id"),
-        @Index(name = "idx_public_status", columnList = "is_public, status"),
-        @Index(name = "idx_created", columnList = "created_at")
+        @Index(name = "idx_lora_model_user", columnList = "user_id"),
+        @Index(name = "idx_lora_model_public_status", columnList = "is_public, status"),
+        @Index(name = "idx_lora_model_created", columnList = "created_at")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

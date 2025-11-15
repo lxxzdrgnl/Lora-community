@@ -42,7 +42,7 @@ public class CommentService {
         LoraModel model = loraModelRepository.findById(modelId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
 
-        Page<Comment> commentsPage = commentRepository.findByModelAndParentCommentIsNullAndDeletedAtIsNull(model, pageable);
+        Page<Comment> commentsPage = commentRepository.findByModelIdAndDeletedAtIsNullOrderByCreatedAtDesc(model.getId(), pageable);
 
         List<CommentResponse> responses = commentsPage.getContent().stream()
                 .map(comment -> {
@@ -52,32 +52,11 @@ public class CommentService {
                                     .map(user -> commentLikeRepository.existsByCommentAndUser(comment, user))
                                     .orElse(false);
 
-                    // 대댓글 조회
-                    List<CommentResponse> replies = getRepliesForComment(comment, currentUserId);
-
-                    return CommentResponse.from(comment, isLiked, replies);
+                    return CommentResponse.from(comment, isLiked);
                 })
                 .collect(Collectors.toList());
 
         return PageResponse.of(commentsPage, responses);
-    }
-
-    /**
-     * 대댓글 목록 조회
-     */
-    private List<CommentResponse> getRepliesForComment(Comment parentComment, Long currentUserId) {
-        List<Comment> replies = commentRepository.findByParentCommentAndDeletedAtIsNull(parentComment);
-
-        return replies.stream()
-                .map(reply -> {
-                    boolean isLiked = currentUserId != null &&
-                            userRepository.findById(currentUserId)
-                                    .map(user -> commentLikeRepository.existsByCommentAndUser(reply, user))
-                                    .orElse(false);
-
-                    return CommentResponse.from(reply, isLiked, null); // 대대댓글은 지원하지 않음
-                })
-                .collect(Collectors.toList());
     }
 
     /**
@@ -93,13 +72,7 @@ public class CommentService {
                         .map(user -> commentLikeRepository.existsByCommentAndUser(comment, user))
                         .orElse(false);
 
-        // 대댓글 조회 (부모 댓글인 경우만)
-        List<CommentResponse> replies = null;
-        if (!comment.isReply()) {
-            replies = getRepliesForComment(comment, currentUserId);
-        }
-
-        return CommentResponse.from(comment, isLiked, replies);
+        return CommentResponse.from(comment, isLiked);
     }
 
     /**
@@ -113,29 +86,16 @@ public class CommentService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 부모 댓글 확인 (대댓글인 경우)
-        Comment parentComment = null;
-        if (request.getParentCommentId() != null) {
-            parentComment = commentRepository.findByIdAndDeletedAtIsNull(request.getParentCommentId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
-
-            // 대댓글의 대댓글은 허용하지 않음
-            if (parentComment.isReply()) {
-                throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
-            }
-        }
-
         Comment comment = Comment.builder()
                 .model(model)
                 .user(user)
-                .parentComment(parentComment)
                 .content(request.getContent())
                 .likeCount(0)
                 .build();
 
         Comment saved = commentRepository.save(comment);
 
-        return CommentResponse.from(saved, false, null);
+        return CommentResponse.from(saved, false);
     }
 
     /**
@@ -159,13 +119,7 @@ public class CommentService {
         // 좋아요 여부 확인
         boolean isLiked = commentLikeRepository.existsByCommentAndUser(comment, user);
 
-        // 대댓글 조회 (부모 댓글인 경우만)
-        List<CommentResponse> replies = null;
-        if (!comment.isReply()) {
-            replies = getRepliesForComment(comment, userId);
-        }
-
-        return CommentResponse.from(comment, isLiked, replies);
+        return CommentResponse.from(comment, isLiked);
     }
 
     /**

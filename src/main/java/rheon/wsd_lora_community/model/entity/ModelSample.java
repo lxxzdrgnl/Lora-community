@@ -11,8 +11,8 @@ import java.math.BigDecimal;
  */
 @Entity
 @Table(name = "model_samples", indexes = {
-        @Index(name = "idx_model", columnList = "model_id"),
-        @Index(name = "idx_primary", columnList = "model_id, is_primary")
+        @Index(name = "idx_sample_model", columnList = "model_id"),
+        @Index(name = "idx_sample_primary", columnList = "model_id, is_primary")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

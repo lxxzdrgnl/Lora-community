@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -52,7 +53,7 @@ public class CommentController {
             @PathVariable Long modelId,
             @Parameter(hidden = true)
             @AuthenticationPrincipal OAuth2User principal,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Long currentUserId = principal != null ?
@@ -260,7 +261,7 @@ public class CommentController {
     public ResponseEntity<ApiResponse<PageResponse<LoraModelResponse>>> getFavoriteModels(
             @Parameter(hidden = true)
             @AuthenticationPrincipal OAuth2User principal,
-            @Parameter(description = "페이징 정보")
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Long userId = Long.valueOf(principal.getAttribute("id").toString());

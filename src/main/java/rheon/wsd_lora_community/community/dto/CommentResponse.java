@@ -32,9 +32,6 @@ public class CommentResponse {
     @Schema(description = "작성자 프로필 이미지 URL", example = "https://example.com/profile.jpg")
     private String userProfileImageUrl;
 
-    @Schema(description = "부모 댓글 ID (대댓글인 경우)", example = "null")
-    private Long parentCommentId;
-
     @Schema(description = "댓글 내용", example = "정말 훌륭한 모델이네요!")
     private String content;
 
@@ -43,9 +40,6 @@ public class CommentResponse {
 
     @Schema(description = "현재 유저의 좋아요 여부", example = "false")
     private Boolean isLiked;
-
-    @Schema(description = "대댓글 목록")
-    private List<CommentResponse> replies;
 
     @Schema(description = "삭제 여부", example = "false")
     private Boolean isDeleted;
@@ -56,18 +50,16 @@ public class CommentResponse {
     @Schema(description = "수정일", example = "2025-01-13T10:00:00")
     private LocalDateTime updatedAt;
 
-    public static CommentResponse from(Comment comment, Boolean isLiked, List<CommentResponse> replies) {
+    public static CommentResponse from(Comment comment, Boolean isLiked) {
         return CommentResponse.builder()
                 .id(comment.getId())
                 .modelId(comment.getModel().getId())
                 .userId(comment.getUser().getId())
                 .userNickname(comment.getUser().getNickname())
                 .userProfileImageUrl(comment.getUser().getProfileImageUrl())
-                .parentCommentId(comment.getParentComment() != null ? comment.getParentComment().getId() : null)
                 .content(comment.getContent())
                 .likeCount(comment.getLikeCount())
                 .isLiked(isLiked)
-                .replies(replies)
                 .isDeleted(comment.getDeletedAt() != null)
                 .createdAt(comment.getCreatedAt())
                 .updatedAt(comment.getUpdatedAt())

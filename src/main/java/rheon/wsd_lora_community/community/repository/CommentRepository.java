@@ -13,9 +13,7 @@ import java.util.Optional;
 @Repository
 public interface CommentRepository extends JpaRepository<Comment, Long> {
 
-    Page<Comment> findByModelAndParentCommentIsNullAndDeletedAtIsNull(LoraModel model, Pageable pageable);
-
-    List<Comment> findByParentCommentAndDeletedAtIsNull(Comment parentComment);
+    Page<Comment> findByModelIdAndDeletedAtIsNullOrderByCreatedAtDesc(Long modelId, Pageable pageable);
 
     Optional<Comment> findByIdAndDeletedAtIsNull(Long id);
 }

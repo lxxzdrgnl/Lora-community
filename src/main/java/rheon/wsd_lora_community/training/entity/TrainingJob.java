@@ -13,9 +13,9 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "training_jobs", indexes = {
-        @Index(name = "idx_model", columnList = "model_id"),
-        @Index(name = "idx_user", columnList = "user_id"),
-        @Index(name = "idx_status", columnList = "status")
+        @Index(name = "idx_training_model", columnList = "model_id"),
+        @Index(name = "idx_training_user", columnList = "user_id"),
+        @Index(name = "idx_training_status", columnList = "status")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

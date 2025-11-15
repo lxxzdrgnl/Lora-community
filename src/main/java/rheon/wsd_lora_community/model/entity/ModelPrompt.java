@@ -9,7 +9,7 @@ import rheon.wsd_lora_community.global.dto.BaseEntity;
  */
 @Entity
 @Table(name = "model_prompts", indexes = {
-        @Index(name = "idx_model", columnList = "model_id")
+        @Index(name = "idx_prompt_model", columnList = "model_id")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
