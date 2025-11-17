@@ -58,6 +58,12 @@ public class LoraModelResponse {
     @Schema(description = "즐겨찾기 수", example = "20")
     private Integer favoriteCount;
 
+    @Schema(description = "현재 유저의 좋아요 여부", example = "false")
+    private Boolean isLiked;
+
+    @Schema(description = "썸네일 이미지 URL (대표 샘플 이미지)", example = "https://...")
+    private String thumbnailUrl;
+
     @Schema(description = "S3 키 (모델 저장 경로)", example = "models/1/my-character-model.safetensors")
     private String s3Key;
 
@@ -74,6 +80,10 @@ public class LoraModelResponse {
     private LocalDateTime updatedAt;
 
     public static LoraModelResponse from(LoraModel model) {
+        return from(model, null, null);
+    }
+
+    public static LoraModelResponse from(LoraModel model, Boolean isLiked, String thumbnailUrl) {
         return LoraModelResponse.builder()
                 .id(model.getId())
                 .userId(model.getUser().getId())
@@ -89,6 +99,8 @@ public class LoraModelResponse {
                 .viewCount(model.getViewCount())
                 .likeCount(model.getLikeCount())
                 .favoriteCount(model.getFavoriteCount())
+                .isLiked(isLiked)
+                .thumbnailUrl(thumbnailUrl)
                 .s3Key(model.getS3Key())
                 .fileSize(model.getFileSize())
                 .createdAt(model.getCreatedAt())

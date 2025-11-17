@@ -93,10 +93,21 @@ public class LoraModelController {
     @GetMapping
     @Operation(summary = "공개 모델 목록 조회", description = "공개된 모델 목록을 최신순으로 조회합니다.")
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> getPublicModels(
+            @Parameter(hidden = true)
+            Authentication authentication,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<LoraModelResponse> models = loraModelService.getPublicModels(pageable);
+        Long currentUserId = null;
+        if (authentication != null && authentication.isAuthenticated()) {
+            try {
+                currentUserId = getUserIdFromAuthentication(authentication);
+            } catch (Exception e) {
+                // 비로그인 사용자는 null로 처리
+            }
+        }
+
+        Page<LoraModelResponse> models = loraModelService.getPublicModels(currentUserId, pageable);
 
         return ResponseEntity.ok(
                 ApiResponse.success("모델 목록 조회 성공", models)
@@ -109,10 +120,21 @@ public class LoraModelController {
     @GetMapping("/popular")
     @Operation(summary = "인기 모델 목록 조회", description = "좋아요가 많은 순서로 모델 목록을 조회합니다.")
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> getPopularModels(
+            @Parameter(hidden = true)
+            Authentication authentication,
             @ParameterObject
             @PageableDefault(size = 20, sort = "likeCount", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<LoraModelResponse> models = loraModelService.getPopularModels(pageable);
+        Long currentUserId = null;
+        if (authentication != null && authentication.isAuthenticated()) {
+            try {
+                currentUserId = getUserIdFromAuthentication(authentication);
+            } catch (Exception e) {
+                // 비로그인 사용자는 null로 처리
+            }
+        }
+
+        Page<LoraModelResponse> models = loraModelService.getPopularModels(currentUserId, pageable);
 
         return ResponseEntity.ok(
                 ApiResponse.success("인기 모델 목록 조회 성공", models)
@@ -157,10 +179,10 @@ public class LoraModelController {
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @Valid @RequestBody ModelUpdateRequest request
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         LoraModelResponse updatedModel = loraModelService.updateModel(modelId, userId, request);
 
         return ResponseEntity.ok(
@@ -178,9 +200,9 @@ public class LoraModelController {
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         loraModelService.deleteModel(modelId, userId);
 
         return ResponseEntity.ok(
@@ -196,11 +218,11 @@ public class LoraModelController {
     @Operation(summary = "내 모델 목록 조회", description = "현재 유저가 작성한 모델 목록을 조회합니다.")
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> getMyModels(
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         Page<LoraModelResponse> models = loraModelService.getModelsByUser(userId, pageable);
 
         return ResponseEntity.ok(
@@ -290,10 +312,10 @@ public class LoraModelController {
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @Valid @RequestBody SampleCreateRequest request
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         ModelSampleResponse sample = sampleService.createSample(modelId, userId, request);
 
         return ResponseEntity.ok(
@@ -313,9 +335,9 @@ public class LoraModelController {
             @Parameter(description = "샘플 ID", required = true)
             @PathVariable Long sampleId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         sampleService.deleteSample(sampleId, userId);
 
         return ResponseEntity.ok(
@@ -335,9 +357,9 @@ public class LoraModelController {
             @Parameter(description = "샘플 ID", required = true)
             @PathVariable Long sampleId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         sampleService.setPrimarySample(sampleId, userId);
 
         return ResponseEntity.ok(
@@ -373,10 +395,10 @@ public class LoraModelController {
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @Valid @RequestBody PromptCreateRequest request
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         PromptResponse prompt = promptService.createPrompt(modelId, userId, request);
 
         return ResponseEntity.ok(
@@ -396,10 +418,10 @@ public class LoraModelController {
             @Parameter(description = "프롬프트 ID", required = true)
             @PathVariable Long promptId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @Valid @RequestBody PromptUpdateRequest request
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         PromptResponse prompt = promptService.updatePrompt(promptId, userId, request);
 
         return ResponseEntity.ok(
@@ -419,9 +441,9 @@ public class LoraModelController {
             @Parameter(description = "프롬프트 ID", required = true)
             @PathVariable Long promptId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         promptService.deletePrompt(promptId, userId);
 
         return ResponseEntity.ok(

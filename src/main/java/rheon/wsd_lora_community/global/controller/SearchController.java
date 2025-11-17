@@ -10,6 +10,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.model.dto.LoraModelResponse;
@@ -138,10 +141,13 @@ public class SearchController {
             description = "좋아요가 많은 순서로 모델을 조회합니다."
     )
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> getPopularModels(
+            @Parameter(hidden = true)
+            Authentication authentication,
             @ParameterObject
             @PageableDefault(size = 20, sort = "likeCount", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<LoraModelResponse> models = loraModelService.getPopularModels(pageable);
+        Long currentUserId = getUserIdFromAuthentication(authentication);
+        Page<LoraModelResponse> models = loraModelService.getPopularModels(currentUserId, pageable);
 
         return ResponseEntity.ok(
                 ApiResponse.success("인기 모델 조회 성공", models)
@@ -157,10 +163,13 @@ public class SearchController {
             description = "최근에 등록된 모델을 조회합니다."
     )
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> getRecentModels(
+            @Parameter(hidden = true)
+            Authentication authentication,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<LoraModelResponse> models = loraModelService.getPublicModels(pageable);
+        Long currentUserId = getUserIdFromAuthentication(authentication);
+        Page<LoraModelResponse> models = loraModelService.getPublicModels(currentUserId, pageable);
 
         return ResponseEntity.ok(
                 ApiResponse.success("최신 모델 조회 성공", models)
@@ -176,19 +185,47 @@ public class SearchController {
             description = "여러 조건을 조합하여 모델을 검색합니다. (키워드 + 태그 + 정렬 등)"
     )
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> advancedSearch(
+            @Parameter(hidden = true)
+            Authentication authentication,
             @RequestBody Map<String, Object> filters,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         // TODO: 고급 검색 로직 구현
         // 현재는 기본 검색만 지원
+        Long currentUserId = getUserIdFromAuthentication(authentication);
         String query = (String) filters.get("query");
         Page<LoraModelResponse> models = query != null
                 ? loraModelService.searchModels(query, pageable)
-                : loraModelService.getPublicModels(pageable);
+                : loraModelService.getPublicModels(currentUserId, pageable);
 
         return ResponseEntity.ok(
                 ApiResponse.success("고급 검색 결과", models)
         );
+    }
+
+    /**
+     * Authentication에서 User ID 추출 (OAuth2 또는 JWT 지원)
+     */
+    private Long getUserIdFromAuthentication(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || authentication.getPrincipal() == null) {
+            return null;
+        }
+
+        Object principal = authentication.getPrincipal();
+
+        // OAuth2 로그인 (Google)
+        if (principal instanceof OAuth2User) {
+            OAuth2User oauth2User = (OAuth2User) principal;
+            return Long.valueOf(oauth2User.getAttribute("id").toString());
+        }
+
+        // JWT 인증
+        if (principal instanceof UserDetails) {
+            UserDetails userDetails = (UserDetails) principal;
+            return Long.valueOf(userDetails.getUsername()); // username에 userId 저장됨
+        }
+
+        return null;
     }
 }

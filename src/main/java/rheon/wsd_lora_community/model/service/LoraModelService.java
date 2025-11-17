@@ -66,10 +66,15 @@ public class LoraModelService {
     /**
      * 모델 목록 조회 (공개 모델, 페이징)
      */
-    public Page<LoraModelResponse> getPublicModels(Pageable pageable) {
+    public Page<LoraModelResponse> getPublicModels(Long currentUserId, Pageable pageable) {
         Page<LoraModel> models = loraModelRepository.findByIsPublicTrueAndStatusOrderByCreatedAtDesc(
                 true, LoraModel.ModelStatus.COMPLETED, pageable);
-        return models.map(LoraModelResponse::from);
+        return models.map(model -> {
+            Boolean isLiked = currentUserId != null &&
+                modelLikeRepository.existsByModelIdAndUserId(model.getId(), currentUserId);
+            String thumbnailUrl = getThumbnailUrl(model);
+            return LoraModelResponse.from(model, isLiked, thumbnailUrl);
+        });
     }
 
     /**
@@ -190,10 +195,15 @@ public class LoraModelService {
     /**
      * 인기 모델 조회 (좋아요 순)
      */
-    public Page<LoraModelResponse> getPopularModels(Pageable pageable) {
+    public Page<LoraModelResponse> getPopularModels(Long currentUserId, Pageable pageable) {
         Page<LoraModel> models = loraModelRepository.findByIsPublicTrueAndStatusOrderByLikeCountDesc(
                 true, LoraModel.ModelStatus.COMPLETED, pageable);
-        return models.map(LoraModelResponse::from);
+        return models.map(model -> {
+            Boolean isLiked = currentUserId != null &&
+                modelLikeRepository.existsByModelIdAndUserId(model.getId(), currentUserId);
+            String thumbnailUrl = getThumbnailUrl(model);
+            return LoraModelResponse.from(model, isLiked, thumbnailUrl);
+        });
     }
 
     /**
@@ -202,5 +212,16 @@ public class LoraModelService {
     public LoraModel findModelEntityById(Long modelId) {
         return loraModelRepository.findById(modelId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
+    }
+
+    /**
+     * 모델의 썸네일 URL 조회 (대표 샘플 이미지)
+     */
+    private String getThumbnailUrl(LoraModel model) {
+        return modelSampleRepository.findByModelIdOrderByDisplayOrder(model.getId())
+                .stream()
+                .findFirst()
+                .map(sample -> sample.getImageUrl())
+                .orElse(null);
     }
 }

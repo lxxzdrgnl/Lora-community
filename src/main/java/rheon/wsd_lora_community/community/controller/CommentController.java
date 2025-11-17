@@ -11,7 +11,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.community.dto.CommentCreateRequest;
@@ -41,6 +42,32 @@ public class CommentController {
     private final LikeService likeService;
     private final FavoriteService favoriteService;
 
+    /**
+     * Authentication 객체에서 사용자 ID 추출
+     * OAuth2User 또는 UserDetails 모두 지원
+     */
+    private Long getUserIdFromAuthentication(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            return null; // 비로그인 사용자
+        }
+
+        Object principal = authentication.getPrincipal();
+
+        // OAuth2 로그인 (Google)
+        if (principal instanceof OAuth2User) {
+            OAuth2User oauth2User = (OAuth2User) principal;
+            return Long.valueOf(oauth2User.getAttribute("id").toString());
+        }
+
+        // JWT 인증
+        if (principal instanceof UserDetails) {
+            UserDetails userDetails = (UserDetails) principal;
+            return Long.valueOf(userDetails.getUsername());
+        }
+
+        return null;
+    }
+
     // ========== 댓글 관리 ==========
 
     /**
@@ -52,12 +79,11 @@ public class CommentController {
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Long currentUserId = principal != null ?
-                Long.valueOf(principal.getAttribute("id").toString()) : null;
+        Long currentUserId = getUserIdFromAuthentication(authentication);
 
         PageResponse<CommentResponse> comments = commentService.getCommentsByModel(modelId, currentUserId, pageable);
 
@@ -77,10 +103,9 @@ public class CommentController {
             @Parameter(description = "댓글 ID", required = true)
             @PathVariable Long commentId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long currentUserId = principal != null ?
-                Long.valueOf(principal.getAttribute("id").toString()) : null;
+        Long currentUserId = getUserIdFromAuthentication(authentication);
 
         CommentResponse comment = commentService.getComment(commentId, currentUserId);
 
@@ -99,10 +124,14 @@ public class CommentController {
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @Valid @RequestBody CommentCreateRequest request
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
+        if (userId == null) {
+            throw new IllegalArgumentException("인증 정보가 없습니다.");
+        }
+
         CommentResponse comment = commentService.createComment(modelId, userId, request);
 
         return ResponseEntity.ok(
@@ -122,10 +151,14 @@ public class CommentController {
             @Parameter(description = "댓글 ID", required = true)
             @PathVariable Long commentId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @RequestBody Map<String, String> request
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
+        if (userId == null) {
+            throw new IllegalArgumentException("인증 정보가 없습니다.");
+        }
+
         String content = request.get("content");
 
         CommentResponse updatedComment = commentService.updateComment(commentId, userId, content);
@@ -147,9 +180,13 @@ public class CommentController {
             @Parameter(description = "댓글 ID", required = true)
             @PathVariable Long commentId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
+        if (userId == null) {
+            throw new IllegalArgumentException("인증 정보가 없습니다.");
+        }
+
         commentService.deleteComment(commentId, userId);
 
         return ResponseEntity.ok(
@@ -169,9 +206,13 @@ public class CommentController {
             @Parameter(description = "댓글 ID", required = true)
             @PathVariable Long commentId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
+        if (userId == null) {
+            throw new IllegalArgumentException("인증 정보가 없습니다.");
+        }
+
         boolean isLiked = commentService.toggleCommentLike(commentId, userId);
 
         return ResponseEntity.ok(
@@ -194,9 +235,13 @@ public class CommentController {
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
+        if (userId == null) {
+            throw new IllegalArgumentException("인증 정보가 없습니다.");
+        }
+
         boolean isLiked = likeService.toggleModelLike(modelId, userId);
 
         return ResponseEntity.ok(
@@ -217,9 +262,13 @@ public class CommentController {
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
+        if (userId == null) {
+            throw new IllegalArgumentException("인증 정보가 없습니다.");
+        }
+
         boolean isLiked = likeService.isModelLikedByUser(modelId, userId);
 
         return ResponseEntity.ok(
@@ -239,9 +288,13 @@ public class CommentController {
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
+        if (userId == null) {
+            throw new IllegalArgumentException("인증 정보가 없습니다.");
+        }
+
         boolean isFavorited = favoriteService.toggleModelFavorite(modelId, userId);
 
         return ResponseEntity.ok(
@@ -260,15 +313,43 @@ public class CommentController {
     @Operation(summary = "즐겨찾기 목록 조회", description = "현재 유저가 즐겨찾기한 모델 목록을 조회합니다.")
     public ResponseEntity<ApiResponse<PageResponse<LoraModelResponse>>> getFavoriteModels(
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
+        if (userId == null) {
+            throw new IllegalArgumentException("인증 정보가 없습니다.");
+        }
+
         PageResponse<LoraModelResponse> favorites = favoriteService.getUserFavoriteModels(userId, pageable);
 
         return ResponseEntity.ok(
                 ApiResponse.success("즐겨찾기 목록 조회 성공", favorites)
+        );
+    }
+
+    /**
+     * 내가 좋아요한 모델 목록 조회
+     */
+    @GetMapping("/likes")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "좋아요한 모델 목록 조회", description = "현재 유저가 좋아요한 모델 목록을 조회합니다.")
+    public ResponseEntity<ApiResponse<PageResponse<LoraModelResponse>>> getLikedModels(
+            @Parameter(hidden = true)
+            Authentication authentication,
+            @ParameterObject
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        Long userId = getUserIdFromAuthentication(authentication);
+        if (userId == null) {
+            throw new IllegalArgumentException("인증 정보가 없습니다.");
+        }
+
+        PageResponse<LoraModelResponse> likedModels = likeService.getUserLikedModels(userId, pageable);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("좋아요한 모델 목록 조회 성공", likedModels)
         );
     }
 }
