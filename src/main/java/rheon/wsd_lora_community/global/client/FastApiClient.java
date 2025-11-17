@@ -103,7 +103,7 @@ public class FastApiClient {
      *
      * @param prompt 이미지 생성 프롬프트
      * @param negativePrompt 네거티브 프롬프트
-     * @param loraPath LoRA 모델 경로
+     * @param loraModelUrl LoRA 모델 S3 Presigned URL
      * @param numImages 생성할 이미지 개수
      * @param steps 생성 스텝 수
      * @param guidanceScale CFG Scale
@@ -113,7 +113,7 @@ public class FastApiClient {
     public Mono<String> startImageGeneration(
             String prompt,
             String negativePrompt,
-            String loraPath,
+            String loraModelUrl,
             int numImages,
             int steps,
             double guidanceScale,
@@ -122,7 +122,7 @@ public class FastApiClient {
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("prompt", prompt);
         requestBody.put("negative_prompt", negativePrompt);
-        requestBody.put("lora_path", loraPath);
+        requestBody.put("lora_model_url", loraModelUrl);  // S3 Presigned URL
         requestBody.put("num_images", numImages);
         requestBody.put("steps", steps);
         requestBody.put("guidance_scale", guidanceScale);

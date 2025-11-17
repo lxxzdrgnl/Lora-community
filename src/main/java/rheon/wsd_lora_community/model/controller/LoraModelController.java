@@ -12,7 +12,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
@@ -41,6 +43,32 @@ public class LoraModelController {
     private final PromptService promptService;
 
     /**
+     * Authentication 객체에서 사용자 ID 추출
+     * OAuth2User 또는 UserDetails 모두 지원
+     */
+    private Long getUserIdFromAuthentication(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new IllegalArgumentException("인증 정보가 없습니다.");
+        }
+
+        Object principal = authentication.getPrincipal();
+
+        // OAuth2 로그인 (Google)
+        if (principal instanceof OAuth2User) {
+            OAuth2User oauth2User = (OAuth2User) principal;
+            return Long.valueOf(oauth2User.getAttribute("id").toString());
+        }
+
+        // JWT 인증
+        if (principal instanceof UserDetails) {
+            UserDetails userDetails = (UserDetails) principal;
+            return Long.valueOf(userDetails.getUsername()); // username에 userId 저장됨
+        }
+
+        throw new IllegalArgumentException("지원하지 않는 인증 방식입니다.");
+    }
+
+    /**
      * 모델 생성
      */
     @PostMapping
@@ -48,10 +76,10 @@ public class LoraModelController {
     @Operation(summary = "모델 생성", description = "새로운 LoRA 모델을 생성합니다.")
     public ResponseEntity<ApiResponse<LoraModelResponse>> createModel(
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @Valid @RequestBody ModelCreateRequest request
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         LoraModelResponse model = loraModelService.createModel(userId, request);
 
         return ResponseEntity.ok(
@@ -100,10 +128,17 @@ public class LoraModelController {
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long currentUserId = principal != null ?
-                Long.valueOf(principal.getAttribute("id").toString()) : null;
+        Long currentUserId = null;
+        if (authentication != null && authentication.isAuthenticated()) {
+            try {
+                currentUserId = getUserIdFromAuthentication(authentication);
+            } catch (Exception e) {
+                // 비로그인 사용자는 null로 처리
+                currentUserId = null;
+            }
+        }
 
         LoraModelDetailResponse model = loraModelService.getModelDetail(modelId, currentUserId);
 

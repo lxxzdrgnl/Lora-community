@@ -12,6 +12,7 @@ import rheon.wsd_lora_community.generation.repository.GenerationHistoryRepositor
 import rheon.wsd_lora_community.global.dto.PageResponse;
 import rheon.wsd_lora_community.global.exception.CustomException;
 import rheon.wsd_lora_community.global.exception.ErrorCode;
+import rheon.wsd_lora_community.global.service.S3UploadService;
 import rheon.wsd_lora_community.model.entity.LoraModel;
 import rheon.wsd_lora_community.model.repository.LoraModelRepository;
 import rheon.wsd_lora_community.user.entity.User;
@@ -35,6 +36,7 @@ public class GenerationService {
     private final GenerationHistoryRepository generationHistoryRepository;
     private final LoraModelRepository loraModelRepository;
     private final UserRepository userRepository;
+    private final S3UploadService s3UploadService;
 
     /**
      * 이미지 생성 기록 저장
@@ -84,7 +86,7 @@ public class GenerationService {
      * 이미지 생성 요청 검증
      *
      * Controller에서 FastAPI 호출 전에 이 메서드로 검증합니다.
-     * @return LoRA 모델 파일 경로
+     * @return LoRA 모델의 S3 키
      */
     public String validateGenerationRequest(GenerateImageRequest request, Long userId) {
         // 모델 존재 여부 확인
@@ -100,8 +102,13 @@ public class GenerationService {
         userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 모델 파일 경로 반환 (없으면 기본 경로)
-        return model.getModelPath() != null ? model.getModelPath() : "my_lora_model";
+        // S3 키가 없으면 에러
+        if (model.getS3Key() == null || model.getS3Key().isEmpty()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        // S3 키 반환
+        return model.getS3Key();
     }
 
     /**

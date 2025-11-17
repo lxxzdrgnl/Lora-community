@@ -58,6 +58,15 @@ public class LoraModelResponse {
     @Schema(description = "즐겨찾기 수", example = "20")
     private Integer favoriteCount;
 
+    @Schema(description = "S3 키 (모델 저장 경로)", example = "models/1/my-character-model.safetensors")
+    private String s3Key;
+
+    @Schema(description = "모델 파일 크기 (bytes)", example = "524288000")
+    private Long fileSize;
+
+    @Schema(description = "모델 다운로드용 Presigned URL (유효시간: 1시간)", example = "https://...")
+    private String modelDownloadUrl;
+
     @Schema(description = "생성일", example = "2025-01-13T10:00:00")
     private LocalDateTime createdAt;
 
@@ -80,8 +89,26 @@ public class LoraModelResponse {
                 .viewCount(model.getViewCount())
                 .likeCount(model.getLikeCount())
                 .favoriteCount(model.getFavoriteCount())
+                .s3Key(model.getS3Key())
+                .fileSize(model.getFileSize())
                 .createdAt(model.getCreatedAt())
                 .updatedAt(model.getUpdatedAt())
                 .build();
+    }
+
+    /**
+     * Presigned URL을 포함한 응답 생성
+     */
+    public static LoraModelResponse fromWithPresignedUrl(LoraModel model, String presignedUrl) {
+        LoraModelResponse response = from(model);
+        response.modelDownloadUrl = presignedUrl;
+        return response;
+    }
+
+    /**
+     * Presigned URL 직접 설정 (Builder 패턴 대신)
+     */
+    public void setModelDownloadUrl(String modelDownloadUrl) {
+        this.modelDownloadUrl = modelDownloadUrl;
     }
 }

@@ -66,9 +66,13 @@ spring:
 
 # JWT 설정
 jwt:
-  secret: ${JWT_SECRET:your-jwt-secret-key-at-least-256-bits-long-for-hs256-algorithm}
+  secret: ${JWT_SECRET:wsd-lora-community-jwt-secret-key-2024-for-hs256-algorithm-minimum-256-bits-required}
   access-token-validity: 3600000    # 1시간 (밀리초)
   refresh-token-validity: 604800000  # 7일 (밀리초)
+
+# Frontend URL (OAuth2 콜백용)
+frontend:
+  url: ${FRONTEND_URL:http://localhost:5173}
 
 # FastAPI 연동 설정
 fastapi:
@@ -77,10 +81,32 @@ fastapi:
   connect-timeout: 10000  # 10초
   read-timeout: 300000    # 5분 (학습/생성은 시간이 오래 걸림)
 
+# Modal 멀티 인스턴스 설정
+modal:
+  enabled: ${MODAL_ENABLED:false}  # Modal 사용 여부 (개발: false, 프로덕션: true)
+  app-url: ${MODAL_APP_URL:https://yourusername--lora-training-inference-fastapi-app.modal.run}
+  instances:
+    - ${MODAL_INSTANCE_1:http://127.0.0.1:8000}
+    - ${MODAL_INSTANCE_2:http://127.0.0.1:8001}
+    - ${MODAL_INSTANCE_3:http://127.0.0.1:8002}
+  max-instances: ${MODAL_MAX_INSTANCES:10}
+  health-check-interval: 30000  # 30초
+  retry-attempts: 3
+  load-balancing-strategy: LEAST_LOAD  # ROUND_ROBIN, LEAST_LOAD, PRIORITY
+
 # 파일 저장 경로 (로컬 - 개발용, 나중에 S3로 전환)
 file:
   upload-dir: ${FILE_UPLOAD_DIR:./uploads}
   static-url: ${FILE_STATIC_URL:http://localhost:8080/static}
+
+# AWS S3 설정
+aws:
+  s3:
+    bucket-name: ${AWS_S3_BUCKET_NAME:lora-training-data-bucket}
+    region: ${AWS_S3_REGION:ap-southeast-2}
+  credentials:
+    access-key: ${AWS_ACCESS_KEY_ID:your-access-key}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:your-secret-key}
 
 # 페이징 기본 설정
 pagination:

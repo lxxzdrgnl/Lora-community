@@ -5,16 +5,20 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriComponentsBuilder;
 import rheon.wsd_lora_community.user.entity.RefreshToken;
 import rheon.wsd_lora_community.user.entity.User;
 import rheon.wsd_lora_community.user.repository.RefreshTokenRepository;
 import rheon.wsd_lora_community.user.repository.UserRepository;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,6 +35,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final ObjectMapper objectMapper;
+
+    @Value("${frontend.url:http://localhost:5173}")
+    private String frontendUrl;
 
     @Override
     public void onAuthenticationSuccess(
@@ -60,23 +67,24 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // Refresh Token 저장
         saveRefreshToken(user, refreshToken);
 
-        // JSON 응답 반환
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
+        // 프론트엔드로 리다이렉트 (URL Fragment를 사용하여 토큰 전달)
+        String redirectUrl = UriComponentsBuilder.fromUriString(frontendUrl)
+                .path("/auth/callback")
+                .build()
+                .toUriString();
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("accessToken", accessToken);
-        result.put("refreshToken", refreshToken);
-        result.put("user", Map.of(
-                "id", user.getId(),
-                "email", user.getEmail(),
-                "name", user.getName(),
-                "nickname", user.getNickname(),
-                "profileImageUrl", user.getProfileImageUrl() != null ? user.getProfileImageUrl() : ""
-        ));
+        // URL Fragment에 토큰 추가 (보안상 쿼리 파라미터보다 안전)
+        String fragment = String.format(
+                "accessToken=%s&refreshToken=%s&userId=%d&email=%s&name=%s&nickname=%s",
+                URLEncoder.encode(accessToken, StandardCharsets.UTF_8),
+                URLEncoder.encode(refreshToken, StandardCharsets.UTF_8),
+                user.getId(),
+                URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8),
+                URLEncoder.encode(user.getName(), StandardCharsets.UTF_8),
+                URLEncoder.encode(user.getNickname(), StandardCharsets.UTF_8)
+        );
 
-        response.getWriter().write(objectMapper.writeValueAsString(result));
+        response.sendRedirect(redirectUrl + "#" + fragment);
     }
 
     /**

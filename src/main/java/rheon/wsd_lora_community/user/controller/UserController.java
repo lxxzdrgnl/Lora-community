@@ -12,7 +12,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
@@ -41,14 +43,34 @@ public class UserController {
     @Operation(summary = "내 프로필 조회", description = "현재 로그인된 유저의 프로필 정보를 조회합니다.")
     public ResponseEntity<ApiResponse<UserResponse>> getMyProfile(
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         UserResponse user = userService.getUserById(userId);
 
         return ResponseEntity.ok(
                 ApiResponse.success("프로필 조회 성공", user)
         );
+    }
+
+    /**
+     * Authentication 객체에서 사용자 ID 추출
+     * OAuth2User 또는 UserDetails 모두 지원
+     */
+    private Long getUserIdFromAuthentication(Authentication authentication) {
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof UserDetails) {
+            // JWT 인증 (UserDetails)
+            UserDetails userDetails = (UserDetails) principal;
+            return Long.valueOf(userDetails.getUsername());
+        } else if (principal instanceof OAuth2User) {
+            // OAuth2 인증
+            OAuth2User oauth2User = (OAuth2User) principal;
+            return Long.valueOf(oauth2User.getAttribute("id").toString());
+        }
+
+        throw new IllegalStateException("Unknown principal type: " + principal.getClass());
     }
 
     /**
@@ -75,10 +97,10 @@ public class UserController {
     @Operation(summary = "내 프로필 수정", description = "현재 로그인된 유저의 프로필을 수정합니다.")
     public ResponseEntity<ApiResponse<UserResponse>> updateMyProfile(
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @Valid @RequestBody UserUpdateRequest request
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         UserResponse updatedUser = userService.updateProfile(userId, request);
 
         return ResponseEntity.ok(

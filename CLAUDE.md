@@ -1,7 +1,7 @@
 # LoRA 모델 공유 플랫폼 개발 가이드
 
 > **프로젝트명**: WSD_Lora_community
-> **현재 진행률**: Phase 5 완료 - FastAPI 통합 완료 ✅
+> **현재 진행률**: Phase 6 완료 - Google OAuth 통합 및 프론트엔드 연동 완료 ✅
 
 ---
 
@@ -150,15 +150,44 @@ src/main/java/rheon/wsd_lora_community/
   - 에러 처리: FastAPI 요청 실패 시 TrainingService.failTraining() 자동 호출
   - 실시간 모니터링: SSE를 통한 진행률 실시간 스트리밍
 
+#### 8. Phase 6: Google OAuth 통합 및 프론트엔드 연동 완료 ✅
+- **Status**: 빌드 성공 ✅
+- **OAuth2 설정**:
+  - Google Cloud Console에서 OAuth2 Client ID 생성
+  - `application-local.yml`에 클라이언트 정보 저장 (.gitignore에 추가)
+  - `OAuth2SuccessHandler` 수정: 프론트엔드로 JWT 토큰 전달 (URL Fragment 방식)
+  - Redirect URI: `http://localhost:8080/login/oauth2/code/google`
+  - Frontend Callback: `http://localhost:5173/auth/callback`
+- **인증 흐름**:
+  1. 사용자가 "Login with Google" 클릭 → `/api/auth/google` 호출
+  2. Spring Security가 Google OAuth2 인증 페이지로 리다이렉트
+  3. 사용자 인증 후 Google이 `/login/oauth2/code/google`로 콜백
+  4. `OAuth2SuccessHandler`가 JWT 토큰 생성 후 프론트엔드로 리다이렉트
+  5. 프론트엔드가 URL Fragment에서 토큰 추출 후 LocalStorage 저장
+  6. 이후 모든 API 요청에 `Authorization: Bearer {token}` 헤더 포함
+- **Dual Authentication 지원**:
+  - `UserController.getUserIdFromAuthentication()` 메서드 추가
+  - OAuth2User (Google 로그인) 및 UserDetails (JWT 인증) 모두 지원
+  - Principal 타입에 따라 자동으로 User ID 추출
+- **CORS 설정**:
+  - `SecurityConfig`에 `.cors(cors -> cors.configure(http))` 추가
+  - 프론트엔드 (`http://localhost:5173`)에서 백엔드 API 호출 허용
+- **보안 설정**:
+  - JWT Secret 키 환경변수화
+  - Google Client Secret 환경변수화
+  - `application-local.yml` .gitignore 추가 (민감정보 보호)
+  - Frontend URL 설정 (`frontend.url`)
+
 ---
 
 ## 🚧 다음 작업 (우선순위 순)
 
-### Phase 6: 테스트 및 문서화 (1-2시간)
+### Phase 7: 테스트 및 배포 준비
 1. FastAPI 서버 실행 후 통합 테스트
 2. Swagger UI 문서 검증
-3. API 사용 예제 작성
-4. 프로덕션 배포 가이드 작성 (MySQL, S3, 환경변수 설정)
+3. 프로덕션 환경 설정 (MySQL, S3, 환경변수)
+4. Docker Compose 구성
+5. CI/CD 파이프라인 구축
 
 ---
 

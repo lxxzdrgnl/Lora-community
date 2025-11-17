@@ -14,10 +14,12 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import rheon.wsd_lora_community.global.client.FastApiClient;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
+import rheon.wsd_lora_community.training.dto.TrainingCallbackRequest;
 import rheon.wsd_lora_community.training.dto.TrainingJobResponse;
 import rheon.wsd_lora_community.training.entity.TrainingJob;
 import rheon.wsd_lora_community.training.service.TrainingService;
 
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 
@@ -264,5 +266,48 @@ public class TrainingController {
                         ApiResponse.success("FastAPI 학습 상태 조회 성공", status)
                 ))
                 .block(); // 블로킹 방식으로 변환 (동기 API)
+    }
+
+    // ========== FastAPI 콜백 엔드포인트 ==========
+
+    /**
+     * FastAPI 학습 완료/실패 콜백
+     * - FastAPI 서버에서 학습 완료 시 호출됨
+     * - S3 키와 파일 크기를 DB에 저장
+     * - 인증 불필요 (FastAPI에서 직접 호출)
+     */
+    @PostMapping("/callback")
+    @Operation(
+            summary = "FastAPI 학습 완료 콜백",
+            description = "FastAPI 서버에서 학습 완료 시 호출하는 콜백 엔드포인트입니다. " +
+                    "S3에 업로드된 모델 정보를 DB에 저장합니다."
+    )
+    public ResponseEntity<ApiResponse<String>> handleTrainingCallback(
+            @Valid @RequestBody TrainingCallbackRequest request
+    ) {
+        if ("SUCCESS".equals(request.getStatus())) {
+            // 학습 성공
+            trainingService.handleTrainingCallback(
+                    request.getUserId(),
+                    request.getModelName(),
+                    request.getS3Key(),
+                    request.getFileSize()
+            );
+
+            return ResponseEntity.ok(
+                    ApiResponse.success("학습 완료 콜백 처리 성공")
+            );
+        } else {
+            // 학습 실패
+            trainingService.handleTrainingFailure(
+                    request.getUserId(),
+                    request.getModelName(),
+                    request.getError()
+            );
+
+            return ResponseEntity.ok(
+                    ApiResponse.success("학습 실패 콜백 처리 성공")
+            );
+        }
     }
 }

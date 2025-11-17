@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rheon.wsd_lora_community.global.exception.CustomException;
 import rheon.wsd_lora_community.global.exception.ErrorCode;
+import rheon.wsd_lora_community.global.service.S3UploadService;
 import rheon.wsd_lora_community.model.dto.*;
 import rheon.wsd_lora_community.model.entity.LoraModel;
 import rheon.wsd_lora_community.model.entity.Tag;
@@ -32,6 +33,7 @@ public class LoraModelService {
     private final ModelLikeRepository modelLikeRepository;
     private final ModelFavoriteRepository modelFavoriteRepository;
     private final UserService userService;
+    private final S3UploadService s3UploadService;
 
     /**
      * 모델 생성

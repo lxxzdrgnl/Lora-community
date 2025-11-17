@@ -61,6 +61,12 @@ public class LoraModel extends BaseEntity {
     @Column(nullable = false, length = 500)
     private String modelPath;
 
+    @Column(length = 500)
+    private String s3Key;  // S3 저장 경로 (models/{userId}/{modelName}.safetensors)
+
+    @Column
+    private Long fileSize;  // 모델 파일 크기 (bytes)
+
     @Column(length = 200)
     @Builder.Default
     private String baseModel = "stablediffusionapi/anything-v5";
@@ -140,6 +146,13 @@ public class LoraModel extends BaseEntity {
 
     public void completeTraining(String modelPath) {
         this.modelPath = modelPath;
+        this.status = ModelStatus.COMPLETED;
+    }
+
+    public void completeTrainingWithS3(String s3Key, Long fileSize) {
+        this.s3Key = s3Key;
+        this.fileSize = fileSize;
+        this.modelPath = s3Key;  // modelPath도 s3Key로 설정
         this.status = ModelStatus.COMPLETED;
     }
 

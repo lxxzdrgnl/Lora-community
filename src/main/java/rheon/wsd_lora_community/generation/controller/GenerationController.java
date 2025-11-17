@@ -23,6 +23,7 @@ import rheon.wsd_lora_community.generation.service.GenerationService;
 import rheon.wsd_lora_community.global.client.FastApiClient;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.dto.PageResponse;
+import rheon.wsd_lora_community.global.service.S3UploadService;
 
 import java.util.Map;
 
@@ -42,6 +43,7 @@ public class GenerationController {
 
     private final GenerationService generationService;
     private final FastApiClient fastApiClient;
+    private final S3UploadService s3UploadService;
 
     /**
      * 이미지 생성 요청 (FastAPI 연동)
@@ -60,14 +62,17 @@ public class GenerationController {
     ) {
         Long userId = Long.valueOf(principal.getAttribute("id").toString());
 
-        // 요청 검증 및 모델 정보 조회
-        String loraPath = generationService.validateGenerationRequest(request, userId);
+        // 요청 검증 및 S3 키 조회
+        String s3Key = generationService.validateGenerationRequest(request, userId);
+
+        // S3 Presigned URL 생성 (다운로드용, 1시간 유효)
+        String modelDownloadUrl = s3UploadService.generateDownloadPresignedUrl(s3Key);
 
         // FastAPI로 이미지 생성 요청 (비동기)
         fastApiClient.startImageGeneration(
                 request.getPrompt(),
                 request.getNegativePrompt(),
-                loraPath,
+                modelDownloadUrl,  // Presigned URL 전달
                 request.getNumImages() != null ? request.getNumImages() : 1,
                 request.getSteps() != null ? request.getSteps() : 40,
                 request.getGuidanceScale() != null ? request.getGuidanceScale() : 7.5,

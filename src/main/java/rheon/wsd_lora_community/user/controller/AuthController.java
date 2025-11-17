@@ -3,6 +3,7 @@ package rheon.wsd_lora_community.user.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.user.service.AuthService;
 
+import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -25,6 +27,15 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+
+    /**
+     * Google OAuth2 로그인 시작
+     */
+    @GetMapping("/google")
+    @Operation(summary = "Google 로그인", description = "Google OAuth2 로그인을 시작합니다.")
+    public void googleLogin(HttpServletResponse response) throws IOException {
+        response.sendRedirect("/oauth2/authorization/google");
+    }
 
     /**
      * 액세스 토큰 갱신

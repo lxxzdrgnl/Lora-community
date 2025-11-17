@@ -6,6 +6,10 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+### Sensitive Configuration ###
+src/main/resources/application-local.yml
+.env
+
 ### STS ###
 .apt_generated
 .classpath

@@ -197,4 +197,72 @@ public class TrainingService {
                 .map(TrainingJobResponse::from)
                 .collect(Collectors.toList());
     }
+
+    /**
+     * FastAPI 학습 완료 콜백 처리
+     * - 사용자 ID와 모델 이름으로 모델을 찾아 S3 정보 저장
+     *
+     * @param userId 사용자 ID
+     * @param modelName 모델 이름
+     * @param s3Key S3 키
+     * @param fileSize 파일 크기
+     */
+    @Transactional
+    public void handleTrainingCallback(String userId, String modelName, String s3Key, Long fileSize) {
+        Long userIdLong = Long.parseLong(userId);
+
+        // 유저 확인
+        User user = userRepository.findById(userIdLong)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 모델 찾기 (유저의 모델 중 title이 modelName인 모델)
+        LoraModel model = loraModelRepository.findAll().stream()
+                .filter(m -> m.getUser().getId().equals(userIdLong))
+                .filter(m -> m.getTitle().equals(modelName))
+                .filter(m -> m.getStatus() == LoraModel.ModelStatus.TRAINING)
+                .findFirst()
+                .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
+
+        // S3 정보로 모델 업데이트
+        model.completeTrainingWithS3(s3Key, fileSize);
+
+        // 해당 모델의 진행 중인 TrainingJob도 완료 처리
+        trainingJobRepository.findTopByModelOrderByCreatedAtDesc(model)
+                .ifPresent(job -> {
+                    if (job.isInProgress()) {
+                        job.complete();
+                    }
+                });
+    }
+
+    /**
+     * FastAPI 학습 실패 콜백 처리
+     *
+     * @param userId 사용자 ID
+     * @param modelName 모델 이름
+     * @param errorMessage 에러 메시지
+     */
+    @Transactional
+    public void handleTrainingFailure(String userId, String modelName, String errorMessage) {
+        Long userIdLong = Long.parseLong(userId);
+
+        // 모델 찾기
+        LoraModel model = loraModelRepository.findAll().stream()
+                .filter(m -> m.getUser().getId().equals(userIdLong))
+                .filter(m -> m.getTitle().equals(modelName))
+                .filter(m -> m.getStatus() == LoraModel.ModelStatus.TRAINING)
+                .findFirst()
+                .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
+
+        // 모델 실패 처리
+        model.failTraining();
+
+        // TrainingJob도 실패 처리
+        trainingJobRepository.findTopByModelOrderByCreatedAtDesc(model)
+                .ifPresent(job -> {
+                    if (job.isInProgress()) {
+                        job.fail(errorMessage);
+                    }
+                });
+    }
 }

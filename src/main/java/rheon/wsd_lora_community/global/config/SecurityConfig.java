@@ -30,6 +30,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // CORS 활성화
+                .cors(cors -> cors.configure(http))
+
                 // CSRF 비활성화 (JWT 사용으로 불필요)
                 .csrf(csrf -> csrf.disable())
 
