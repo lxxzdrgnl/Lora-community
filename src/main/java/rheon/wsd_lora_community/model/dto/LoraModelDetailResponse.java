@@ -27,6 +27,9 @@ public class LoraModelDetailResponse {
     @Schema(description = "유저 닉네임", example = "길동이")
     private String userNickname;
 
+    @Schema(description = "유저 프로필 이미지 URL", example = "https://...")
+    private String userProfileImageUrl;
+
     @Schema(description = "제목", example = "소녀 전선 캐릭터 LoRA")
     private String title;
 
@@ -69,9 +72,6 @@ public class LoraModelDetailResponse {
     @Schema(description = "좋아요 수", example = "30")
     private Integer likeCount;
 
-    @Schema(description = "즐겨찾기 수", example = "20")
-    private Integer favoriteCount;
-
     @Schema(description = "샘플 이미지 목록")
     private List<ModelSampleResponse> samples;
 
@@ -84,9 +84,6 @@ public class LoraModelDetailResponse {
     @Schema(description = "현재 유저의 좋아요 여부", example = "true")
     private Boolean isLiked;
 
-    @Schema(description = "현재 유저의 즐겨찾기 여부", example = "false")
-    private Boolean isFavorited;
-
     @Schema(description = "생성일", example = "2025-01-13T10:00:00")
     private LocalDateTime createdAt;
 
@@ -97,12 +94,12 @@ public class LoraModelDetailResponse {
                                                  List<ModelSampleResponse> samples,
                                                  List<PromptResponse> prompts,
                                                  List<TagResponse> tags,
-                                                 Boolean isLiked,
-                                                 Boolean isFavorited) {
+                                                 Boolean isLiked) {
         return LoraModelDetailResponse.builder()
                 .id(model.getId())
                 .userId(model.getUser().getId())
                 .userNickname(model.getUser().getNickname())
+                .userProfileImageUrl(model.getUser().getProfileImageUrl())
                 .title(model.getTitle())
                 .description(model.getDescription())
                 .characterName(model.getCharacterName())
@@ -117,12 +114,10 @@ public class LoraModelDetailResponse {
                 .status(model.getStatus().name())
                 .viewCount(model.getViewCount())
                 .likeCount(model.getLikeCount())
-                .favoriteCount(model.getFavoriteCount())
                 .samples(samples)
                 .prompts(prompts)
                 .tags(tags)
                 .isLiked(isLiked)
-                .isFavorited(isFavorited)
                 .createdAt(model.getCreatedAt())
                 .updatedAt(model.getUpdatedAt())
                 .build();

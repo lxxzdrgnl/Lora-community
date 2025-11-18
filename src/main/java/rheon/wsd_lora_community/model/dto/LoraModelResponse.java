@@ -98,7 +98,6 @@ public class LoraModelResponse {
                 .status(model.getStatus().name())
                 .viewCount(model.getViewCount())
                 .likeCount(model.getLikeCount())
-                .favoriteCount(model.getFavoriteCount())
                 .isLiked(isLiked)
                 .thumbnailUrl(thumbnailUrl)
                 .s3Key(model.getS3Key())

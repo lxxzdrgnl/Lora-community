@@ -102,11 +102,13 @@ public class GenerationController {
 
     /**
      * 이미지 생성 기록 저장 (FastAPI 서버 전용)
+     * - 여러 이미지 S3 키를 받아서 GeneratedImage 엔티티로 저장
      */
     @PostMapping("/history")
     @Operation(
             summary = "이미지 생성 기록 저장 (FastAPI 전용)",
-            description = "FastAPI 서버에서 이미지 생성 완료 후 기록을 저장하기 위해 호출합니다."
+            description = "FastAPI 서버에서 이미지 생성 완료 후 기록을 저장하기 위해 호출합니다. " +
+                    "S3에 업로드된 이미지 키 목록을 전달받습니다."
     )
     public ResponseEntity<ApiResponse<GenerationHistoryResponse>> saveGenerationHistory(
             @RequestBody Map<String, Object> request
@@ -115,17 +117,25 @@ public class GenerationController {
         Long userId = Long.valueOf(request.get("userId").toString());
         String prompt = (String) request.get("prompt");
         String negativePrompt = (String) request.get("negativePrompt");
-        Integer steps = (Integer) request.get("steps");
+        Integer steps = request.get("steps") != null
+                ? Integer.valueOf(request.get("steps").toString())
+                : null;
         Double guidanceScale = request.get("guidanceScale") != null
                 ? Double.valueOf(request.get("guidanceScale").toString())
                 : null;
         Long seed = request.get("seed") != null
                 ? Long.valueOf(request.get("seed").toString())
                 : null;
-        String imageUrl = (String) request.get("imageUrl");
+        Integer numImages = request.get("numImages") != null
+                ? Integer.valueOf(request.get("numImages").toString())
+                : 1;
+
+        // S3 키 목록 가져오기
+        @SuppressWarnings("unchecked")
+        java.util.List<String> imageS3Keys = (java.util.List<String>) request.get("imageS3Keys");
 
         GenerationHistoryResponse history = generationService.saveGenerationHistory(
-                modelId, userId, prompt, negativePrompt, steps, guidanceScale, seed, imageUrl
+                modelId, userId, prompt, negativePrompt, steps, guidanceScale, seed, numImages, imageS3Keys
         );
 
         return ResponseEntity.ok(
@@ -210,42 +220,42 @@ public class GenerationController {
     }
 
     /**
-     * 생성 기록을 샘플로 등록
+     * 생성된 이미지를 샘플로 등록
      */
-    @PostMapping("/history/{historyId}/sample")
+    @PostMapping("/images/{imageId}/sample")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "샘플로 등록", description = "생성 기록을 모델의 샘플 이미지로 등록합니다. (모델 소유자만 가능)")
-    public ResponseEntity<ApiResponse<GenerationHistoryResponse>> markAsSample(
-            @Parameter(description = "생성 기록 ID", required = true)
-            @PathVariable Long historyId,
+    @Operation(summary = "샘플로 등록", description = "생성된 이미지를 모델의 샘플 이미지로 등록합니다. (모델 소유자만 가능)")
+    public ResponseEntity<ApiResponse<Void>> markImageAsSample(
+            @Parameter(description = "생성 이미지 ID", required = true)
+            @PathVariable Long imageId,
             @Parameter(hidden = true)
             @AuthenticationPrincipal OAuth2User principal
     ) {
         Long userId = Long.valueOf(principal.getAttribute("id").toString());
-        GenerationHistoryResponse history = generationService.markAsSample(historyId, userId);
+        generationService.markImageAsSample(imageId, userId);
 
         return ResponseEntity.ok(
-                ApiResponse.success("샘플로 등록 성공", history)
+                ApiResponse.success("샘플로 등록 성공", null)
         );
     }
 
     /**
      * 샘플 등록 취소
      */
-    @DeleteMapping("/history/{historyId}/sample")
+    @DeleteMapping("/images/{imageId}/sample")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "샘플 등록 취소", description = "샘플 이미지 등록을 취소합니다. (모델 소유자만 가능)")
-    public ResponseEntity<ApiResponse<GenerationHistoryResponse>> unmarkAsSample(
-            @Parameter(description = "생성 기록 ID", required = true)
-            @PathVariable Long historyId,
+    public ResponseEntity<ApiResponse<Void>> unmarkImageAsSample(
+            @Parameter(description = "생성 이미지 ID", required = true)
+            @PathVariable Long imageId,
             @Parameter(hidden = true)
             @AuthenticationPrincipal OAuth2User principal
     ) {
         Long userId = Long.valueOf(principal.getAttribute("id").toString());
-        GenerationHistoryResponse history = generationService.unmarkAsSample(historyId, userId);
+        generationService.unmarkImageAsSample(imageId, userId);
 
         return ResponseEntity.ok(
-                ApiResponse.success("샘플 등록 취소 성공", history)
+                ApiResponse.success("샘플 등록 취소 성공", null)
         );
     }
 

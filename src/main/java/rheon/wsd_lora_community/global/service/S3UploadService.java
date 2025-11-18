@@ -27,8 +27,8 @@ public class S3UploadService {
 
     private final S3Presigner s3Presigner;
 
-    @Value("${aws.s3.bucket-name}")
-    private String bucketName;
+    @Value("${aws.s3.buckets.models}")
+    private String bucketName;  // 기본 버킷 (모델 파일용)
 
     /**
      * Presigned URL 생성

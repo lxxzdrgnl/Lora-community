@@ -74,6 +74,13 @@ public class User extends BaseEntity {
         this.profileImageUrl = profileImageUrl;
     }
 
+    public void updateOAuthInfo(String oauthProviderId, String profileImageUrl) {
+        this.oauthProviderId = oauthProviderId;
+        if (profileImageUrl != null) {
+            this.profileImageUrl = profileImageUrl;
+        }
+    }
+
     public void softDelete() {
         this.deletedAt = java.time.LocalDateTime.now();
     }

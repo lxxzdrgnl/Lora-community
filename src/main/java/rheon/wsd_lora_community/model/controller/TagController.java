@@ -10,6 +10,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
+import rheon.wsd_lora_community.global.exception.CustomException;
+import rheon.wsd_lora_community.global.exception.ErrorCode;
 import rheon.wsd_lora_community.model.dto.TagResponse;
 import rheon.wsd_lora_community.model.service.TagService;
 
@@ -116,6 +118,10 @@ public class TagController {
             @AuthenticationPrincipal OAuth2User principal,
             @RequestBody Map<String, Object> request
     ) {
+        if (principal == null) {
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
+
         Long userId = Long.valueOf(principal.getAttribute("id").toString());
         String tagName = (String) request.get("tagName");
         String categoryStr = (String) request.get("category");

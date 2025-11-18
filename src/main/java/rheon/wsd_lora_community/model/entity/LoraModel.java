@@ -61,10 +61,10 @@ public class LoraModel extends BaseEntity {
     @Column(nullable = false, length = 500)
     private String modelPath;
 
-    @Column(length = 500)
+    @Column(name = "s3_key", length = 500)
     private String s3Key;  // S3 저장 경로 (models/{userId}/{modelName}.safetensors)
 
-    @Column
+    @Column(name = "file_size")
     private Long fileSize;  // 모델 파일 크기 (bytes)
 
     @Column(length = 200)
@@ -87,10 +87,6 @@ public class LoraModel extends BaseEntity {
     @Column
     @Builder.Default
     private Integer likeCount = 0;
-
-    @Column
-    @Builder.Default
-    private Integer favoriteCount = 0;
 
     @Column
     private LocalDateTime deletedAt;
@@ -182,16 +178,6 @@ public class LoraModel extends BaseEntity {
     public void decrementLikeCount() {
         if (this.likeCount > 0) {
             this.likeCount--;
-        }
-    }
-
-    public void incrementFavoriteCount() {
-        this.favoriteCount++;
-    }
-
-    public void decrementFavoriteCount() {
-        if (this.favoriteCount > 0) {
-            this.favoriteCount--;
         }
     }
 

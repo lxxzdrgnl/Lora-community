@@ -13,7 +13,6 @@ import rheon.wsd_lora_community.model.entity.LoraModel;
 import rheon.wsd_lora_community.model.entity.Tag;
 import rheon.wsd_lora_community.model.repository.*;
 import rheon.wsd_lora_community.community.repository.ModelLikeRepository;
-import rheon.wsd_lora_community.community.repository.ModelFavoriteRepository;
 import rheon.wsd_lora_community.user.entity.User;
 import rheon.wsd_lora_community.user.service.UserService;
 
@@ -31,7 +30,6 @@ public class LoraModelService {
     private final ModelTagRepository modelTagRepository;
     private final TagRepository tagRepository;
     private final ModelLikeRepository modelLikeRepository;
-    private final ModelFavoriteRepository modelFavoriteRepository;
     private final UserService userService;
     private final S3UploadService s3UploadService;
 
@@ -82,7 +80,10 @@ public class LoraModelService {
      */
     public Page<LoraModelResponse> getModelsByUser(Long userId, Pageable pageable) {
         Page<LoraModel> models = loraModelRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
-        return models.map(LoraModelResponse::from);
+        return models.map(model -> {
+            String thumbnailUrl = getThumbnailUrl(model);
+            return LoraModelResponse.from(model, null, thumbnailUrl);
+        });
     }
 
     /**
@@ -118,10 +119,8 @@ public class LoraModelService {
         // 현재 유저의 좋아요/즐겨찾기 여부
         Boolean isLiked = currentUserId != null &&
                 modelLikeRepository.existsByModelIdAndUserId(modelId, currentUserId);
-        Boolean isFavorited = currentUserId != null &&
-                modelFavoriteRepository.existsByModelIdAndUserId(modelId, currentUserId);
 
-        return LoraModelDetailResponse.from(model, samples, prompts, tags, isLiked, isFavorited);
+        return LoraModelDetailResponse.from(model, samples, prompts, tags, isLiked);
     }
 
     /**

@@ -33,8 +33,16 @@ public class AuthController {
      */
     @GetMapping("/google")
     @Operation(summary = "Google 로그인", description = "Google OAuth2 로그인을 시작합니다.")
-    public void googleLogin(HttpServletResponse response) throws IOException {
-        response.sendRedirect("/oauth2/authorization/google");
+    public void googleLogin(
+            @RequestParam(required = false) String prompt,
+            HttpServletResponse response
+    ) throws IOException {
+        // prompt 파라미터를 포함하여 리다이렉트 (모바일 지원)
+        String redirectUrl = "/oauth2/authorization/google";
+        if (prompt != null && !prompt.isEmpty()) {
+            redirectUrl += "?prompt=" + prompt;
+        }
+        response.sendRedirect(redirectUrl);
     }
 
     /**

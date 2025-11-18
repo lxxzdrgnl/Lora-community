@@ -9,6 +9,8 @@ import rheon.wsd_lora_community.generation.entity.GenerationHistory;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Getter
 @NoArgsConstructor
@@ -44,11 +46,11 @@ public class GenerationHistoryResponse {
     @Schema(description = "시드 값", example = "123456")
     private Long seed;
 
-    @Schema(description = "생성된 이미지 URL", example = "https://example.com/generated.png")
-    private String imageUrl;
+    @Schema(description = "생성된 이미지 개수", example = "3")
+    private Integer numImages;
 
-    @Schema(description = "샘플로 등록 여부", example = "false")
-    private Boolean isSample;
+    @Schema(description = "생성된 이미지 목록")
+    private List<GeneratedImageResponse> generatedImages;
 
     @Schema(description = "생성일", example = "2025-01-13T10:00:00")
     private LocalDateTime createdAt;
@@ -64,8 +66,10 @@ public class GenerationHistoryResponse {
                 .steps(history.getSteps())
                 .guidanceScale(history.getGuidanceScale())
                 .seed(history.getSeed())
-                .imageUrl(history.getImageUrl())
-                .isSample(history.getIsSample())
+                .numImages(history.getNumImages())
+                .generatedImages(history.getGeneratedImages().stream()
+                        .map(GeneratedImageResponse::from)
+                        .collect(Collectors.toList()))
                 .createdAt(history.getCreatedAt())
                 .build();
     }

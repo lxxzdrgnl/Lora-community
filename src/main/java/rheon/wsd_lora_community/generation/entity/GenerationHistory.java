@@ -7,9 +7,13 @@ import rheon.wsd_lora_community.model.entity.LoraModel;
 import rheon.wsd_lora_community.user.entity.User;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 이미지 생성 기록 엔티티
+ * - 한 번의 생성 요청 정보를 저장 (프롬프트, 파라미터 등)
+ * - 실제 생성된 이미지들은 GeneratedImage 엔티티에 저장 (1:N 관계)
  */
 @Entity
 @Table(name = "generation_history", indexes = {
@@ -50,19 +54,28 @@ public class GenerationHistory extends BaseEntity {
     @Column
     private Long seed;
 
-    @Column(nullable = false, length = 500)
-    private String imageUrl;
-
+    /**
+     * 생성된 이미지 수
+     */
     @Column(nullable = false)
     @Builder.Default
-    private Boolean isSample = false;
+    private Integer numImages = 1;
+
+    /**
+     * 생성된 이미지 목록 (1:N 관계)
+     * - CascadeType.ALL: GenerationHistory 삭제 시 연관된 이미지도 함께 삭제
+     * - orphanRemoval: 관계가 끊어진 이미지 자동 삭제
+     */
+    @OneToMany(mappedBy = "generationHistory", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<GeneratedImage> generatedImages = new ArrayList<>();
 
     // 비즈니스 메서드
-    public void markAsSample() {
-        this.isSample = true;
+    public void addGeneratedImage(GeneratedImage image) {
+        this.generatedImages.add(image);
     }
 
-    public void unmarkAsSample() {
-        this.isSample = false;
+    public void removeGeneratedImage(GeneratedImage image) {
+        this.generatedImages.remove(image);
     }
 }

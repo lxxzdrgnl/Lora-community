@@ -19,7 +19,6 @@ import rheon.wsd_lora_community.community.dto.CommentCreateRequest;
 import rheon.wsd_lora_community.community.dto.CommentResponse;
 import rheon.wsd_lora_community.community.service.CommentService;
 import rheon.wsd_lora_community.community.service.LikeService;
-import rheon.wsd_lora_community.community.service.FavoriteService;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.dto.PageResponse;
 import rheon.wsd_lora_community.model.dto.LoraModelResponse;
@@ -40,7 +39,6 @@ public class CommentController {
 
     private final CommentService commentService;
     private final LikeService likeService;
-    private final FavoriteService favoriteService;
 
     /**
      * Authentication 객체에서 사용자 ID 추출
@@ -278,56 +276,6 @@ public class CommentController {
 
     // ========== 모델 즐겨찾기 ==========
 
-    /**
-     * 모델 즐겨찾기 토글
-     */
-    @PostMapping("/{modelId}/favorite")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "모델 즐겨찾기 토글", description = "모델을 즐겨찾기에 추가하거나 제거합니다.")
-    public ResponseEntity<ApiResponse<Map<String, Boolean>>> toggleModelFavorite(
-            @Parameter(description = "모델 ID", required = true)
-            @PathVariable Long modelId,
-            @Parameter(hidden = true)
-            Authentication authentication
-    ) {
-        Long userId = getUserIdFromAuthentication(authentication);
-        if (userId == null) {
-            throw new IllegalArgumentException("인증 정보가 없습니다.");
-        }
-
-        boolean isFavorited = favoriteService.toggleModelFavorite(modelId, userId);
-
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        isFavorited ? "즐겨찾기 추가 성공" : "즐겨찾기 취소 성공",
-                        Map.of("isFavorited", isFavorited)
-                )
-        );
-    }
-
-    /**
-     * 내 즐겨찾기 목록 조회
-     */
-    @GetMapping("/favorites")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "즐겨찾기 목록 조회", description = "현재 유저가 즐겨찾기한 모델 목록을 조회합니다.")
-    public ResponseEntity<ApiResponse<PageResponse<LoraModelResponse>>> getFavoriteModels(
-            @Parameter(hidden = true)
-            Authentication authentication,
-            @ParameterObject
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
-        Long userId = getUserIdFromAuthentication(authentication);
-        if (userId == null) {
-            throw new IllegalArgumentException("인증 정보가 없습니다.");
-        }
-
-        PageResponse<LoraModelResponse> favorites = favoriteService.getUserFavoriteModels(userId, pageable);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("즐겨찾기 목록 조회 성공", favorites)
-        );
-    }
 
     /**
      * 내가 좋아요한 모델 목록 조회

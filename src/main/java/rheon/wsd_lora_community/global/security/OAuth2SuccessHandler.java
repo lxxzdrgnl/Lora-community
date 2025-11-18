@@ -56,9 +56,19 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         log.info("OAuth2 로그인 성공: email={}, name={}", email, name);
 
         // 사용자 조회 또는 생성
+        // 1. OAuth Provider ID로 조회
         User user = userRepository.findByOauthProviderAndOauthProviderId(
                 User.OAuthProvider.GOOGLE, providerId
-        ).orElseGet(() -> createUser(email, name, providerId, picture));
+        ).orElseGet(() -> {
+            // 2. 이메일로 조회 (기존 사용자가 있을 수 있음)
+            return userRepository.findByEmail(email)
+                    .map(existingUser -> {
+                        // 기존 사용자의 OAuth 정보 업데이트
+                        existingUser.updateOAuthInfo(providerId, picture);
+                        return userRepository.save(existingUser);
+                    })
+                    .orElseGet(() -> createUser(email, name, providerId, picture));
+        });
 
         // JWT 토큰 생성
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
@@ -67,8 +77,21 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // Refresh Token 저장
         saveRefreshToken(user, refreshToken);
 
+        // 프론트엔드 URL 결정 (Referer 헤더 또는 기본값 사용)
+        String targetFrontendUrl = frontendUrl;
+        String referer = request.getHeader("Referer");
+        if (referer != null && (referer.contains("devtunnels.ms") || referer.contains("localhost"))) {
+            // Referer에서 origin 추출
+            try {
+                java.net.URI uri = new java.net.URI(referer);
+                targetFrontendUrl = uri.getScheme() + "://" + uri.getAuthority();
+            } catch (Exception e) {
+                log.warn("Failed to parse Referer: {}", referer);
+            }
+        }
+
         // 프론트엔드로 리다이렉트 (URL Fragment를 사용하여 토큰 전달)
-        String redirectUrl = UriComponentsBuilder.fromUriString(frontendUrl)
+        String redirectUrl = UriComponentsBuilder.fromUriString(targetFrontendUrl)
                 .path("/auth/callback")
                 .build()
                 .toUriString();

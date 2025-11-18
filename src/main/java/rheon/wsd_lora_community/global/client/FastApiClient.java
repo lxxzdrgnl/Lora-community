@@ -174,12 +174,40 @@ public class FastApiClient {
     }
 
     /**
-     * 생성된 이미지 URL 목록 조회
+     * 생성된 이미지 S3 키 목록 조회
      *
-     * 이미지 생성이 완료된 후 호출하여 생성된 이미지 URL 목록을 가져옵니다.
+     * 이미지 생성이 완료된 후 호출하여 S3에 업로드된 이미지 키 목록을 가져옵니다.
      *
+     * @return S3 키 목록
+     */
+    @SuppressWarnings("unchecked")
+    public Mono<List<String>> getGeneratedImageS3Keys() {
+        return webClient.get()
+                .uri("/generate/images")
+                .retrieve()
+                .bodyToMono(Map.class)
+                .map(response -> {
+                    Object s3Keys = response.get("s3_keys");
+                    if (s3Keys instanceof List<?>) {
+                        List<?> list = (List<?>) s3Keys;
+                        return list.stream()
+                                .filter(obj -> obj instanceof String)
+                                .map(obj -> (String) obj)
+                                .toList();
+                    }
+                    return List.<String>of();
+                })
+                .doOnSuccess(keys -> log.info("생성된 이미지 S3 키 {} 개: {}", keys.size(), keys))
+                .doOnError(error -> log.error("S3 키 조회 실패: {}", error.getMessage()));
+    }
+
+    /**
+     * 생성된 이미지 URL 목록 조회 (레거시, 호환성 유지)
+     *
+     * @deprecated 대신 getGeneratedImageS3Keys()를 사용하세요
      * @return 이미지 URL 목록
      */
+    @Deprecated
     @SuppressWarnings("unchecked")
     public Mono<List<String>> getGeneratedImageUrls() {
         return getGenerationStatus()

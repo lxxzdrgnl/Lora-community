@@ -48,6 +48,12 @@ spring:
               - profile
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             authorization-grant-type: authorization_code
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
 
   # 파일 업로드 설정
   servlet:
@@ -102,8 +108,11 @@ file:
 # AWS S3 설정
 aws:
   s3:
-    bucket-name: ${AWS_S3_BUCKET_NAME:lora-training-data-bucket}
     region: ${AWS_S3_REGION:ap-southeast-2}
+    buckets:
+      training-data: ${AWS_S3_TRAINING_BUCKET:lora-training-data-bucket}  # 학습 데이터셋
+      models: ${AWS_S3_MODELS_BUCKET:lora-models-bucket}                  # 학습된 모델 파일
+      generated-images: ${AWS_S3_GENERATED_BUCKET:lora-generated-image-bucket}  # 생성된 이미지
   credentials:
     access-key: ${AWS_ACCESS_KEY_ID:your-access-key}
     secret-key: ${AWS_SECRET_ACCESS_KEY:your-secret-key}
