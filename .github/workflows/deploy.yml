@@ -47,3 +47,4 @@ jobs:
           
           version_label: github-action-${{ github.sha }}
           deployment_package: build/libs/application.jar  # 위에서 바꾼 이름 사용
+          use_existing_version_if_available: true
