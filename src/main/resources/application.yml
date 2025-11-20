@@ -80,17 +80,17 @@ jwt:
 frontend:
   url: ${FRONTEND_URL:http://localhost:5173}
 
-# FastAPI 연동 설정
+# FastAPI/Modal 연동 설정
 fastapi:
-  base-url: ${FASTAPI_URL:http://127.0.0.1:8000}
-  url: ${FASTAPI_URL:http://127.0.0.1:8000}
+  base-url: ${FASTAPI_URL:https://dldydwo9--lora-training-inference-fastapi-app.modal.run}
+  url: ${FASTAPI_URL:https://dldydwo9--lora-training-inference-fastapi-app.modal.run}
   connect-timeout: 10000  # 10초
   read-timeout: 300000    # 5분 (학습/생성은 시간이 오래 걸림)
 
 # Modal 멀티 인스턴스 설정
 modal:
-  enabled: ${MODAL_ENABLED:false}  # Modal 사용 여부 (개발: false, 프로덕션: true)
-  app-url: ${MODAL_APP_URL:https://yourusername--lora-training-inference-fastapi-app.modal.run}
+  enabled: ${MODAL_ENABLED:true}  # Modal 사용 여부 (개발: false, 프로덕션: true)
+  app-url: ${MODAL_APP_URL:https://dldydwo9--lora-training-inference-fastapi-app.modal.run}
   instances:
     - ${MODAL_INSTANCE_1:http://127.0.0.1:8000}
     - ${MODAL_INSTANCE_2:http://127.0.0.1:8001}

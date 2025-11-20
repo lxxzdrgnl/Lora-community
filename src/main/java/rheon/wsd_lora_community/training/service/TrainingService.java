@@ -204,11 +204,12 @@ public class TrainingService {
      *
      * @param userId 사용자 ID
      * @param modelName 모델 이름
-     * @param s3Key S3 키
+     * @param s3Folder S3 폴더 경로 (user-{userId}/{modelName})
+     * @param s3ModelKey S3 모델 파일 키
      * @param fileSize 파일 크기
      */
     @Transactional
-    public void handleTrainingCallback(String userId, String modelName, String s3Key, Long fileSize) {
+    public void handleTrainingCallback(String userId, String modelName, String s3Folder, String s3ModelKey, Long fileSize) {
         Long userIdLong = Long.parseLong(userId);
 
         // 유저 확인
@@ -223,8 +224,8 @@ public class TrainingService {
                 .findFirst()
                 .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
 
-        // S3 정보로 모델 업데이트
-        model.completeTrainingWithS3(s3Key, fileSize);
+        // S3 폴더 경로로 모델 업데이트 (폴더 경로 저장)
+        model.completeTrainingWithS3(s3Folder, fileSize);
 
         // 해당 모델의 진행 중인 TrainingJob도 완료 처리
         trainingJobRepository.findTopByModelOrderByCreatedAtDesc(model)

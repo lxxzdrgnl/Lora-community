@@ -1,5 +1,7 @@
 package rheon.wsd_lora_community.generation.service;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -44,8 +46,9 @@ public class GenerationService {
     private final S3UploadService s3UploadService;
 
     /**
-     * 이미지 생성 기록 저장 (FastAPI에서 호출)
+     * 이미지 생성 완료 처리 (FastAPI 콜백)
      *
+     * @param historyId GenerationHistory ID (없으면 자동 생성)
      * @param modelId 모델 ID
      * @param userId 사용자 ID
      * @param prompt 프롬프트
@@ -54,10 +57,101 @@ public class GenerationService {
      * @param guidanceScale 가이던스 스케일
      * @param seed 시드
      * @param numImages 생성된 이미지 개수
-     * @param imageS3Keys S3에 저장된 이미지 키 리스트 (FastAPI가 업로드 후 전달)
+     * @param imageS3Keys S3에 저장된 이미지 키 리스트
      * @return 생성 기록 응답
      */
     @Transactional
+    public GenerationHistoryResponse completeGeneration(
+            Long historyId,
+            Long modelId,
+            Long userId,
+            String prompt,
+            String negativePrompt,
+            Integer steps,
+            Double guidanceScale,
+            Long seed,
+            Integer numImages,
+            List<String> imageS3Keys
+    ) {
+        GenerationHistory history;
+
+        if (historyId != null) {
+            // 기존 GenerationHistory 업데이트
+            history = generationHistoryRepository.findById(historyId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+            // SUCCESS 상태로 변경
+            history.markAsSuccess();
+        } else {
+            // historyId가 없으면 새로 생성 (하위 호환성)
+            LoraModel model = loraModelRepository.findById(modelId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+            BigDecimal guidanceScaleDecimal = guidanceScale != null
+                    ? BigDecimal.valueOf(guidanceScale)
+                    : null;
+
+            history = GenerationHistory.builder()
+                    .model(model)
+                    .user(user)
+                    .prompt(prompt)
+                    .negativePrompt(negativePrompt)
+                    .steps(steps)
+                    .guidanceScale(guidanceScaleDecimal)
+                    .seed(seed)
+                    .numImages(numImages != null ? numImages : 1)
+                    .status("SUCCESS")
+                    .build();
+
+            history = generationHistoryRepository.save(history);
+        }
+
+        // GeneratedImage 엔티티 생성 및 저장
+        if (imageS3Keys != null && !imageS3Keys.isEmpty()) {
+            for (int i = 0; i < imageS3Keys.size(); i++) {
+                String s3Key = imageS3Keys.get(i);
+
+                // S3 URL 생성
+                String s3Url = s3UploadService.generateDownloadPresignedUrl(s3Key);
+
+                GeneratedImage image = GeneratedImage.builder()
+                        .generationHistory(history)
+                        .s3Url(s3Url)
+                        .s3Key(s3Key)
+                        .displayOrder(i + 1)
+                        .isSample(false)
+                        .build();
+
+                generatedImageRepository.save(image);
+                history.addGeneratedImage(image);
+            }
+        }
+
+        log.info("Generation completed: historyId={}, images={}", history.getId(), imageS3Keys != null ? imageS3Keys.size() : 0);
+
+        return GenerationHistoryResponse.from(history);
+    }
+
+    /**
+     * 이미지 생성 실패 처리 (FastAPI 콜백)
+     */
+    @Transactional
+    public void failGeneration(Long historyId, String errorMessage) {
+        GenerationHistory history = generationHistoryRepository.findById(historyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        history.markAsFailed(errorMessage);
+
+        log.warn("Generation failed: historyId={}, error={}", historyId, errorMessage);
+    }
+
+    /**
+     * saveGenerationHistory (deprecated - completeGeneration 사용)
+     */
+    @Deprecated
     public GenerationHistoryResponse saveGenerationHistory(
             Long modelId,
             Long userId,
@@ -69,64 +163,18 @@ public class GenerationService {
             Integer numImages,
             List<String> imageS3Keys
     ) {
-        LoraModel model = loraModelRepository.findById(modelId)
-                .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-        // BigDecimal 변환
-        BigDecimal guidanceScaleDecimal = guidanceScale != null
-                ? BigDecimal.valueOf(guidanceScale)
-                : null;
-
-        // GenerationHistory 생성
-        GenerationHistory history = GenerationHistory.builder()
-                .model(model)
-                .user(user)
-                .prompt(prompt)
-                .negativePrompt(negativePrompt)
-                .steps(steps)
-                .guidanceScale(guidanceScaleDecimal)
-                .seed(seed)
-                .numImages(numImages != null ? numImages : 1)
-                .build();
-
-        GenerationHistory savedHistory = generationHistoryRepository.save(history);
-
-        // GeneratedImage 엔티티 생성 및 저장
-        if (imageS3Keys != null && !imageS3Keys.isEmpty()) {
-            for (int i = 0; i < imageS3Keys.size(); i++) {
-                String s3Key = imageS3Keys.get(i);
-
-                // S3 URL 생성
-                String s3Url = s3UploadService.generateDownloadPresignedUrl(s3Key);
-
-                GeneratedImage image = GeneratedImage.builder()
-                        .generationHistory(savedHistory)
-                        .s3Url(s3Url)
-                        .s3Key(s3Key)
-                        .displayOrder(i + 1)
-                        .isSample(false)
-                        .build();
-
-                generatedImageRepository.save(image);
-                savedHistory.addGeneratedImage(image);
-            }
-        }
-
-        log.info("Saved generation history: historyId={}, images={}", savedHistory.getId(), imageS3Keys.size());
-
-        return GenerationHistoryResponse.from(savedHistory);
+        return completeGeneration(null, modelId, userId, prompt, negativePrompt,
+                steps, guidanceScale, seed, numImages, imageS3Keys);
     }
 
     /**
-     * 이미지 생성 요청 검증
+     * 이미지 생성 요청 시작 (GenerationHistory 생성)
      *
-     * Controller에서 FastAPI 호출 전에 이 메서드로 검증합니다.
-     * @return LoRA 모델의 S3 키
+     * Controller에서 FastAPI 호출 전에 먼저 DB에 기록합니다.
+     * @return 생성된 GenerationHistory ID와 S3 키
      */
-    public String validateGenerationRequest(GenerateImageRequest request, Long userId) {
+    @Transactional
+    public GenerationStartResponse startGeneration(GenerateImageRequest request, Long userId) {
         // 모델 존재 여부 확인
         LoraModel model = loraModelRepository.findById(request.getModelId())
                 .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
@@ -137,7 +185,7 @@ public class GenerationService {
         }
 
         // 사용자 존재 여부 확인
-        userRepository.findById(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // S3 키가 없으면 에러
@@ -145,8 +193,45 @@ public class GenerationService {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
-        // S3 키 반환
-        return model.getS3Key();
+        // BigDecimal 변환
+        BigDecimal guidanceScaleDecimal = request.getGuidanceScale() != null
+                ? BigDecimal.valueOf(request.getGuidanceScale())
+                : null;
+
+        // GenerationHistory 생성 (GENERATING 상태)
+        GenerationHistory history = GenerationHistory.builder()
+                .model(model)
+                .user(user)
+                .prompt(request.getPrompt())
+                .negativePrompt(request.getNegativePrompt())
+                .steps(request.getSteps())
+                .guidanceScale(guidanceScaleDecimal)
+                .seed(request.getSeed() != null ? request.getSeed().longValue() : null)
+                .numImages(request.getNumImages() != null ? request.getNumImages() : 1)
+                .status("GENERATING")
+                .build();
+
+        GenerationHistory savedHistory = generationHistoryRepository.save(history);
+
+        return new GenerationStartResponse(savedHistory.getId(), model.getS3Key());
+    }
+
+    /**
+     * 이미지 생성 요청 검증 (deprecated - startGeneration 사용)
+     *
+     * @deprecated startGeneration() 사용
+     */
+    @Deprecated
+    public String validateGenerationRequest(GenerateImageRequest request, Long userId) {
+        return startGeneration(request, userId).getS3Key();
+    }
+
+    // 내부 DTO
+    @Getter
+    @AllArgsConstructor
+    public static class GenerationStartResponse {
+        private Long historyId;
+        private String s3Key;
     }
 
     /**

@@ -8,7 +8,15 @@ build/
 
 ### Sensitive Configuration ###
 src/main/resources/application-local.yml
+src/main/resources/application-prod.yml
+src/main/resources/application-*.yml
+!src/main/resources/application.yml
 .env
+.env.local
+*.secret
+secrets.txt
+*.key
+*.pem
 
 ### STS ###
 .apt_generated

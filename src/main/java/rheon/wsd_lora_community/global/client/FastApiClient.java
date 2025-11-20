@@ -33,6 +33,11 @@ public class FastApiClient {
     ) {
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
+                .defaultHeader("Content-Type", "application/json")
+                .defaultHeader("Accept", "application/json")
+                .codecs(configurer -> configurer
+                        .defaultCodecs()
+                        .maxInMemorySize(16 * 1024 * 1024)) // 16MB 버퍼 크기
                 .build();
         log.info("FastAPI 클라이언트 초기화 완료. Base URL: {}", baseUrl);
     }
@@ -40,14 +45,55 @@ public class FastApiClient {
     // ========== 학습 관련 API ==========
 
     /**
-     * LoRA 모델 학습 시작
+     * LoRA 모델 학습 시작 (Modal API)
      *
+     * @param userId 사용자 ID
+     * @param modelName 모델 이름
+     * @param trainingImageUrls S3 presigned URL 리스트
+     * @param callbackUrl 완료 시 호출할 콜백 URL
+     * @return 응답 메시지
+     */
+    public Mono<String> startTraining(String userId, String modelName, List<String> trainingImageUrls, String callbackUrl) {
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("user_id", userId);
+        requestBody.put("model_name", modelName);
+        requestBody.put("training_image_urls", trainingImageUrls);
+        if (callbackUrl != null) {
+            requestBody.put("callback_url", callbackUrl);
+        }
+
+        return webClient.post()
+                .uri("/train")
+                .bodyValue(requestBody)
+                .retrieve()
+                .onStatus(
+                        status -> status.is4xxClientError() || status.is5xxServerError(),
+                        response -> response.bodyToMono(String.class)
+                                .flatMap(errorBody -> {
+                                    log.error("FastAPI 에러 응답 ({}): {}", response.statusCode(), errorBody);
+                                    return Mono.error(new RuntimeException(
+                                            String.format("FastAPI Error %s: %s",
+                                                    response.statusCode(), errorBody)
+                                    ));
+                                })
+                )
+                .bodyToMono(Map.class)
+                .map(response -> (String) response.get("message"))
+                .doOnSuccess(msg -> log.info("학습 시작 성공 (Modal): {}", msg))
+                .doOnError(error -> log.error("학습 시작 실패 (Modal): {}", error.getMessage()));
+    }
+
+    /**
+     * LoRA 모델 학습 시작 (로컬 FastAPI - 레거시)
+     *
+     * @deprecated Modal API의 startTraining(userId, modelName, trainingImageUrls, callbackUrl)을 사용하세요
      * @param rawDatasetPath 원본 데이터셋 경로
      * @param outputDir 학습된 모델이 저장될 경로
      * @param skipPreprocessing 전처리 과정 스킵 여부
      * @return 응답 메시지
      */
-    public Mono<String> startTraining(String rawDatasetPath, String outputDir, boolean skipPreprocessing) {
+    @Deprecated
+    public Mono<String> startTrainingLocal(String rawDatasetPath, String outputDir, boolean skipPreprocessing) {
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("raw_dataset_path", rawDatasetPath);
         requestBody.put("output_dir", outputDir);
@@ -59,8 +105,8 @@ public class FastApiClient {
                 .retrieve()
                 .bodyToMono(Map.class)
                 .map(response -> (String) response.get("message"))
-                .doOnSuccess(msg -> log.info("학습 시작 성공: {}", msg))
-                .doOnError(error -> log.error("학습 시작 실패: {}", error.getMessage()));
+                .doOnSuccess(msg -> log.info("학습 시작 성공 (로컬): {}", msg))
+                .doOnError(error -> log.error("학습 시작 실패 (로컬): {}", error.getMessage()));
     }
 
     /**
@@ -99,8 +145,10 @@ public class FastApiClient {
     // ========== 이미지 생성 관련 API ==========
 
     /**
-     * 이미지 생성 시작
+     * 이미지 생성 시작 (Modal API)
      *
+     * @param userId 사용자 ID
+     * @param modelId 모델 ID
      * @param prompt 이미지 생성 프롬프트
      * @param negativePrompt 네거티브 프롬프트
      * @param loraModelUrl LoRA 모델 S3 Presigned URL
@@ -108,18 +156,28 @@ public class FastApiClient {
      * @param steps 생성 스텝 수
      * @param guidanceScale CFG Scale
      * @param seed 랜덤 시드 (null 가능)
+     * @param callbackUrl 완료 시 콜백 URL (null 가능)
      * @return 응답 메시지
      */
     public Mono<String> startImageGeneration(
+            String userId,
+            Long modelId,
+            Long historyId,
             String prompt,
             String negativePrompt,
             String loraModelUrl,
             int numImages,
             int steps,
             double guidanceScale,
-            Long seed
+            Long seed,
+            String callbackUrl
     ) {
         Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("user_id", userId);
+        requestBody.put("model_id", modelId);
+        if (historyId != null) {
+            requestBody.put("history_id", historyId);
+        }
         requestBody.put("prompt", prompt);
         requestBody.put("negative_prompt", negativePrompt);
         requestBody.put("lora_model_url", loraModelUrl);  // S3 Presigned URL
@@ -129,15 +187,29 @@ public class FastApiClient {
         if (seed != null) {
             requestBody.put("seed", seed);
         }
+        if (callbackUrl != null) {
+            requestBody.put("callback_url", callbackUrl);
+        }
 
         return webClient.post()
                 .uri("/generate")
                 .bodyValue(requestBody)
                 .retrieve()
+                .onStatus(
+                        status -> status.is4xxClientError() || status.is5xxServerError(),
+                        response -> response.bodyToMono(String.class)
+                                .flatMap(errorBody -> {
+                                    log.error("FastAPI 에러 응답 ({}): {}", response.statusCode(), errorBody);
+                                    return Mono.error(new RuntimeException(
+                                            String.format("FastAPI Error %s: %s",
+                                                    response.statusCode(), errorBody)
+                                    ));
+                                })
+                )
                 .bodyToMono(Map.class)
                 .map(response -> (String) response.get("message"))
-                .doOnSuccess(msg -> log.info("이미지 생성 시작 성공: {}", msg))
-                .doOnError(error -> log.error("이미지 생성 시작 실패: {}", error.getMessage()));
+                .doOnSuccess(msg -> log.info("이미지 생성 시작 성공 (Modal): {}", msg))
+                .doOnError(error -> log.error("이미지 생성 시작 실패 (Modal): {}", error.getMessage()));
     }
 
     /**

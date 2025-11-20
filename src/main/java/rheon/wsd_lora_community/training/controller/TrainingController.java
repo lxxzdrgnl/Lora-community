@@ -14,14 +14,17 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import rheon.wsd_lora_community.global.client.FastApiClient;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
+import rheon.wsd_lora_community.global.service.S3UploadService;
 import rheon.wsd_lora_community.training.dto.TrainingCallbackRequest;
 import rheon.wsd_lora_community.training.dto.TrainingJobResponse;
 import rheon.wsd_lora_community.training.entity.TrainingJob;
 import rheon.wsd_lora_community.training.service.TrainingService;
 
 import jakarta.validation.Valid;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 /**
  * 학습 작업 컨트롤러
@@ -38,6 +41,7 @@ public class TrainingController {
 
     private final TrainingService trainingService;
     private final FastApiClient fastApiClient;
+    private final S3UploadService s3UploadService;
 
     /**
      * 학습 작업 생성
@@ -60,41 +64,128 @@ public class TrainingController {
     }
 
     /**
-     * 학습 작업 시작 (FastAPI 연동)
+     * 학습 이미지 업로드용 Presigned URL 생성
+     */
+    @PostMapping("/upload-urls")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "학습 이미지 업로드용 Presigned URL 생성",
+            description = "학습 이미지를 S3에 업로드하기 위한 Presigned URL을 생성합니다. " +
+                    "프론트엔드에서 이 URL로 이미지를 직접 업로드하고, 업로드된 이미지의 URL을 학습 시작 시 전달합니다."
+    )
+    public ResponseEntity<ApiResponse<Map<String, Object>>> generateUploadUrls(
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal OAuth2User principal,
+            @RequestBody Map<String, Object> request
+    ) {
+        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+
+        @SuppressWarnings("unchecked")
+        List<String> fileNames = (List<String>) request.get("fileNames");
+
+        if (fileNames == null || fileNames.isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.error("파일명 리스트가 필요합니다. (fileNames)")
+            );
+        }
+
+        // 각 파일에 대한 업로드 URL과 S3 키 생성
+        List<Map<String, String>> uploadUrls = new ArrayList<>();
+        List<String> downloadUrls = new ArrayList<>();
+
+        for (String fileName : fileNames) {
+            // 업로드용 Presigned URL 생성
+            String uploadUrl = s3UploadService.generatePresignedUrl(userId.toString(), fileName);
+
+            // S3 키 생성 (다운로드용)
+            String s3Key = s3UploadService.generateS3Key(userId.toString(), fileName);
+
+            // 다운로드용 Presigned URL 생성 (학습 시 Modal에 전달할 URL)
+            String downloadUrl = s3UploadService.generateDownloadPresignedUrl(s3Key);
+
+            Map<String, String> urlInfo = new HashMap<>();
+            urlInfo.put("fileName", fileName);
+            urlInfo.put("uploadUrl", uploadUrl);
+            urlInfo.put("s3Key", s3Key);
+
+            uploadUrls.add(urlInfo);
+            downloadUrls.add(downloadUrl);
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("uploadUrls", uploadUrls);
+        response.put("downloadUrls", downloadUrls);
+        response.put("count", fileNames.size());
+
+        return ResponseEntity.ok(
+                ApiResponse.success("업로드 URL 생성 성공", response)
+        );
+    }
+
+    /**
+     * 학습 작업 시작 (Modal API 연동)
      */
     @PostMapping("/jobs/{jobId}/start")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "학습 작업 시작", description = "대기 중인 학습 작업을 시작하고 FastAPI 서버로 학습 요청을 전송합니다.")
+    @Operation(summary = "학습 작업 시작", description = "대기 중인 학습 작업을 시작하고 Modal API로 학습 요청을 전송합니다.")
     public ResponseEntity<ApiResponse<Map<String, Object>>> startTraining(
             @Parameter(description = "학습 작업 ID", required = true)
             @PathVariable Long jobId,
-            @RequestBody Map<String, Object> request
+            @RequestBody Map<String, Object> request,
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal OAuth2User principal
     ) {
+        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+
         // 학습 작업 상태 업데이트
         Integer totalEpochs = (Integer) request.get("totalEpochs");
         TrainingJobResponse job = trainingService.startTraining(jobId, totalEpochs);
 
-        // FastAPI로 학습 시작 요청 (비동기)
-        String rawDatasetPath = (String) request.getOrDefault("rawDatasetPath", "./dataset");
-        String outputDir = (String) request.getOrDefault("outputDir", "my_lora_model");
-        Boolean skipPreprocessing = (Boolean) request.getOrDefault("skipPreprocessing", false);
+        // 학습 이미지 S3 URL 리스트 (요청에서 받아옴)
+        @SuppressWarnings("unchecked")
+        List<String> trainingImageUrls = (List<String>) request.get("trainingImageUrls");
 
-        fastApiClient.startTraining(rawDatasetPath, outputDir, skipPreprocessing)
-                .subscribe(
-                        message -> {
-                            // FastAPI 학습 시작 성공
-                            System.out.println("FastAPI 학습 시작: " + message);
-                        },
-                        error -> {
-                            // FastAPI 학습 시작 실패
-                            System.err.println("FastAPI 학습 시작 실패: " + error.getMessage());
-                            trainingService.failTraining(jobId, error.getMessage());
-                        }
-                );
+        if (trainingImageUrls == null || trainingImageUrls.isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.error("학습 이미지 URL 리스트가 필요합니다. (trainingImageUrls)")
+            );
+        }
+
+        // 모델 이름 가져오기
+        String modelName = (String) request.get("modelName");
+        if (modelName == null || modelName.isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.error("모델 이름이 필요합니다. (modelName)")
+            );
+        }
+
+        // Callback URL 설정 (Spring Boot 서버 URL)
+        String baseUrl = request.containsKey("callbackBaseUrl")
+                ? (String) request.get("callbackBaseUrl")
+                : "http://localhost:8080"; // 기본값
+        String callbackUrl = baseUrl + "/api/training/callback";
+
+        // Modal API로 학습 시작 요청 (비동기)
+        fastApiClient.startTraining(
+                userId.toString(),
+                modelName,
+                trainingImageUrls,
+                callbackUrl
+        ).subscribe(
+                message -> {
+                    // Modal 학습 시작 성공
+                    System.out.println("Modal 학습 시작: " + message);
+                },
+                error -> {
+                    // Modal 학습 시작 실패
+                    System.err.println("Modal 학습 시작 실패: " + error.getMessage());
+                    trainingService.failTraining(jobId, error.getMessage());
+                }
+        );
 
         return ResponseEntity.ok(
-                ApiResponse.success("학습 시작 성공. FastAPI 서버로 요청이 전송되었습니다.",
-                        Map.of("job", job, "message", "학습이 백그라운드에서 시작되었습니다."))
+                ApiResponse.success("학습 시작 성공. Modal GPU 서버로 요청이 전송되었습니다.",
+                        Map.of("job", job, "message", "학습이 Modal에서 백그라운드로 시작되었습니다."))
         );
     }
 
@@ -290,7 +381,8 @@ public class TrainingController {
             trainingService.handleTrainingCallback(
                     request.getUserId(),
                     request.getModelName(),
-                    request.getS3Key(),
+                    request.getS3Folder(),
+                    request.getS3ModelKey(),
                     request.getFileSize()
             );
 

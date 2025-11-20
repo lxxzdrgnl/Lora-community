@@ -24,8 +24,11 @@ public class TrainingCallbackRequest {
     @Schema(description = "모델 이름", example = "my-character-model")
     private String modelName;
 
-    @Schema(description = "S3 키 (학습 성공 시)", example = "models/1/my-character-model.safetensors")
-    private String s3Key;
+    @Schema(description = "S3 폴더 경로 (학습 성공 시)", example = "user-1/my-character-model")
+    private String s3Folder;
+
+    @Schema(description = "S3 모델 파일 키 (학습 성공 시)", example = "user-1/my-character-model/my-character-model.safetensors")
+    private String s3ModelKey;
 
     @Schema(description = "파일 크기 (bytes, 학습 성공 시)", example = "524288000")
     private Long fileSize;

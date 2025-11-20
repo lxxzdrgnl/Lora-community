@@ -13,7 +13,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -46,6 +47,25 @@ public class GenerationController {
     private final S3UploadService s3UploadService;
 
     /**
+     * Authentication에서 User ID 추출 (OAuth2 및 JWT 지원)
+     */
+    private Long getUserIdFromAuthentication(Authentication authentication) {
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof UserDetails) {
+            // JWT 인증 (UserDetails)
+            UserDetails userDetails = (UserDetails) principal;
+            return Long.valueOf(userDetails.getUsername());
+        } else if (principal instanceof OAuth2User) {
+            // OAuth2 인증
+            OAuth2User oauth2User = (OAuth2User) principal;
+            return Long.valueOf(oauth2User.getAttribute("id").toString());
+        }
+
+        throw new IllegalStateException("Unknown principal type: " + principal.getClass());
+    }
+
+    /**
      * 이미지 생성 요청 (FastAPI 연동)
      */
     @PostMapping
@@ -57,34 +77,45 @@ public class GenerationController {
     )
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateImage(
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @Valid @RequestBody GenerateImageRequest request
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
 
-        // 요청 검증 및 S3 키 조회
-        String s3Key = generationService.validateGenerationRequest(request, userId);
+        // 생성 요청 시작 (DB에 GENERATING 상태로 저장)
+        GenerationService.GenerationStartResponse startResponse =
+                generationService.startGeneration(request, userId);
 
-        // S3 Presigned URL 생성 (다운로드용, 1시간 유효)
-        String modelDownloadUrl = s3UploadService.generateDownloadPresignedUrl(s3Key);
+        // S3 URI 형식으로 전달 (Modal에서 boto3로 다운로드)
+        // 형식: s3://lora-models-bucket/{userId}/{modelName}
+        // 예: s3://lora-models-bucket/0/Reze
+        String s3Uri = "s3://lora-models-bucket/" + startResponse.getS3Key();
 
-        // FastAPI로 이미지 생성 요청 (비동기)
+        // Callback URL 설정
+        String callbackUrl = "http://localhost:8080/api/generate/history";
+
+        // FastAPI/Modal로 이미지 생성 요청 (비동기)
         fastApiClient.startImageGeneration(
+                userId.toString(),  // 사용자 ID
+                request.getModelId(),  // 모델 ID
+                startResponse.getHistoryId(),  // GenerationHistory ID
                 request.getPrompt(),
                 request.getNegativePrompt(),
-                modelDownloadUrl,  // Presigned URL 전달
+                s3Uri,  // S3 URI 전달 (폴더 경로)
                 request.getNumImages() != null ? request.getNumImages() : 1,
                 request.getSteps() != null ? request.getSteps() : 40,
                 request.getGuidanceScale() != null ? request.getGuidanceScale() : 7.5,
-                request.getSeed()
+                request.getSeed(),
+                callbackUrl  // 콜백 URL
         ).subscribe(
                 message -> {
                     // FastAPI 이미지 생성 시작 성공
-                    System.out.println("FastAPI 이미지 생성 시작: " + message);
+                    System.out.println("✅ FastAPI 이미지 생성 시작: " + message);
                 },
                 error -> {
                     // FastAPI 이미지 생성 시작 실패
-                    System.err.println("FastAPI 이미지 생성 시작 실패: " + error.getMessage());
+                    System.err.println("❌ FastAPI 이미지 생성 시작 실패: " + error.getMessage());
+                    error.printStackTrace();
                 }
         );
 
@@ -92,6 +123,7 @@ public class GenerationController {
                 ApiResponse.success(
                         "이미지 생성 요청이 FastAPI 서버로 전송되었습니다.",
                         Map.of(
+                                "historyId", startResponse.getHistoryId(),
                                 "message", "이미지 생성이 백그라운드에서 진행됩니다.",
                                 "modelId", request.getModelId(),
                                 "prompt", request.getPrompt()
@@ -101,46 +133,71 @@ public class GenerationController {
     }
 
     /**
-     * 이미지 생성 기록 저장 (FastAPI 서버 전용)
-     * - 여러 이미지 S3 키를 받아서 GeneratedImage 엔티티로 저장
+     * 이미지 생성 완료 콜백 (FastAPI 서버 전용)
+     * - SUCCESS 또는 FAIL 상태로 GenerationHistory 업데이트
      */
     @PostMapping("/history")
     @Operation(
-            summary = "이미지 생성 기록 저장 (FastAPI 전용)",
-            description = "FastAPI 서버에서 이미지 생성 완료 후 기록을 저장하기 위해 호출합니다. " +
-                    "S3에 업로드된 이미지 키 목록을 전달받습니다."
+            summary = "이미지 생성 완료 콜백 (FastAPI 전용)",
+            description = "FastAPI 서버에서 이미지 생성 완료 후 기록을 업데이트하기 위해 호출합니다. " +
+                    "S3에 업로드된 이미지 키 목록을 전달받거나 에러 메시지를 받습니다."
     )
-    public ResponseEntity<ApiResponse<GenerationHistoryResponse>> saveGenerationHistory(
+    public ResponseEntity<ApiResponse<?>> handleGenerationCallback(
             @RequestBody Map<String, Object> request
     ) {
-        Long modelId = Long.valueOf(request.get("modelId").toString());
-        Long userId = Long.valueOf(request.get("userId").toString());
-        String prompt = (String) request.get("prompt");
-        String negativePrompt = (String) request.get("negativePrompt");
-        Integer steps = request.get("steps") != null
-                ? Integer.valueOf(request.get("steps").toString())
-                : null;
-        Double guidanceScale = request.get("guidanceScale") != null
-                ? Double.valueOf(request.get("guidanceScale").toString())
-                : null;
-        Long seed = request.get("seed") != null
-                ? Long.valueOf(request.get("seed").toString())
-                : null;
-        Integer numImages = request.get("numImages") != null
-                ? Integer.valueOf(request.get("numImages").toString())
-                : 1;
+        String status = (String) request.get("status");
 
-        // S3 키 목록 가져오기
-        @SuppressWarnings("unchecked")
-        java.util.List<String> imageS3Keys = (java.util.List<String>) request.get("imageS3Keys");
+        if ("SUCCESS".equals(status)) {
+            // 성공 처리
+            Long historyId = request.get("historyId") != null
+                    ? Long.valueOf(request.get("historyId").toString())
+                    : null;
+            Long modelId = Long.valueOf(request.get("modelId").toString());
+            Long userId = Long.valueOf(request.get("userId").toString());
+            String prompt = (String) request.get("prompt");
+            String negativePrompt = (String) request.get("negativePrompt");
+            Integer steps = request.get("steps") != null
+                    ? Integer.valueOf(request.get("steps").toString())
+                    : null;
+            Double guidanceScale = request.get("guidanceScale") != null
+                    ? Double.valueOf(request.get("guidanceScale").toString())
+                    : null;
+            Long seed = request.get("seed") != null
+                    ? Long.valueOf(request.get("seed").toString())
+                    : null;
+            Integer numImages = request.get("numImages") != null
+                    ? Integer.valueOf(request.get("numImages").toString())
+                    : 1;
 
-        GenerationHistoryResponse history = generationService.saveGenerationHistory(
-                modelId, userId, prompt, negativePrompt, steps, guidanceScale, seed, numImages, imageS3Keys
-        );
+            // S3 키 목록 가져오기
+            @SuppressWarnings("unchecked")
+            java.util.List<String> imageS3Keys = (java.util.List<String>) request.get("imageS3Keys");
 
-        return ResponseEntity.ok(
-                ApiResponse.success("생성 기록 저장 성공", history)
-        );
+            GenerationHistoryResponse history = generationService.completeGeneration(
+                    historyId, modelId, userId, prompt, negativePrompt, steps, guidanceScale, seed, numImages, imageS3Keys
+            );
+
+            return ResponseEntity.ok(
+                    ApiResponse.success("생성 완료 처리 성공", history)
+            );
+        } else if ("FAIL".equals(status)) {
+            // 실패 처리
+            Long historyId = request.get("historyId") != null
+                    ? Long.valueOf(request.get("historyId").toString())
+                    : null;
+            String error = (String) request.get("error");
+
+            if (historyId != null) {
+                generationService.failGeneration(historyId, error);
+            }
+
+            return ResponseEntity.ok(
+                    ApiResponse.success("생성 실패 처리 완료", Map.of("error", error))
+            );
+        } else {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("잘못된 status 값: " + status));
+        }
     }
 
     /**
@@ -167,11 +224,11 @@ public class GenerationController {
     @Operation(summary = "내 생성 기록 목록 조회", description = "현재 유저의 모든 생성 기록을 조회합니다.")
     public ResponseEntity<ApiResponse<PageResponse<GenerationHistoryResponse>>> getMyGenerationHistory(
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         PageResponse<GenerationHistoryResponse> history = generationService.getUserGenerationHistory(userId, pageable);
 
         return ResponseEntity.ok(
@@ -205,13 +262,13 @@ public class GenerationController {
     @Operation(summary = "내 특정 모델 생성 기록 조회", description = "특정 모델로 내가 생성한 이미지 기록을 조회합니다.")
     public ResponseEntity<ApiResponse<PageResponse<GenerationHistoryResponse>>> getMyModelGenerationHistory(
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         PageResponse<GenerationHistoryResponse> history = generationService.getUserModelGenerationHistory(userId, modelId, pageable);
 
         return ResponseEntity.ok(
@@ -229,9 +286,9 @@ public class GenerationController {
             @Parameter(description = "생성 이미지 ID", required = true)
             @PathVariable Long imageId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         generationService.markImageAsSample(imageId, userId);
 
         return ResponseEntity.ok(
@@ -249,9 +306,9 @@ public class GenerationController {
             @Parameter(description = "생성 이미지 ID", required = true)
             @PathVariable Long imageId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         generationService.unmarkImageAsSample(imageId, userId);
 
         return ResponseEntity.ok(
@@ -269,9 +326,9 @@ public class GenerationController {
             @Parameter(description = "생성 기록 ID", required = true)
             @PathVariable Long historyId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         generationService.deleteGenerationHistory(historyId, userId);
 
         return ResponseEntity.ok(

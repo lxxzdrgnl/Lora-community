@@ -62,6 +62,19 @@ public class GenerationHistory extends BaseEntity {
     private Integer numImages = 1;
 
     /**
+     * 생성 상태 (GENERATING, SUCCESS, FAILED)
+     */
+    @Column(length = 20, nullable = false)
+    @Builder.Default
+    private String status = "GENERATING";
+
+    /**
+     * 에러 메시지 (실패 시)
+     */
+    @Column(columnDefinition = "TEXT")
+    private String errorMessage;
+
+    /**
      * 생성된 이미지 목록 (1:N 관계)
      * - CascadeType.ALL: GenerationHistory 삭제 시 연관된 이미지도 함께 삭제
      * - orphanRemoval: 관계가 끊어진 이미지 자동 삭제
@@ -77,5 +90,15 @@ public class GenerationHistory extends BaseEntity {
 
     public void removeGeneratedImage(GeneratedImage image) {
         this.generatedImages.remove(image);
+    }
+
+    public void markAsSuccess() {
+        this.status = "SUCCESS";
+        this.errorMessage = null;
+    }
+
+    public void markAsFailed(String errorMessage) {
+        this.status = "FAILED";
+        this.errorMessage = errorMessage;
     }
 }

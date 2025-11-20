@@ -64,9 +64,11 @@
 - **Async HTTP Client**: Spring WebFlux WebClient
 
 ### AI Service Integration
-- **Framework**: FastAPI
+- **Framework**: FastAPI (Modal Serverless)
+- **GPU**: Modal A10G (Training), T4 (Generation)
 - **Communication**: Reactive Streams (Mono, Flux)
 - **Progress Tracking**: SSE Streaming
+- **Storage**: AWS S3 (Models, Images, Datasets)
 
 ---
 
@@ -205,20 +207,23 @@ GET /
 - `GET /api/tags/category/{category}` - 카테고리별 태그 조회
 - `POST /api/tags/models/{modelId}` - 모델에 태그 추가
 
-#### 학습
+#### 학습 (Modal GPU)
+- `POST /api/training/upload-urls` - 학습 이미지 업로드 URL 생성
 - `POST /api/training/models/{modelId}` - 학습 작업 생성
-- `POST /api/training/jobs/{jobId}/start` - 학습 시작
+- `POST /api/training/jobs/{jobId}/start` - 학습 시작 (Modal GPU A10G)
 - `GET /api/training/jobs/{jobId}` - 학습 작업 조회
 - `GET /api/training/my` - 내 학습 작업 목록
+- `POST /api/training/callback` - Modal 학습 완료 콜백
 - `GET /api/training/stream` - 실시간 진행률 스트리밍 (SSE)
-- `GET /api/training/fastapi/status` - FastAPI 학습 상태 조회
+- `GET /api/training/fastapi/status` - Modal 학습 상태 조회
 
-#### 이미지 생성
-- `POST /api/generate` - 이미지 생성 요청
+#### 이미지 생성 (Modal GPU)
+- `POST /api/generate` - 이미지 생성 요청 (Modal GPU T4)
+- `POST /api/generate/history` - Modal 생성 완료 콜백
 - `GET /api/generate/history` - 생성 기록 조회
 - `POST /api/generate/history/{historyId}/sample` - 샘플로 등록
 - `GET /api/generate/stream` - 실시간 진행률 스트리밍 (SSE)
-- `GET /api/generate/fastapi/status` - FastAPI 생성 상태 조회
+- `GET /api/generate/fastapi/status` - Modal 생성 상태 조회
 
 #### 검색
 - `GET /api/search` - 통합 검색 (모델 + 유저)
@@ -290,18 +295,90 @@ GET /
 
 ## 🎯 핵심 기능 상세
 
-### 1. LoRA 모델 학습
+### 1. LoRA 모델 학습 (Modal Serverless GPU)
 
-- FastAPI 서버로 학습 요청 전송 (비동기)
+**플로우:**
+```
+1. 프론트엔드 → POST /api/training/upload-urls
+   { "fileNames": ["img1.jpg", "img2.jpg", ...] }
+
+2. Spring Boot → S3 Presigned URLs 생성
+   응답: { "uploadUrls": [...], "downloadUrls": [...] }
+
+3. 프론트엔드 → S3에 직접 업로드 (각 uploadUrl로 PUT)
+
+4. 프론트엔드 → POST /api/training/jobs/{jobId}/start
+   {
+     "totalEpochs": 10,
+     "modelName": "my_model",
+     "trainingImageUrls": ["s3-url-1", "s3-url-2", ...],
+     "callbackBaseUrl": "https://your-server.com"
+   }
+
+5. Spring Boot → Modal API (GPU A10G)
+   POST https://dldydwo9--lora-training-inference-fastapi-app.modal.run/train
+
+6. Modal → S3에서 이미지 다운로드 → LoRA 학습 → 모델 S3 업로드
+
+7. Modal → Spring Boot 콜백
+   POST /api/training/callback
+   {
+     "userId": "123",
+     "modelName": "my_model",
+     "s3Key": "models/123/my_model.safetensors",
+     "fileSize": 142857600,
+     "status": "SUCCESS"
+   }
+
+8. Spring Boot → DB 저장 (모델 상태 COMPLETED로 변경)
+```
+
+**주요 기능:**
+- Modal Serverless GPU (A10G) 사용
+- S3 기반 이미지 업로드/다운로드
+- 비동기 처리 (콜백 기반)
 - 실시간 진행률 모니터링 (SSE)
-- 학습 완료 시 자동으로 모델 상태 업데이트
-- 학습 이력 및 로그 관리
+- 자동 모델 상태 업데이트
 
-### 2. AI 이미지 생성
+### 2. AI 이미지 생성 (Modal Serverless GPU)
 
+**플로우:**
+```
+1. 프론트엔드 → POST /api/generate
+   {
+     "modelId": 1,
+     "prompt": "anime girl with blue hair",
+     "numImages": 4,
+     "steps": 40,
+     "guidanceScale": 7.5,
+     "seed": 12345
+   }
+
+2. Spring Boot → LoRA 모델의 S3 Presigned URL 생성
+
+3. Spring Boot → Modal API (GPU T4)
+   POST https://dldydwo9--lora-training-inference-fastapi-app.modal.run/generate
+
+4. Modal → S3에서 LoRA 모델 다운로드 → 이미지 생성 → S3 업로드
+
+5. Modal → Spring Boot 콜백
+   POST /api/generate/history
+   {
+     "userId": "123",
+     "modelId": 1,
+     "imageS3Keys": ["user-123/img1.png", "user-123/img2.png", ...],
+     "status": "SUCCESS"
+   }
+
+6. Spring Boot → DB 저장 (GenerationHistory + GeneratedImage)
+```
+
+**주요 기능:**
+- Modal Serverless GPU (T4) 사용
+- S3 기반 모델/이미지 저장
 - 프롬프트 기반 이미지 생성
-- 생성 파라미터 커스터마이징 (steps, guidance_scale, seed 등)
-- 실시간 진행률 추적
+- 생성 파라미터 커스터마이징
+- 실시간 진행률 추적 (SSE)
 - 생성 이미지 자동 저장 및 샘플 등록
 
 ### 3. 커뮤니티 기능
@@ -337,13 +414,20 @@ jwt.secret=${JWT_SECRET}
 spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID}
 spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET}
 
-# FastAPI Server URL
-fastapi.base-url=${FASTAPI_BASE_URL}
+# Modal API URL
+fastapi.base-url=${FASTAPI_URL:https://dldydwo9--lora-training-inference-fastapi-app.modal.run}
 
-# File Storage (S3)
-cloud.aws.credentials.access-key=${AWS_ACCESS_KEY}
-cloud.aws.credentials.secret-key=${AWS_SECRET_KEY}
-cloud.aws.s3.bucket=${S3_BUCKET_NAME}
+# AWS S3
+aws.s3.region=${AWS_S3_REGION:ap-southeast-2}
+aws.s3.buckets.training-data=${AWS_S3_TRAINING_BUCKET:lora-training-data-bucket}
+aws.s3.buckets.models=${AWS_S3_MODELS_BUCKET:lora-models-bucket}
+aws.s3.buckets.generated-images=${AWS_S3_GENERATED_BUCKET:lora-generated-image-bucket}
+aws.credentials.access-key=${AWS_ACCESS_KEY_ID}
+aws.credentials.secret-key=${AWS_SECRET_ACCESS_KEY}
+
+# Modal Settings
+modal.enabled=${MODAL_ENABLED:true}
+modal.app-url=${MODAL_APP_URL:https://dldydwo9--lora-training-inference-fastapi-app.modal.run}
 ```
 
 ### Docker Compose 예시

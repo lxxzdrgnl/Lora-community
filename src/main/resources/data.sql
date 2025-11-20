@@ -43,7 +43,7 @@ INSERT INTO tags (name, category, usage_count, created_at, updated_at) VALUES
 -- 3. LoRA 모델 데이터 (Lora_Models)
 INSERT INTO lora_models (user_id, title, description, character_name, style, training_images_count, epochs, learning_rate, lora_rank, model_path, s3_key, file_size, base_model, is_public, status, view_count, like_count, created_at, updated_at) VALUES
 -- 호그라이더 사용자의 테스트 모델 (user_id=0)
-(0, 'Reze', '체인소맨 레제 만화버전', 'Reze', 'manga', 20, 200, 0.0001, 16, 'models/0/Reze.safetensors', 'models/0/Reze.safetensors', 15728640, 'stablediffusionapi/anything-v5', TRUE, 'COMPLETED', 505412, 14545, DATEADD('DAY', -15, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
+(0, 'Reze', '체인소맨 레제 만화버전', 'Reze', 'manga', 20, 200, 0.0001, 16, 'lora-models-bucket/0/Reze', '0/Reze', 15728640, 'stablediffusionapi/anything-v5', TRUE, 'COMPLETED', 505412, 14545, DATEADD('DAY', -15, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
 -- 완료된 공개 모델 (COMPLETED, PUBLIC)
 (2, 'Anime Girl Style v1', '귀여운 애니메이션 스타일 소녀 캐릭터를 생성하는 LoRA 모델입니다. 일본 애니메이션 특유의 큰 눈과 화려한 헤어스타일을 잘 표현합니다.', 'Miku', 'anime', 150, 30, 0.0001, 16, 'models/2/anime_girl_v1.safetensors', 'models/2/anime_girl_v1.safetensors', 52428800, 'stablediffusionapi/anything-v5', TRUE, 'COMPLETED', 320, 45, DATEADD('DAY', -10, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
 (3, 'Realistic Portrait Master', '사실적인 인물 초상화를 생성하는 고품질 LoRA 모델입니다. 실제 사진과 구별하기 어려운 수준의 디테일을 제공합니다.', 'Emma', 'realistic', 200, 40, 0.00008, 32, 'models/3/realistic_portrait.safetensors', 'models/3/realistic_portrait.safetensors', 104857600, 'stablediffusionapi/realistic-vision-v5', TRUE, 'COMPLETED', 580, 92, DATEADD('DAY', -8, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
@@ -188,18 +188,18 @@ INSERT INTO model_likes (model_id, user_id, created_at, updated_at) VALUES
 
 
 -- 11. 이미지 생성 기록 (Generation_History)
-INSERT INTO generation_history (user_id, model_id, prompt, negative_prompt, steps, guidance_scale, seed, num_images, created_at, updated_at) VALUES
+INSERT INTO generation_history (user_id, model_id, prompt, negative_prompt, steps, guidance_scale, seed, num_images, status, created_at, updated_at) VALUES
 -- 호그라이더(user_id=0)의 생성 기록
-(0, 1, 'sks, manga girl, black hair, white shirt, flower, mangastyle, monochrome', 'ugly, blurry, color', 35, 7.5, 111111, 1, DATEADD('DAY', -5, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
-(0, 1, 'sks, manga girl, pink hair, magical girl, sparkles, mangastyle', 'ugly, bad anatomy, color', 30, 8.0, 222222, 1, DATEADD('DAY', -4, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
-(0, 1, 'sks, manga girl, blonde hair, summer dress, beach, mangastyle', 'deformed, bad quality, color', 28, 7.8, 333333, 1, DATEADD('DAY', -3, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
+(0, 1, 'sks, manga girl, black hair, white shirt, flower, mangastyle, monochrome', 'ugly, blurry, color', 35, 7.5, 111111, 1, 'SUCCESS', DATEADD('DAY', -5, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
+(0, 1, 'sks, manga girl, pink hair, magical girl, sparkles, mangastyle', 'ugly, bad anatomy, color', 30, 8.0, 222222, 1, 'SUCCESS', DATEADD('DAY', -4, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
+(0, 1, 'sks, manga girl, blonde hair, summer dress, beach, mangastyle', 'deformed, bad quality, color', 28, 7.8, 333333, 1, 'SUCCESS', DATEADD('DAY', -3, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
 -- 다른 사용자들의 생성 기록
-(2, 2, 'realistic portrait, woman, professional, office', 'cartoon, anime', 40, 9.0, 876543, 1, DATEADD('DAY', -2, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
-(3, 3, 'fantasy landscape, waterfall, rainbow, magical', 'realistic, modern', 35, 8.5, 765432, 2, DATEADD('DAY', -2, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
-(4, 4, 'manga character, sword fighter, action pose', 'color, realistic', 28, 7.5, 654321, 1, DATEADD('DAY', -1, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
-(2, 5, 'cyberpunk robot, battle scene, explosions', 'peaceful, nature', 32, 8.0, 543210, 3, DATEADD('HOUR', -18, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
-(3, 7, 'cute puppy, playing, garden, flowers', 'scary, dark', 20, 7.0, 432109, 1, DATEADD('HOUR', -12, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
-(4, 2, 'realistic portrait, man, businessman, suit', 'ugly, deformed', 40, 8.5, 321098, 1, DATEADD('HOUR', -6, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP());
+(2, 2, 'realistic portrait, woman, professional, office', 'cartoon, anime', 40, 9.0, 876543, 1, 'SUCCESS', DATEADD('DAY', -2, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
+(3, 3, 'fantasy landscape, waterfall, rainbow, magical', 'realistic, modern', 35, 8.5, 765432, 2, 'SUCCESS', DATEADD('DAY', -2, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
+(4, 4, 'manga character, sword fighter, action pose', 'color, realistic', 28, 7.5, 654321, 1, 'SUCCESS', DATEADD('DAY', -1, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
+(2, 5, 'cyberpunk robot, battle scene, explosions', 'peaceful, nature', 32, 8.0, 543210, 3, 'SUCCESS', DATEADD('HOUR', -18, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
+(3, 7, 'cute puppy, playing, garden, flowers', 'scary, dark', 20, 7.0, 432109, 1, 'SUCCESS', DATEADD('HOUR', -12, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP()),
+(4, 2, 'realistic portrait, man, businessman, suit', 'ugly, deformed', 40, 8.5, 321098, 1, 'SUCCESS', DATEADD('HOUR', -6, CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP());
 
 -- 12. 생성된 이미지 (Generated_Images)
 INSERT INTO generated_images (generation_history_id, s3_url, s3_key, file_size, display_order, is_sample, created_at, updated_at) VALUES
