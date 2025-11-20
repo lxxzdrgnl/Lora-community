@@ -73,7 +73,7 @@ public class SwaggerConfig {
                 .contact(new Contact()
                         .name("Rheon")
                         .email("pung4905@naver.com")
-                        .url("https://github.com/lxxzdrgnl"))
+                        .url("https://github.com/lxxzdrgnl"));
     }
 
     private List<Server> serverList() {
