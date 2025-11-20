@@ -91,7 +91,7 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
                 java.net.URI uri = new java.net.URI(referer);
                 origin = uri.getScheme() + "://" + uri.getAuthority();
             } catch (Exception e) {
-                origin = "http://localhost:8080";
+                origin = "http://bluemingai.ap-northeast-2.elasticbeanstalk.com/";
             }
         } else {
             // 2. 기본값: 현재 요청의 origin

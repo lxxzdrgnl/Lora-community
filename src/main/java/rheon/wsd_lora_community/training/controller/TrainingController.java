@@ -162,7 +162,7 @@ public class TrainingController {
         // Callback URL 설정 (Spring Boot 서버 URL)
         String baseUrl = request.containsKey("callbackBaseUrl")
                 ? (String) request.get("callbackBaseUrl")
-                : "http://localhost:8080"; // 기본값
+                : "http://bluemingai.ap-northeast-2.elasticbeanstalk.com/"; // 기본값
         String callbackUrl = baseUrl + "/api/training/callback";
 
         // Modal API로 학습 시작 요청 (비동기)

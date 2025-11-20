@@ -70,14 +70,10 @@ public class SwaggerConfig {
                         - 파일 저장: S3 (프로덕션)
                         - SSE 스트림: 인스턴스별 관리
                         """)
-                .version("v1.0.0")
                 .contact(new Contact()
                         .name("Rheon")
-                        .email("your-email@example.com")
-                        .url("https://github.com/yourusername"))
-                .license(new License()
-                        .name("MIT License")
-                        .url("https://opensource.org/licenses/MIT"));
+                        .email("pung4905@naver.com")
+                        .url("https://github.com/lxxzdrgnl"))
     }
 
     private List<Server> serverList() {
@@ -86,8 +82,8 @@ public class SwaggerConfig {
                         .url("http://localhost:8080")
                         .description("로컬 개발 서버"),
                 new Server()
-                        .url("https://api.lora-platform.com")
-                        .description("프로덕션 서버 (예시)")
+                        .url("http://bluemingai.ap-northeast-2.elasticbeanstalk.com")
+                        .description("프로덕션 서버")
         );
     }
 }
