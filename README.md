@@ -8,40 +8,46 @@
 ![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=flat-square&logo=mysql&logoColor=white)
 ![Spring Security](https://img.shields.io/badge/Spring%20Security-OAuth2%20%2B%20JWT-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
 ![Swagger](https://img.shields.io/badge/Swagger-API%20Docs-85EA2D?style=flat-square&logo=swagger&logoColor=black)
+![AWS Elastic Beanstalk](https://img.shields.io/badge/AWS%20Elastic%20Beanstalk-Deployed-232F3E?style=flat-square&logo=aws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-Active-success?style=flat-square)
 
 ---
 
-## 📌 소개
+## 소개
 
 만화/웹툰 캐릭터에 특화된 LoRA 모델을 학습하고, AI 이미지를 생성하며, 커뮤니티와 공유할 수 있는 통합 플랫폼입니다.
 
 ### 주요 기능
 
-- 🎨 **LoRA 모델 학습**: FastAPI 기반 분산 학습 시스템
-- 🖼️ **AI 이미지 생성**: 실시간 진행률 모니터링
-- 💬 **커뮤니티**: 댓글, 좋아요, 즐겨찾기, 인기 랭킹
-- 🔍 **스마트 검색**: 태그 필터링, 키워드 검색
-- 🔐 **간편 로그인**: Google OAuth2 인증
+- **LoRA 모델 학습**: FastAPI 기반 분산 학습 시스템
+- **AI 이미지 생성**: 실시간 진행률 모니터링
+- **커뮤니티**: 댓글, 좋아요, 즐겨찾기, 인기 랭킹
+- **스마트 검색**: 태그 필터링, 키워드 검색
+- **간편 로그인**: Google OAuth2 인증
+
+### 주요 링크
+- **프론트엔드 배포 링크**: http://blueming-front.s3-website.ap-northeast-2.amazonaws.com/
+- **백엔드 API 기본 URL**: http://bluemingai.ap-northeast-2.elasticbeanstalk.com/
+- **백엔드 API 문서 (Swagger UI)**: http://bluemingai.ap-northeast-2.elasticbeanstalk.com/swagger-ui/index.html
 
 ### 시스템 아키텍처
 
 ```
-┌─────────────┐      ┌──────────────────┐      ┌─────────────────┐
-│   Vue.js    │ ←──→ │  Spring Boot 3   │ ←──→ │    FastAPI      │
-│  (Frontend) │      │    (Backend)     │      │  (AI Service)   │
-└─────────────┘      └────────┬─────────┘      └─────────────────┘
-                              │
-                              ↓
-                     ┌─────────────────┐
-                     │ H2 / MySQL (DB) │
-                     └─────────────────┘
+┌─────────────┐      ┌───────────────────────────┐      ┌─────────────────┐
+│   Vue.js    │ <--> │ AWS Elastic Beanstalk     │ <--> │    FastAPI      │
+│  (Frontend) │      │ (Spring Boot 3 Backend)   │      │  (AI Service)   │
+└─────────────┘      └───────────┬───────────────┘      └─────────────────┘
+                                 │
+                                 v
+                        ┌─────────────────┐
+                        │   AWS RDS (DB)  │
+                        └─────────────────┘
 ```
 
 ---
 
-## 🛠 기술 스택
+## 기술 스택
 
 ### Backend
 - **Framework**: Spring Boot 3.5.7
@@ -56,7 +62,7 @@
 
 ### Database
 - **Development**: H2 (In-memory)
-- **Production**: MySQL 8.0+
+- **Production**: MySQL 8.0+ on AWS RDS
 
 ### API & Communication
 - **API Documentation**: SpringDoc OpenAPI 3 (Swagger UI)
@@ -72,7 +78,7 @@
 
 ---
 
-## 📁 프로젝트 구조
+## 프로젝트 구조
 
 ```
 src/main/java/rheon/wsd_lora_community/
@@ -118,14 +124,14 @@ src/main/java/rheon/wsd_lora_community/
 
 ---
 
-## 🚀 시작하기
+## 시작하기
 
 ### 요구사항
 
 - Java 17 이상
 - Gradle 8.14 이상
 
-### 빌드 및 실행
+### 로컬 환경에서 빌드
 
 ```bash
 # 프로젝트 클론
@@ -135,22 +141,15 @@ cd WSD_Lora_community
 # 빌드
 ./gradlew clean build -x test
 
-# 실행
+# 로컬 실행
 ./gradlew bootRun
 ```
 
-### 접속
-
-- **API 서버**: http://localhost:8080
-- **Swagger UI**: http://localhost:8080/swagger-ui.html
-- **H2 Console**: http://localhost:8080/h2-console
-  - JDBC URL: `jdbc:h2:mem:loradb`
-  - Username: `sa`
-  - Password: (공백)
-
 ---
 
-## 📡 API 문서
+## API 문서
+
+**Live API 문서 (Swagger UI):** http://bluemingai.ap-northeast-2.elasticbeanstalk.com/swagger-ui/index.html
 
 ### 헬스 체크
 
@@ -234,7 +233,7 @@ GET /
 
 ---
 
-## 🔒 인증 방식
+## 인증 방식
 
 ### JWT 기반 Stateless 인증
 
@@ -271,7 +270,7 @@ GET /
 
 ---
 
-## 📊 데이터베이스 스키마
+## 데이터베이스 스키마
 
 ### 주요 테이블
 
@@ -293,7 +292,7 @@ GET /
 
 ---
 
-## 🎯 핵심 기능 상세
+## 핵심 기능 상세
 
 ### 1. LoRA 모델 학습 (Modal Serverless GPU)
 
@@ -384,9 +383,8 @@ GET /
 ### 3. 커뮤니티 기능
 
 - 모델 좋아요/즐겨찾기
-- 댓글 및 대댓글 (무한 depth)
+- 댓글 및 대댓글
 - 인기 모델 랭킹
-- 유저 팔로우 시스템 (예정)
 
 ### 4. 검색 및 필터링
 
@@ -397,13 +395,15 @@ GET /
 
 ---
 
-## 🌐 프로덕션 환경 설정
+## 프로덕션 환경 설정
 
 ### 환경 변수 설정
 
+실행 환경에 따라 다음 환경 변수를 설정해야 합니다.
+
 ```properties
-# Database (MySQL)
-spring.datasource.url=jdbc:mysql://localhost:3306/lora_platform
+# Database (RDS or other MySQL)
+spring.datasource.url=jdbc:mysql://<your-db-host>:<your-db-port>/<your-db-name>
 spring.datasource.username=${DB_USERNAME}
 spring.datasource.password=${DB_PASSWORD}
 
@@ -429,127 +429,3 @@ aws.credentials.secret-key=${AWS_SECRET_ACCESS_KEY}
 modal.enabled=${MODAL_ENABLED:true}
 modal.app-url=${MODAL_APP_URL:https://dldydwo9--lora-training-inference-fastapi-app.modal.run}
 ```
-
-### Docker Compose 예시
-
-```yaml
-version: '3.8'
-services:
-  backend:
-    build: .
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - DB_HOST=mysql
-      - FASTAPI_BASE_URL=http://fastapi:8000
-    depends_on:
-      - mysql
-      - fastapi
-
-  mysql:
-    image: mysql:8.0
-    environment:
-      MYSQL_DATABASE: lora_platform
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - mysql_data:/var/lib/mysql
-
-  fastapi:
-    image: your-fastapi-image
-    ports:
-      - "8000:8000"
-
-volumes:
-  mysql_data:
-```
-
----
-
-## 📝 개발 가이드
-
-### Service 레이어 패턴
-
-```java
-@Service
-@RequiredArgsConstructor
-@Transactional(readOnly = true)  // 기본은 읽기 전용
-public class ExampleService {
-
-    private final ExampleRepository repository;
-
-    @Transactional  // Write 메서드에만 명시
-    public ExampleResponse create(ExampleRequest request) {
-        // Entity 생성 및 저장
-        Example entity = Example.builder()
-            .name(request.getName())
-            .build();
-
-        Example saved = repository.save(entity);
-        return ExampleResponse.from(saved);
-    }
-
-    public ExampleResponse getById(Long id) {
-        Example entity = repository.findById(id)
-            .orElseThrow(() -> new CustomException(ErrorCode.EXAMPLE_NOT_FOUND));
-        return ExampleResponse.from(entity);
-    }
-}
-```
-
-### Controller 레이어 패턴
-
-```java
-@RestController
-@RequestMapping("/api/example")
-@RequiredArgsConstructor
-@Tag(name = "Example", description = "예시 API")
-public class ExampleController {
-
-    private final ExampleService exampleService;
-
-    @PostMapping
-    @Operation(summary = "생성", description = "새로운 리소스를 생성합니다.")
-    @PreAuthorize("isAuthenticated()")
-    public ApiResponse<ExampleResponse> create(
-            @Valid @RequestBody ExampleRequest request,
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
-        ExampleResponse response = exampleService.create(request);
-        return ApiResponse.success(response);
-    }
-
-    @GetMapping("/{id}")
-    @Operation(summary = "조회", description = "ID로 리소스를 조회합니다.")
-    public ApiResponse<ExampleResponse> get(
-            @PathVariable Long id
-    ) {
-        ExampleResponse response = exampleService.getById(id);
-        return ApiResponse.success(response);
-    }
-}
-```
-
-### 예외 처리
-
-```java
-// CustomException 발생
-throw new CustomException(ErrorCode.RESOURCE_NOT_FOUND);
-
-// ErrorCode 정의
-public enum ErrorCode {
-    RESOURCE_NOT_FOUND("COMMON_001", "리소스를 찾을 수 없습니다.", HttpStatus.NOT_FOUND);
-
-    private final String code;
-    private final String message;
-    private final HttpStatus status;
-}
-```
-
----
-
-## 🔗 참고 자료
-
-### 문서
-- **상세 개발 문서**: [CLAUDE.md](./CLAUDE.md)
-- **API 문서**: http://localhost:8080/swagger-ui.html (실행 후 접속)
