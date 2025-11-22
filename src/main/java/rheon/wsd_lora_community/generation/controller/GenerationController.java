@@ -150,6 +150,7 @@ public class GenerationController {
     public ResponseEntity<ApiResponse<?>> handleGenerationCallback(
             @RequestBody Map<String, Object> request
     ) {
+        System.out.println("🔔 콜백 수신: " + request);
         String status = (String) request.get("status");
 
         if ("SUCCESS".equals(status)) {
@@ -191,8 +192,11 @@ public class GenerationController {
             completionEvent.put("message", "Image generation completed");
             completionEvent.put("generatedImages", history.getGeneratedImages());
 
+            System.out.println("📡 SSE 브로드캐스트 시도: " + completionEvent);
+
             // Sink에 이벤트 전송 (모든 SSE 연결된 클라이언트에게 브로드캐스트)
-            completionSink.tryEmitNext(completionEvent);
+            Sinks.EmitResult result = completionSink.tryEmitNext(completionEvent);
+            System.out.println("📡 SSE 브로드캐스트 결과: " + result);
 
             return ResponseEntity.ok(
                     ApiResponse.success("생성 완료 처리 성공", history)
@@ -221,6 +225,30 @@ public class GenerationController {
         } else {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("잘못된 status 값: " + status));
+        }
+    }
+
+    /**
+     * 진행 중인 생성 작업 확인
+     */
+    @GetMapping("/ongoing")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "진행 중인 생성 작업 확인", description = "현재 유저의 진행 중인 이미지 생성 작업을 조회합니다. 없으면 null 반환.")
+    public ResponseEntity<ApiResponse<GenerationHistoryResponse>> getOngoingGeneration(
+            @Parameter(hidden = true)
+            Authentication authentication
+    ) {
+        Long userId = getUserIdFromAuthentication(authentication);
+        GenerationHistoryResponse ongoingGeneration = generationService.getOngoingGeneration(userId);
+
+        if (ongoingGeneration != null) {
+            return ResponseEntity.ok(
+                    ApiResponse.success("진행 중인 생성 작업이 있습니다.", ongoingGeneration)
+            );
+        } else {
+            return ResponseEntity.ok(
+                    ApiResponse.success("진행 중인 생성 작업이 없습니다.", null)
+            );
         }
     }
 
@@ -368,26 +396,33 @@ public class GenerationController {
      * FastAPI의 진행률 스트림 + 백엔드의 완료 이벤트를 모두 전송합니다.
      * - FastAPI: 진행률 업데이트 (IN_PROGRESS)
      * - Backend: 완료/실패 이벤트 (SUCCESS/FAILED) - 이미지 URL 포함
+     *
+     * 인증: EventSource는 Authorization 헤더를 지원하지 않으므로 인증 없이 모든 이벤트를 브로드캐스트합니다.
+     * 클라이언트는 자신의 historyId만 필터링하여 사용해야 합니다.
      */
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(
             summary = "이미지 생성 진행률 실시간 스트리밍 (SSE)",
             description = "FastAPI 서버의 이미지 생성 진행률과 완료 이벤트를 Server-Sent Events로 실시간 스트리밍합니다. " +
                     "EventSource API를 사용하여 연결하세요. " +
-                    "진행률(IN_PROGRESS) 및 완료(SUCCESS), 실패(FAILED) 이벤트를 수신합니다."
+                    "진행률(IN_PROGRESS) 및 완료(SUCCESS), 실패(FAILED) 이벤트를 수신합니다. " +
+                    "인증 불필요 - 모든 이벤트를 브로드캐스트하므로 클라이언트에서 historyId로 필터링하세요."
     )
     public Flux<ServerSentEvent<Map<String, Object>>> streamGenerationProgress() {
+        System.out.println("🔌 SSE 클라이언트 연결됨");
+
         // FastAPI 진행률 스트림 (IN_PROGRESS 상태)
         Flux<Map<String, Object>> progressStream = fastApiClient.streamGenerationStatus()
-                .doOnNext(status -> System.out.println("FastAPI 진행률: " + status))
+                .doOnNext(status -> System.out.println("📨 FastAPI 진행률: " + status))
                 .onErrorResume(error -> {
-                    System.err.println("FastAPI 스트림 오류: " + error.getMessage());
+                    System.err.println("❌ FastAPI 스트림 오류: " + error.getMessage());
                     return Flux.empty();
                 });
 
         // 백엔드 완료 이벤트 스트림 (SUCCESS/FAILED 상태)
         Flux<Map<String, Object>> completionStream = completionSink.asFlux()
-                .doOnNext(event -> System.out.println("완료 이벤트 브로드캐스트: " + event));
+                .doOnNext(event -> System.out.println("📤 완료 이벤트 브로드캐스트: " + event))
+                .doOnSubscribe(sub -> System.out.println("✅ 완료 스트림 구독됨"));
 
         // 두 스트림 병합 (진행률 + 완료 이벤트)
         return Flux.merge(progressStream, completionStream)

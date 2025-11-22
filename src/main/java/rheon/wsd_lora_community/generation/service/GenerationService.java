@@ -168,6 +168,21 @@ public class GenerationService {
     }
 
     /**
+     * 사용자의 진행 중인 생성 작업 확인
+     *
+     * @param userId 사용자 ID
+     * @return 진행 중인 작업이 있으면 해당 GenerationHistory, 없으면 null
+     */
+    public GenerationHistoryResponse getOngoingGeneration(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        return generationHistoryRepository.findFirstByUserAndStatusOrderByCreatedAtDesc(user, "GENERATING")
+                .map(GenerationHistoryResponse::from)
+                .orElse(null);
+    }
+
+    /**
      * 이미지 생성 요청 시작 (GenerationHistory 생성)
      *
      * Controller에서 FastAPI 호출 전에 먼저 DB에 기록합니다.
@@ -175,6 +190,15 @@ public class GenerationService {
      */
     @Transactional
     public GenerationStartResponse startGeneration(GenerateImageRequest request, Long userId) {
+        // 진행 중인 작업이 있는지 확인
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        generationHistoryRepository.findFirstByUserAndStatusOrderByCreatedAtDesc(user, "GENERATING")
+                .ifPresent(history -> {
+                    throw new CustomException(ErrorCode.INVALID_INPUT_VALUE,
+                        "이미 진행 중인 이미지 생성 작업이 있습니다. (History ID: " + history.getId() + ")");
+                });
         // 모델 존재 여부 확인
         LoraModel model = loraModelRepository.findById(request.getModelId())
                 .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
@@ -183,10 +207,6 @@ public class GenerationService {
         if (model.getStatus() != LoraModel.ModelStatus.COMPLETED) {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
-
-        // 사용자 존재 여부 확인
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // S3 키가 없으면 에러
         if (model.getS3Key() == null || model.getS3Key().isEmpty()) {

@@ -76,7 +76,10 @@ public class SecurityConfig {
                                 "/api/models/{modelId}/comments",
                                 "/api/tags",
                                 "/api/tags/popular",
-                                "/api/search/**"
+                                "/api/search/**",
+                                "/api/generate/stream",          // SSE 스트림 (인증 불필요)
+                                "/api/generate/history",         // FastAPI 콜백 (인증 불필요)
+                                "/api/training/stream"           // 학습 SSE 스트림 (인증 불필요)
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

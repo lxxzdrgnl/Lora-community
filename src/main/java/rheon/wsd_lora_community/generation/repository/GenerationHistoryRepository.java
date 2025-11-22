@@ -8,6 +8,8 @@ import rheon.wsd_lora_community.generation.entity.GenerationHistory;
 import rheon.wsd_lora_community.model.entity.LoraModel;
 import rheon.wsd_lora_community.user.entity.User;
 
+import java.util.Optional;
+
 @Repository
 public interface GenerationHistoryRepository extends JpaRepository<GenerationHistory, Long> {
 
@@ -16,4 +18,9 @@ public interface GenerationHistoryRepository extends JpaRepository<GenerationHis
     Page<GenerationHistory> findByModel(LoraModel model, Pageable pageable);
 
     Page<GenerationHistory> findByUserAndModel(User user, LoraModel model, Pageable pageable);
+
+    /**
+     * 사용자의 진행 중인 생성 작업 조회 (GENERATING 상태)
+     */
+    Optional<GenerationHistory> findFirstByUserAndStatusOrderByCreatedAtDesc(User user, String status);
 }
