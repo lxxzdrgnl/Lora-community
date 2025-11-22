@@ -18,6 +18,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Sinks;
 import rheon.wsd_lora_community.generation.dto.GenerateImageRequest;
 import rheon.wsd_lora_community.generation.dto.GenerationHistoryResponse;
 import rheon.wsd_lora_community.generation.service.GenerationService;
@@ -26,6 +27,7 @@ import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.dto.PageResponse;
 import rheon.wsd_lora_community.global.service.S3UploadService;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -45,6 +47,9 @@ public class GenerationController {
     private final GenerationService generationService;
     private final FastApiClient fastApiClient;
     private final S3UploadService s3UploadService;
+
+    // SSE 브로드캐스트용 Sink (완료 이벤트 전송)
+    private final Sinks.Many<Map<String, Object>> completionSink = Sinks.many().multicast().onBackpressureBuffer();
 
     /**
      * Authentication에서 User ID 추출 (OAuth2 및 JWT 지원)
@@ -177,6 +182,18 @@ public class GenerationController {
                     historyId, modelId, userId, prompt, negativePrompt, steps, guidanceScale, seed, numImages, imageS3Keys
             );
 
+            // SSE로 완료 이벤트 브로드캐스트 (프론트엔드에 실시간 알림)
+            Map<String, Object> completionEvent = new HashMap<>();
+            completionEvent.put("status", "SUCCESS");
+            completionEvent.put("historyId", history.getId());
+            completionEvent.put("modelId", history.getModelId());
+            completionEvent.put("userId", history.getUserId());
+            completionEvent.put("message", "Image generation completed");
+            completionEvent.put("generatedImages", history.getGeneratedImages());
+
+            // Sink에 이벤트 전송 (모든 SSE 연결된 클라이언트에게 브로드캐스트)
+            completionSink.tryEmitNext(completionEvent);
+
             return ResponseEntity.ok(
                     ApiResponse.success("생성 완료 처리 성공", history)
             );
@@ -189,6 +206,13 @@ public class GenerationController {
 
             if (historyId != null) {
                 generationService.failGeneration(historyId, error);
+
+                // SSE로 실패 이벤트 브로드캐스트
+                Map<String, Object> failureEvent = new HashMap<>();
+                failureEvent.put("status", "FAILED");
+                failureEvent.put("historyId", historyId);
+                failureEvent.put("message", error);
+                completionSink.tryEmitNext(failureEvent);
             }
 
             return ResponseEntity.ok(
@@ -340,15 +364,33 @@ public class GenerationController {
 
     /**
      * 이미지 생성 진행률 실시간 스트리밍 (SSE)
+     *
+     * FastAPI의 진행률 스트림 + 백엔드의 완료 이벤트를 모두 전송합니다.
+     * - FastAPI: 진행률 업데이트 (IN_PROGRESS)
+     * - Backend: 완료/실패 이벤트 (SUCCESS/FAILED) - 이미지 URL 포함
      */
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(
             summary = "이미지 생성 진행률 실시간 스트리밍 (SSE)",
-            description = "FastAPI 서버의 이미지 생성 진행률을 Server-Sent Events로 실시간 스트리밍합니다. " +
-                    "EventSource API를 사용하여 연결하세요."
+            description = "FastAPI 서버의 이미지 생성 진행률과 완료 이벤트를 Server-Sent Events로 실시간 스트리밍합니다. " +
+                    "EventSource API를 사용하여 연결하세요. " +
+                    "진행률(IN_PROGRESS) 및 완료(SUCCESS), 실패(FAILED) 이벤트를 수신합니다."
     )
     public Flux<ServerSentEvent<Map<String, Object>>> streamGenerationProgress() {
-        return fastApiClient.streamGenerationStatus()
+        // FastAPI 진행률 스트림 (IN_PROGRESS 상태)
+        Flux<Map<String, Object>> progressStream = fastApiClient.streamGenerationStatus()
+                .doOnNext(status -> System.out.println("FastAPI 진행률: " + status))
+                .onErrorResume(error -> {
+                    System.err.println("FastAPI 스트림 오류: " + error.getMessage());
+                    return Flux.empty();
+                });
+
+        // 백엔드 완료 이벤트 스트림 (SUCCESS/FAILED 상태)
+        Flux<Map<String, Object>> completionStream = completionSink.asFlux()
+                .doOnNext(event -> System.out.println("완료 이벤트 브로드캐스트: " + event));
+
+        // 두 스트림 병합 (진행률 + 완료 이벤트)
+        return Flux.merge(progressStream, completionStream)
                 .map(status -> ServerSentEvent.<Map<String, Object>>builder()
                         .data(status)
                         .build())
