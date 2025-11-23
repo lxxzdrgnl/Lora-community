@@ -175,20 +175,30 @@ public class LoraModelService {
     /**
      * 태그로 모델 검색
      */
-    public Page<LoraModelResponse> searchModelsByTags(List<String> tagNames, Pageable pageable) {
+    public Page<LoraModelResponse> searchModelsByTags(List<String> tagNames, Long currentUserId, Pageable pageable) {
         List<Tag> tags = tagRepository.findByNameIn(tagNames);
         List<Long> tagIds = tags.stream().map(Tag::getId).collect(Collectors.toList());
 
         Page<LoraModel> models = loraModelRepository.findPublicModelsByTags(tagIds, pageable);
-        return models.map(LoraModelResponse::from);
+        return models.map(model -> {
+            Boolean isLiked = currentUserId != null &&
+                modelLikeRepository.existsByModelIdAndUserId(model.getId(), currentUserId);
+            String thumbnailUrl = getThumbnailUrl(model);
+            return LoraModelResponse.from(model, isLiked, thumbnailUrl);
+        });
     }
 
     /**
      * 제목/설명으로 모델 검색
      */
-    public Page<LoraModelResponse> searchModels(String query, Pageable pageable) {
+    public Page<LoraModelResponse> searchModels(String query, Long currentUserId, Pageable pageable) {
         Page<LoraModel> models = loraModelRepository.searchByTitleOrDescription(query, pageable);
-        return models.map(LoraModelResponse::from);
+        return models.map(model -> {
+            Boolean isLiked = currentUserId != null &&
+                modelLikeRepository.existsByModelIdAndUserId(model.getId(), currentUserId);
+            String thumbnailUrl = getThumbnailUrl(model);
+            return LoraModelResponse.from(model, isLiked, thumbnailUrl);
+        });
     }
 
     /**

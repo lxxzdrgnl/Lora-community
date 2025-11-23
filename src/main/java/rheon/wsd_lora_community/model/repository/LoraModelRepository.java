@@ -47,7 +47,7 @@ public interface LoraModelRepository extends JpaRepository<LoraModel, Long> {
     Page<LoraModel> findPublicModelsByTags(@Param("tagIds") java.util.List<Long> tagIds, Pageable pageable);
 
     @Query("SELECT m FROM LoraModel m WHERE m.isPublic = true AND m.deletedAt IS NULL " +
-            "AND (m.title LIKE %:query% OR m.description LIKE %:query%)")
+            "AND (LOWER(m.title) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(m.description) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(m.characterName) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<LoraModel> searchByTitleOrDescription(@Param("query") String query, Pageable pageable);
 
     Page<LoraModel> findByIsPublicAndStatusOrderByLikeCountDesc(Boolean isPublic, LoraModel.ModelStatus status, Pageable pageable);

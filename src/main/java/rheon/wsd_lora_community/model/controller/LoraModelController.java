@@ -256,10 +256,21 @@ public class LoraModelController {
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> searchModels(
             @Parameter(description = "검색 키워드", required = true)
             @RequestParam String query,
+            @Parameter(hidden = true)
+            Authentication authentication,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<LoraModelResponse> models = loraModelService.searchModels(query, pageable);
+        Long currentUserId = null;
+        if (authentication != null && authentication.isAuthenticated()) {
+            try {
+                currentUserId = getUserIdFromAuthentication(authentication);
+            } catch (Exception e) {
+                // 비로그인 사용자는 null로 처리
+            }
+        }
+
+        Page<LoraModelResponse> models = loraModelService.searchModels(query, currentUserId, pageable);
 
         return ResponseEntity.ok(
                 ApiResponse.success("모델 검색 성공", models)
@@ -274,10 +285,21 @@ public class LoraModelController {
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> filterModelsByTags(
             @Parameter(description = "태그 이름 목록 (쉼표로 구분)", required = true)
             @RequestParam List<String> tags,
+            @Parameter(hidden = true)
+            Authentication authentication,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<LoraModelResponse> models = loraModelService.searchModelsByTags(tags, pageable);
+        Long currentUserId = null;
+        if (authentication != null && authentication.isAuthenticated()) {
+            try {
+                currentUserId = getUserIdFromAuthentication(authentication);
+            } catch (Exception e) {
+                // 비로그인 사용자는 null로 처리
+            }
+        }
+
+        Page<LoraModelResponse> models = loraModelService.searchModelsByTags(tags, currentUserId, pageable);
 
         return ResponseEntity.ok(
                 ApiResponse.success("모델 필터링 성공", models)

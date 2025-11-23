@@ -51,11 +51,15 @@ public class SearchController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> search(
             @Parameter(description = "검색 키워드", required = true)
             @RequestParam String query,
+            @Parameter(hidden = true)
+            Authentication authentication,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
+        Long currentUserId = getUserIdFromAuthentication(authentication);
+
         // 모델 검색
-        Page<LoraModelResponse> models = loraModelService.searchModels(query, pageable);
+        Page<LoraModelResponse> models = loraModelService.searchModels(query, currentUserId, pageable);
 
         // 유저 검색
         Page<UserResponse> users = userService.searchUsersByNickname(query, pageable);
@@ -80,10 +84,13 @@ public class SearchController {
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> searchModels(
             @Parameter(description = "검색 키워드", required = true)
             @RequestParam String query,
+            @Parameter(hidden = true)
+            Authentication authentication,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<LoraModelResponse> models = loraModelService.searchModels(query, pageable);
+        Long currentUserId = getUserIdFromAuthentication(authentication);
+        Page<LoraModelResponse> models = loraModelService.searchModels(query, currentUserId, pageable);
 
         return ResponseEntity.ok(
                 ApiResponse.success("모델 검색 성공", models)
@@ -101,10 +108,13 @@ public class SearchController {
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> searchModelsByTags(
             @Parameter(description = "태그 이름 목록 (쉼표로 구분)", required = true)
             @RequestParam List<String> tags,
+            @Parameter(hidden = true)
+            Authentication authentication,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<LoraModelResponse> models = loraModelService.searchModelsByTags(tags, pageable);
+        Long currentUserId = getUserIdFromAuthentication(authentication);
+        Page<LoraModelResponse> models = loraModelService.searchModelsByTags(tags, currentUserId, pageable);
 
         return ResponseEntity.ok(
                 ApiResponse.success("태그 필터링 성공", models)
@@ -196,7 +206,7 @@ public class SearchController {
         Long currentUserId = getUserIdFromAuthentication(authentication);
         String query = (String) filters.get("query");
         Page<LoraModelResponse> models = query != null
-                ? loraModelService.searchModels(query, pageable)
+                ? loraModelService.searchModels(query, currentUserId, pageable)
                 : loraModelService.getPublicModels(currentUserId, pageable);
 
         return ResponseEntity.ok(
