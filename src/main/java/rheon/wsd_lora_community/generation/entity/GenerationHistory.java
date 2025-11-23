@@ -69,6 +69,18 @@ public class GenerationHistory extends BaseEntity {
     private String status = "GENERATING";
 
     /**
+     * 현재 진행 스텝
+     */
+    @Column
+    private Integer currentStep;
+
+    /**
+     * 전체 스텝 수
+     */
+    @Column
+    private Integer totalSteps;
+
+    /**
      * 에러 메시지 (실패 시)
      */
     @Column(columnDefinition = "TEXT")
@@ -90,6 +102,11 @@ public class GenerationHistory extends BaseEntity {
 
     public void removeGeneratedImage(GeneratedImage image) {
         this.generatedImages.remove(image);
+    }
+
+    public void updateProgress(Integer currentStep, Integer totalSteps) {
+        this.currentStep = currentStep;
+        this.totalSteps = totalSteps;
     }
 
     public void markAsSuccess() {

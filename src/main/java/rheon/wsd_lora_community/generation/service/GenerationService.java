@@ -149,6 +149,19 @@ public class GenerationService {
     }
 
     /**
+     * 진행률 업데이트
+     */
+    @Transactional
+    public void updateProgress(Long historyId, Integer currentStep, Integer totalSteps) {
+        GenerationHistory history = generationHistoryRepository.findById(historyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        history.updateProgress(currentStep, totalSteps);
+
+        log.debug("Progress updated: historyId={}, {}/{}", historyId, currentStep, totalSteps);
+    }
+
+    /**
      * saveGenerationHistory (deprecated - completeGeneration 사용)
      */
     @Deprecated

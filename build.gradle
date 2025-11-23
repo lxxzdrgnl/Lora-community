@@ -35,6 +35,9 @@ dependencies {
     // WebFlux (SSE 처리용)
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
+    // WebSocket
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
     // H2 Database (인메모리 - 개발용)
     runtimeOnly 'com.h2database:h2'
 

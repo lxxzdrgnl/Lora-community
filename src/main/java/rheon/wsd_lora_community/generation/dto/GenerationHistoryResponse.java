@@ -49,11 +49,26 @@ public class GenerationHistoryResponse {
     @Schema(description = "생성된 이미지 개수", example = "3")
     private Integer numImages;
 
+    @Schema(description = "상태 (GENERATING, SUCCESS, FAILED)", example = "SUCCESS")
+    private String status;
+
+    @Schema(description = "현재 진행 단계", example = "20")
+    private Integer currentStep;
+
+    @Schema(description = "전체 단계 수", example = "40")
+    private Integer totalSteps;
+
+    @Schema(description = "에러 메시지 (실패 시)")
+    private String errorMessage;
+
     @Schema(description = "생성된 이미지 목록")
     private List<GeneratedImageResponse> generatedImages;
 
     @Schema(description = "생성일", example = "2025-01-13T10:00:00")
     private LocalDateTime createdAt;
+
+    @Schema(description = "수정일", example = "2025-01-13T10:05:00")
+    private LocalDateTime updatedAt;
 
     public static GenerationHistoryResponse from(GenerationHistory history) {
         return GenerationHistoryResponse.builder()
@@ -67,10 +82,15 @@ public class GenerationHistoryResponse {
                 .guidanceScale(history.getGuidanceScale())
                 .seed(history.getSeed())
                 .numImages(history.getNumImages())
+                .status(history.getStatus())
+                .currentStep(history.getCurrentStep())
+                .totalSteps(history.getTotalSteps())
+                .errorMessage(history.getErrorMessage())
                 .generatedImages(history.getGeneratedImages().stream()
                         .map(GeneratedImageResponse::from)
                         .collect(Collectors.toList()))
                 .createdAt(history.getCreatedAt())
+                .updatedAt(history.getUpdatedAt())
                 .build();
     }
 }

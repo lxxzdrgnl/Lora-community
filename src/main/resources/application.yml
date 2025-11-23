@@ -22,11 +22,11 @@ spring:
       ddl-auto: create-drop  # 개발: create-drop, 프로덕션: validate
     properties:
       hibernate:
-        format_sql: true
-        show_sql: true
-        use_sql_comments: true
-        highlight_sql: true
-    show-sql: true
+        format_sql: false  # SQL 포맷팅 비활성화 (로그 간결화)
+        show_sql: false
+        use_sql_comments: false
+        highlight_sql: false  # SQL 하이라이트 비활성화 (ANSI 색상 코드 제거)
+    show-sql: false
     open-in-view: false  # 멀티 인스턴스 환경에서 권장
     defer-datasource-initialization: true  # data.sql 실행을 위해 필요
 
@@ -157,12 +157,15 @@ server:
 # 로깅 설정
 logging:
   level:
-    root: INFO
-    rheon.wsd_lora_community: DEBUG
-    org.springframework.web: DEBUG
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    root: WARN
+    rheon.wsd_lora_community: INFO
+    org.springframework.web: ERROR
+    org.springframework.security: ERROR
+    org.hibernate: ERROR
+    org.hibernate.SQL: OFF
+    org.hibernate.type: OFF
+    org.hibernate.type.descriptor.sql.BasicBinder: OFF
+    com.zaxxer.hikari: ERROR
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 

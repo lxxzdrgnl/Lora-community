@@ -1,5 +1,6 @@
 package rheon.wsd_lora_community.global.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value; // [중요] 설정값 읽기용
 import org.springframework.context.annotation.Bean;
@@ -79,7 +80,9 @@ public class SecurityConfig {
                                 "/api/search/**",
                                 "/api/generate/stream",          // SSE 스트림 (인증 불필요)
                                 "/api/generate/history",         // FastAPI 콜백 (인증 불필요)
-                                "/api/training/stream"           // 학습 SSE 스트림 (인증 불필요)
+                                "/api/generate/history/**",      // 생성 기록 조회 (인증 불필요)
+                                "/api/training/stream",          // 학습 SSE 스트림 (인증 불필요)
+                                "/ws/**"                         // WebSocket 연결 (인증 불필요)
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
@@ -94,6 +97,19 @@ public class SecurityConfig {
                                 .baseUri("/login/oauth2/code/*")
                         )
                         .successHandler(oAuth2SuccessHandler)
+                )
+
+                // 예외 처리 (WebSocket 등 인증 실패 시 401 반환, OAuth2 리다이렉트 방지)
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            // WebSocket 요청은 401 반환 (OAuth2 리다이렉트 방지)
+                            if (request.getRequestURI().startsWith("/ws/")) {
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                            } else {
+                                // 기타 요청은 OAuth2 로그인 페이지로 리다이렉트
+                                response.sendRedirect("/oauth2/authorization/google");
+                            }
+                        })
                 )
 
                 // JWT 필터 추가

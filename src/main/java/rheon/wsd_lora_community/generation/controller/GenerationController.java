@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -26,6 +27,7 @@ import rheon.wsd_lora_community.global.client.FastApiClient;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.dto.PageResponse;
 import rheon.wsd_lora_community.global.service.S3UploadService;
+import rheon.wsd_lora_community.global.websocket.GenerationProgressHandler;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -38,6 +40,7 @@ import java.util.Map;
  *
  * 주의: 실제 이미지 생성은 FastAPI 서버와 통신하여 처리됩니다.
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/generate")
 @RequiredArgsConstructor
@@ -47,8 +50,9 @@ public class GenerationController {
     private final GenerationService generationService;
     private final FastApiClient fastApiClient;
     private final S3UploadService s3UploadService;
+    private final GenerationProgressHandler webSocketHandler;
 
-    // SSE 브로드캐스트용 Sink (완료 이벤트 전송)
+    // SSE 브로드캐스트용 Sink (완료 이벤트 전송) - 레거시, WebSocket으로 대체
     private final Sinks.Many<Map<String, Object>> completionSink = Sinks.many().multicast().onBackpressureBuffer();
 
     /**
@@ -115,7 +119,7 @@ public class GenerationController {
         ).subscribe(
                 message -> {
                     // FastAPI 이미지 생성 시작 성공
-                    System.out.println("✅ FastAPI 이미지 생성 시작: " + message);
+                    log.info("✅ FastAPI 이미지 생성 시작");
                 },
                 error -> {
                     // FastAPI 이미지 생성 시작 실패
@@ -150,10 +154,29 @@ public class GenerationController {
     public ResponseEntity<ApiResponse<?>> handleGenerationCallback(
             @RequestBody Map<String, Object> request
     ) {
-        System.out.println("🔔 콜백 수신: " + request);
         String status = (String) request.get("status");
+        log.info("🔔 콜백 수신: status={}, historyId={}", status, request.get("historyId"));
 
-        if ("SUCCESS".equals(status)) {
+        if ("GENERATING".equals(status)) {
+            // 진행률 업데이트
+            Long historyId = Long.valueOf(request.get("historyId").toString());
+            Integer currentStep = request.get("currentStep") != null
+                    ? Integer.valueOf(request.get("currentStep").toString())
+                    : null;
+            Integer totalSteps = request.get("totalSteps") != null
+                    ? Integer.valueOf(request.get("totalSteps").toString())
+                    : null;
+
+            generationService.updateProgress(historyId, currentStep, totalSteps);
+
+            return ResponseEntity.ok(
+                    ApiResponse.success("진행률 업데이트 성공", Map.of(
+                            "historyId", historyId,
+                            "currentStep", currentStep,
+                            "totalSteps", totalSteps
+                    ))
+            );
+        } else if ("SUCCESS".equals(status)) {
             // 성공 처리
             Long historyId = request.get("historyId") != null
                     ? Long.valueOf(request.get("historyId").toString())
@@ -183,7 +206,7 @@ public class GenerationController {
                     historyId, modelId, userId, prompt, negativePrompt, steps, guidanceScale, seed, numImages, imageS3Keys
             );
 
-            // SSE로 완료 이벤트 브로드캐스트 (프론트엔드에 실시간 알림)
+            // WebSocket으로 완료 이벤트 전송 (해당 사용자에게만)
             Map<String, Object> completionEvent = new HashMap<>();
             completionEvent.put("status", "SUCCESS");
             completionEvent.put("historyId", history.getId());
@@ -192,11 +215,11 @@ public class GenerationController {
             completionEvent.put("message", "Image generation completed");
             completionEvent.put("generatedImages", history.getGeneratedImages());
 
-            System.out.println("📡 SSE 브로드캐스트 시도: " + completionEvent);
+            // WebSocket으로 해당 사용자에게만 전송
+            webSocketHandler.sendToUser(userId, completionEvent);
 
-            // Sink에 이벤트 전송 (모든 SSE 연결된 클라이언트에게 브로드캐스트)
-            Sinks.EmitResult result = completionSink.tryEmitNext(completionEvent);
-            System.out.println("📡 SSE 브로드캐스트 결과: " + result);
+            // 레거시 SSE도 유지 (호환성)
+            completionSink.tryEmitNext(completionEvent);
 
             return ResponseEntity.ok(
                     ApiResponse.success("생성 완료 처리 성공", history)
@@ -211,12 +234,22 @@ public class GenerationController {
             if (historyId != null) {
                 generationService.failGeneration(historyId, error);
 
-                // SSE로 실패 이벤트 브로드캐스트
-                Map<String, Object> failureEvent = new HashMap<>();
-                failureEvent.put("status", "FAILED");
-                failureEvent.put("historyId", historyId);
-                failureEvent.put("message", error);
-                completionSink.tryEmitNext(failureEvent);
+                // WebSocket으로 실패 이벤트 전송
+                Long failedUserId = request.get("userId") != null
+                        ? Long.valueOf(request.get("userId").toString())
+                        : null;
+
+                if (failedUserId != null) {
+                    Map<String, Object> failureEvent = new HashMap<>();
+                    failureEvent.put("status", "FAILED");
+                    failureEvent.put("historyId", historyId);
+                    failureEvent.put("message", error);
+
+                    webSocketHandler.sendToUser(failedUserId, failureEvent);
+
+                    // 레거시 SSE도 유지
+                    completionSink.tryEmitNext(failureEvent);
+                }
             }
 
             return ResponseEntity.ok(
@@ -261,7 +294,10 @@ public class GenerationController {
             @Parameter(description = "생성 기록 ID", required = true)
             @PathVariable Long historyId
     ) {
+        log.info("📊 폴링 요청: historyId={}", historyId);
         GenerationHistoryResponse history = generationService.getGenerationHistory(historyId);
+        log.info("📊 폴링 응답: historyId={}, status={}, images={}",
+            historyId, history.getStatus(), history.getGeneratedImages().size());
 
         return ResponseEntity.ok(
                 ApiResponse.success("생성 기록 조회 성공", history)
