@@ -166,14 +166,27 @@ public class GenerationController {
             Integer totalSteps = request.get("totalSteps") != null
                     ? Integer.valueOf(request.get("totalSteps").toString())
                     : null;
+            Long userId = request.get("userId") != null
+                    ? Long.valueOf(request.get("userId").toString())
+                    : null;
 
             generationService.updateProgress(historyId, currentStep, totalSteps);
+
+            // WebSocket으로 진행률 전송
+            if (userId != null) {
+                Map<String, Object> progressEvent = new HashMap<>();
+                progressEvent.put("status", "GENERATING");
+                progressEvent.put("historyId", historyId);
+                progressEvent.put("currentStep", currentStep);
+                progressEvent.put("totalSteps", totalSteps);
+                webSocketHandler.sendToUser(userId, progressEvent);
+            }
 
             return ResponseEntity.ok(
                     ApiResponse.success("진행률 업데이트 성공", Map.of(
                             "historyId", historyId,
-                            "currentStep", currentStep,
-                            "totalSteps", totalSteps
+                            "currentStep", currentStep != null ? currentStep : 0,
+                            "totalSteps", totalSteps != null ? totalSteps : 0
                     ))
             );
         } else if ("SUCCESS".equals(status)) {

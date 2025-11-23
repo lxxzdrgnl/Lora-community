@@ -114,8 +114,8 @@ public class GenerationService {
             for (int i = 0; i < imageS3Keys.size(); i++) {
                 String s3Key = imageS3Keys.get(i);
 
-                // S3 URL 생성
-                String s3Url = s3UploadService.generateDownloadPresignedUrl(s3Key);
+                // S3 URL 생성 (생성 이미지 버킷 사용)
+                String s3Url = s3UploadService.generateImageDownloadUrl(s3Key);
 
                 GeneratedImage image = GeneratedImage.builder()
                         .generationHistory(history)

@@ -28,7 +28,13 @@ public class S3UploadService {
     private final S3Presigner s3Presigner;
 
     @Value("${aws.s3.buckets.models}")
-    private String bucketName;  // 기본 버킷 (모델 파일용)
+    private String modelsBucketName;  // 모델 파일용 버킷
+
+    @Value("${aws.s3.buckets.generated-images}")
+    private String generatedImagesBucketName;  // 생성 이미지용 버킷
+
+    @Value("${aws.s3.region}")
+    private String region;  // S3 리전
 
     /**
      * Presigned URL 생성
@@ -46,7 +52,7 @@ public class S3UploadService {
 
         // PutObjectRequest 생성
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                .bucket(bucketName)
+                .bucket(modelsBucketName)
                 .key(s3Key)
                 .build();
 
@@ -66,12 +72,43 @@ public class S3UploadService {
     }
 
     /**
-     * 다운로드용 Presigned URL 생성 (GET 요청용)
+     * 다운로드용 Presigned URL 생성 (GET 요청용) - 모델 파일용
      *
      * @param s3Key S3 키 (예: models/1/my-model.safetensors)
      * @return Presigned URL (유효 시간 1시간)
      */
     public String generateDownloadPresignedUrl(String s3Key) {
+        return generateDownloadPresignedUrl(s3Key, modelsBucketName);
+    }
+
+    /**
+     * 생성 이미지용 Public S3 URL 생성
+     *
+     * @param s3Key S3 키 (예: user-0/20251123_062004_1.png)
+     * @return Public S3 URL (만료 시간 없음)
+     */
+    public String generateImageDownloadUrl(String s3Key) {
+        if (s3Key == null || s3Key.isEmpty()) {
+            return null;
+        }
+
+        // Public URL 형식: https://{bucket}.s3.{region}.amazonaws.com/{key}
+        String publicUrl = String.format("https://%s.s3.%s.amazonaws.com/%s",
+                generatedImagesBucketName, region, s3Key);
+
+        log.debug("Public S3 URL generated for s3Key: {}, bucket: {}", s3Key, generatedImagesBucketName);
+
+        return publicUrl;
+    }
+
+    /**
+     * 다운로드용 Presigned URL 생성 (GET 요청용) - 커스텀 버킷
+     *
+     * @param s3Key S3 키
+     * @param bucketName 버킷 이름
+     * @return Presigned URL (유효 시간 1시간)
+     */
+    private String generateDownloadPresignedUrl(String s3Key, String bucketName) {
         if (s3Key == null || s3Key.isEmpty()) {
             return null;
         }
@@ -92,7 +129,7 @@ public class S3UploadService {
         PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
         String presignedUrl = presignedRequest.url().toString();
 
-        log.debug("Download Presigned URL generated for s3Key: {}", s3Key);
+        log.debug("Download Presigned URL generated for s3Key: {}, bucket: {}", s3Key, bucketName);
 
         return presignedUrl;
     }
