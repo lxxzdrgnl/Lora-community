@@ -80,6 +80,10 @@ jwt:
 frontend:
   url: ${FRONTEND_URL:http://localhost:5173}
 
+# Backend callback URL
+app:
+  callback-url: ${CALLBACK_URL:http://localhost:8080}
+
 # FastAPI/Modal 연동 설정
 fastapi:
   base-url: ${FASTAPI_URL:https://dldydwo9--lora-training-inference-fastapi-app.modal.run}
@@ -108,7 +112,7 @@ file:
 # AWS S3 설정
 aws:
   s3:
-    region: ${AWS_S3_REGION:ap-southeast-2}
+    region: ${AWS_S3_REGION:ap-northeast-2}
     buckets:
       training-data: ${AWS_S3_TRAINING_BUCKET:lora-training-data-bucket}  # 학습 데이터셋
       models: ${AWS_S3_MODELS_BUCKET:lora-models-bucket}                  # 학습된 모델 파일

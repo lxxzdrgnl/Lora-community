@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
@@ -44,6 +45,9 @@ public class TrainingController {
     private final FastApiClient fastApiClient;
     private final S3UploadService s3UploadService;
     private final GenerationProgressHandler webSocketHandler;
+
+    @Value("${app.callback-url}")
+    private String callbackUrlBase;
 
     /**
      * 학습 작업 생성
@@ -164,7 +168,7 @@ public class TrainingController {
         // Callback URL 설정 (Spring Boot 서버 URL)
         String baseUrl = request.containsKey("callbackBaseUrl")
                 ? (String) request.get("callbackBaseUrl")
-                : "http://blueming-ai-env.eba-gdfew9bx.ap-northeast-2.elasticbeanstalk.com/"; // 기본값
+                : callbackUrlBase; // 기본값
         String callbackUrl = baseUrl + "/api/training/callback";
 
         // Modal API로 학습 시작 요청 (비동기)

@@ -43,7 +43,7 @@ jobs:
           
           # 아래 두 이름은 AWS 콘솔에서 복사해오세요!
           application_name: Blueming-AI
-          environment_name: Blueming-AI-env
+          environment_name: Blueming-AI-env-1
           
           version_label: github-action-${{ github.sha }}
           deployment_package: build/libs/application.jar  # 위에서 바꾼 이름 사용

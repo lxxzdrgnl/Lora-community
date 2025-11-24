@@ -28,6 +28,7 @@ import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.dto.PageResponse;
 import rheon.wsd_lora_community.global.service.S3UploadService;
 import rheon.wsd_lora_community.global.websocket.GenerationProgressHandler;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -51,6 +52,9 @@ public class GenerationController {
     private final FastApiClient fastApiClient;
     private final S3UploadService s3UploadService;
     private final GenerationProgressHandler webSocketHandler;
+
+    @Value("${app.callback-url}")
+    private String callbackUrlBase;
 
     // SSE 브로드캐스트용 Sink (완료 이벤트 전송) - 레거시, WebSocket으로 대체
     private final Sinks.Many<Map<String, Object>> completionSink = Sinks.many().multicast().onBackpressureBuffer();
@@ -101,7 +105,7 @@ public class GenerationController {
         String s3Uri = "s3://lora-models-bucket/" + startResponse.getS3Key();
 
         // Callback URL 설정
-        String callbackUrl = "http://blueming-ai-env.eba-gdfew9bx.ap-northeast-2.elasticbeanstalk.com/";
+        String callbackUrl = callbackUrlBase + "/api/generate/history";
 
         // FastAPI/Modal로 이미지 생성 요청 (비동기)
         fastApiClient.startImageGeneration(

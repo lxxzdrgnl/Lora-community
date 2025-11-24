@@ -6,6 +6,7 @@ import org.springframework.security.oauth2.client.web.DefaultOAuth2Authorization
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -18,12 +19,15 @@ import java.util.Map;
 public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
 
     private final DefaultOAuth2AuthorizationRequestResolver defaultResolver;
+    private final String callbackUrlBase;
 
-    public CustomAuthorizationRequestResolver(ClientRegistrationRepository clientRegistrationRepository) {
+
+    public CustomAuthorizationRequestResolver(ClientRegistrationRepository clientRegistrationRepository, @Value("${app.callback-url}") String callbackUrlBase) {
         this.defaultResolver = new DefaultOAuth2AuthorizationRequestResolver(
                 clientRegistrationRepository,
                 "/oauth2/authorization"
         );
+        this.callbackUrlBase = callbackUrlBase;
     }
 
     @Override
@@ -91,7 +95,7 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
                 java.net.URI uri = new java.net.URI(referer);
                 origin = uri.getScheme() + "://" + uri.getAuthority();
             } catch (Exception e) {
-                origin = "http://blueming-ai-env.eba-gdfew9bx.ap-northeast-2.elasticbeanstalk.com/";
+                origin = callbackUrlBase;
             }
         } else {
             // 2. 기본값: 현재 요청의 origin

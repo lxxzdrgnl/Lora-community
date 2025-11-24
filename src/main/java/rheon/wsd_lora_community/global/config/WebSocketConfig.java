@@ -8,6 +8,7 @@ import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 import org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean;
 import rheon.wsd_lora_community.global.websocket.GenerationProgressHandler;
+import org.springframework.beans.factory.annotation.Value;
 
 /**
  * WebSocket 설정
@@ -21,10 +22,13 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     private final GenerationProgressHandler generationProgressHandler;
 
+    @Value("${cors.allowed-origins}")
+    private String[] allowedOrigins;
+
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(generationProgressHandler, "/ws/generation")
-                .setAllowedOrigins("*");  // CORS 허용 (프로덕션에서는 특정 도메인만)
+                .setAllowedOrigins(allowedOrigins);
     }
 
     /**
