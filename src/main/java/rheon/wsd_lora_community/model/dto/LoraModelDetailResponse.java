@@ -54,9 +54,6 @@ public class LoraModelDetailResponse {
     @Schema(description = "LoRA Rank", example = "8")
     private Integer loraRank;
 
-    @Schema(description = "모델 경로", example = "/models/lora_model_1")
-    private String modelPath;
-
     @Schema(description = "베이스 모델", example = "stablediffusionapi/anything-v5")
     private String baseModel;
 
@@ -108,7 +105,6 @@ public class LoraModelDetailResponse {
                 .epochs(model.getEpochs())
                 .learningRate(model.getLearningRate())
                 .loraRank(model.getLoraRank())
-                .modelPath(model.getModelPath())
                 .baseModel(model.getBaseModel())
                 .isPublic(model.getIsPublic())
                 .status(model.getStatus().name())

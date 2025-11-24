@@ -15,6 +15,7 @@ import reactor.core.publisher.Flux;
 import rheon.wsd_lora_community.global.client.FastApiClient;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.service.S3UploadService;
+import rheon.wsd_lora_community.global.websocket.GenerationProgressHandler;
 import rheon.wsd_lora_community.training.dto.TrainingCallbackRequest;
 import rheon.wsd_lora_community.training.dto.TrainingJobResponse;
 import rheon.wsd_lora_community.training.entity.TrainingJob;
@@ -42,6 +43,7 @@ public class TrainingController {
     private final TrainingService trainingService;
     private final FastApiClient fastApiClient;
     private final S3UploadService s3UploadService;
+    private final GenerationProgressHandler webSocketHandler;
 
     /**
      * 학습 작업 생성
@@ -216,11 +218,9 @@ public class TrainingController {
     @Operation(summary = "학습 완료 처리", description = "학습 작업을 완료 처리합니다. (FastAPI 서버 전용)")
     public ResponseEntity<ApiResponse<TrainingJobResponse>> completeTraining(
             @Parameter(description = "학습 작업 ID", required = true)
-            @PathVariable Long jobId,
-            @RequestBody Map<String, String> request
+            @PathVariable Long jobId
     ) {
-        String modelFileUrl = request.get("modelFileUrl");
-        TrainingJobResponse job = trainingService.completeTraining(jobId, modelFileUrl);
+        TrainingJobResponse job = trainingService.completeTraining(jobId);
 
         return ResponseEntity.ok(
                 ApiResponse.success("학습 완료 처리 성공", job)
@@ -362,44 +362,108 @@ public class TrainingController {
     // ========== FastAPI 콜백 엔드포인트 ==========
 
     /**
-     * FastAPI 학습 완료/실패 콜백
-     * - FastAPI 서버에서 학습 완료 시 호출됨
-     * - S3 키와 파일 크기를 DB에 저장
+     * FastAPI 학습 진행률/완료/실패 콜백
+     * - FastAPI 서버에서 학습 진행 중 또는 완료 시 호출됨
+     * - 진행률을 DB에 저장하고 WebSocket으로 프론트엔드에 전달
      * - 인증 불필요 (FastAPI에서 직접 호출)
      */
     @PostMapping("/callback")
     @Operation(
-            summary = "FastAPI 학습 완료 콜백",
-            description = "FastAPI 서버에서 학습 완료 시 호출하는 콜백 엔드포인트입니다. " +
-                    "S3에 업로드된 모델 정보를 DB에 저장합니다."
+            summary = "FastAPI 학습 콜백",
+            description = "FastAPI 서버에서 학습 진행률 업데이트 또는 완료/실패 시 호출하는 콜백 엔드포인트입니다. " +
+                    "진행 상태를 DB에 저장하고 WebSocket으로 사용자에게 알립니다."
     )
-    public ResponseEntity<ApiResponse<String>> handleTrainingCallback(
-            @Valid @RequestBody TrainingCallbackRequest request
+    public ResponseEntity<ApiResponse<?>> handleTrainingCallback(
+            @RequestBody Map<String, Object> request
     ) {
-        if ("SUCCESS".equals(request.getStatus())) {
-            // 학습 성공
-            trainingService.handleTrainingCallback(
-                    request.getUserId(),
-                    request.getModelName(),
-                    request.getS3Folder(),
-                    request.getS3ModelKey(),
-                    request.getFileSize()
+        String status = (String) request.get("status");
+        System.out.println("🔔 학습 콜백 수신: status=" + status + ", request=" + request);
+
+        if ("LOADING".equals(status) || "PREPROCESSING".equals(status) || "TRAINING".equals(status) || "UPLOADING".equals(status)) {
+            // 진행률 업데이트
+            String userId = (String) request.get("userId");
+            Integer modelId = request.get("modelId") != null
+                    ? Integer.valueOf(request.get("modelId").toString())
+                    : null;
+            String message = (String) request.get("message");
+            Long userIdLong = request.get("userId") != null
+                    ? Long.valueOf(request.get("userId").toString())
+                    : null;
+
+            // DB 업데이트
+            trainingService.handleTrainingProgress(userId, modelId, message);
+
+            // WebSocket으로 진행률 전송
+            if (userIdLong != null) {
+                Map<String, Object> progressEvent = new HashMap<>();
+                progressEvent.put("status", status);
+                progressEvent.put("modelId", modelId);
+                progressEvent.put("message", message);
+                webSocketHandler.sendToUser(userIdLong, progressEvent);
+            }
+
+            return ResponseEntity.ok(
+                    ApiResponse.success("진행률 업데이트 성공", Map.of(
+                            "modelId", modelId != null ? modelId : 0,
+                            "message", message != null ? message : ""
+                    ))
             );
+        } else if ("SUCCESS".equals(status)) {
+            // 학습 성공
+            String userId = (String) request.get("userId");
+            Integer modelId = Integer.valueOf(request.get("modelId").toString());
+            String modelName = (String) request.get("modelName");
+            String s3ModelKey = (String) request.get("s3ModelKey");
+            Long fileSize = request.get("fileSize") != null
+                    ? Long.valueOf(request.get("fileSize").toString())
+                    : null;
+            Long userIdLong = Long.valueOf(userId);
+
+            trainingService.handleTrainingCallback(userId, modelId, modelName, s3ModelKey, fileSize);
+
+            // WebSocket으로 완료 이벤트 전송
+            Map<String, Object> completionEvent = new HashMap<>();
+            completionEvent.put("status", "SUCCESS");
+            completionEvent.put("modelId", modelId);
+            completionEvent.put("message", "Training completed successfully");
+            completionEvent.put("s3ModelKey", s3ModelKey);
+
+            webSocketHandler.sendToUser(userIdLong, completionEvent);
 
             return ResponseEntity.ok(
                     ApiResponse.success("학습 완료 콜백 처리 성공")
             );
-        } else {
+        } else if ("FAIL".equals(status)) {
             // 학습 실패
-            trainingService.handleTrainingFailure(
-                    request.getUserId(),
-                    request.getModelName(),
-                    request.getError()
-            );
+            String userId = (String) request.get("userId");
+            Integer modelId = request.get("modelId") != null
+                    ? Integer.valueOf(request.get("modelId").toString())
+                    : null;
+            String error = (String) request.get("error");
+            Long userIdLong = request.get("userId") != null
+                    ? Long.valueOf(request.get("userId").toString())
+                    : null;
+
+            if (modelId != null) {
+                trainingService.handleTrainingFailure(userId, modelId, error);
+
+                // WebSocket으로 실패 이벤트 전송
+                if (userIdLong != null) {
+                    Map<String, Object> failureEvent = new HashMap<>();
+                    failureEvent.put("status", "FAILED");
+                    failureEvent.put("modelId", modelId);
+                    failureEvent.put("message", error);
+
+                    webSocketHandler.sendToUser(userIdLong, failureEvent);
+                }
+            }
 
             return ResponseEntity.ok(
-                    ApiResponse.success("학습 실패 콜백 처리 성공")
+                    ApiResponse.success("학습 실패 콜백 처리 완료", Map.of("error", error != null ? error : ""))
             );
+        } else {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("잘못된 status 값: " + status));
         }
     }
 }

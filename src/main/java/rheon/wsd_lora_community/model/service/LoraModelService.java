@@ -51,7 +51,6 @@ public class LoraModelService {
                 .learningRate(request.getLearningRate() != null ?
                         java.math.BigDecimal.valueOf(request.getLearningRate()) : null)
                 .loraRank(request.getLoraRank())
-                .modelPath("") // 학습 완료 후 업데이트
                 .baseModel(request.getBaseModel() != null ? request.getBaseModel() : "stablediffusionapi/anything-v5")
                 .isPublic(request.getIsPublic() != null ? request.getIsPublic() : false)
                 .status(LoraModel.ModelStatus.TRAINING)

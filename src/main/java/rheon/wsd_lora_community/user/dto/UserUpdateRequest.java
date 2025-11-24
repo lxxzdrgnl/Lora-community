@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Schema(description = "유저 프로필 수정 요청")
 public class UserUpdateRequest {
 
-    @Size(min = 2, max = 50, message = "닉네임은 2-50자 이하여야 합니다")
+    @Size(min = 2, max = 10, message = "닉네임은 2-10자 이하여야 합니다")
     @Schema(description = "닉네임", example = "새로운닉네임")
     private String nickname;
 

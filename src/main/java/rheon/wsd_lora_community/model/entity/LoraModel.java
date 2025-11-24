@@ -58,9 +58,6 @@ public class LoraModel extends BaseEntity {
     @Column
     private Integer loraRank;
 
-    @Column(nullable = false, length = 500)
-    private String modelPath;
-
     @Column(name = "s3_key", length = 500)
     private String s3Key;  // S3 저장 경로 (models/{userId}/{modelName}.safetensors)
 
@@ -140,15 +137,9 @@ public class LoraModel extends BaseEntity {
         this.trainingImagesCount = trainingImagesCount;
     }
 
-    public void completeTraining(String modelPath) {
-        this.modelPath = modelPath;
-        this.status = ModelStatus.COMPLETED;
-    }
-
     public void completeTrainingWithS3(String s3Key, Long fileSize) {
         this.s3Key = s3Key;
         this.fileSize = fileSize;
-        this.modelPath = s3Key;  // modelPath도 s3Key로 설정
         this.status = ModelStatus.COMPLETED;
     }
 
@@ -195,9 +186,5 @@ public class LoraModel extends BaseEntity {
 
     public void updateStatus(ModelStatus status) {
         this.status = status;
-    }
-
-    public void updateModelFileUrl(String modelPath) {
-        this.modelPath = modelPath;
     }
 }
