@@ -118,6 +118,7 @@ public class GenerationController {
                 request.getNumImages() != null ? request.getNumImages() : 1,
                 request.getSteps() != null ? request.getSteps() : 40,
                 request.getGuidanceScale() != null ? request.getGuidanceScale() : 7.5,
+                request.getLoraScale(),  // LoRA 강도
                 request.getSeed(),
                 callbackUrl  // 콜백 URL
         ).subscribe(
@@ -208,6 +209,9 @@ public class GenerationController {
             Double guidanceScale = request.get("guidanceScale") != null
                     ? Double.valueOf(request.get("guidanceScale").toString())
                     : null;
+            Double loraScale = request.get("loraScale") != null
+                    ? Double.valueOf(request.get("loraScale").toString())
+                    : null;
             Long seed = request.get("seed") != null
                     ? Long.valueOf(request.get("seed").toString())
                     : null;
@@ -220,7 +224,7 @@ public class GenerationController {
             java.util.List<String> imageS3Keys = (java.util.List<String>) request.get("imageS3Keys");
 
             GenerationHistoryResponse history = generationService.completeGeneration(
-                    historyId, modelId, userId, prompt, negativePrompt, steps, guidanceScale, seed, numImages, imageS3Keys
+                    historyId, modelId, userId, prompt, negativePrompt, steps, guidanceScale, loraScale, seed, numImages, imageS3Keys
             );
 
             // WebSocket으로 완료 이벤트 전송 (해당 사용자에게만)

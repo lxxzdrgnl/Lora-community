@@ -155,6 +155,7 @@ public class FastApiClient {
      * @param numImages 생성할 이미지 개수
      * @param steps 생성 스텝 수
      * @param guidanceScale CFG Scale
+     * @param loraScale LoRA 강도 (0.0~2.0)
      * @param seed 랜덤 시드 (null 가능)
      * @param callbackUrl 완료 시 콜백 URL (null 가능)
      * @return 응답 메시지
@@ -169,6 +170,7 @@ public class FastApiClient {
             int numImages,
             int steps,
             double guidanceScale,
+            Double loraScale,
             Long seed,
             String callbackUrl
     ) {
@@ -184,6 +186,7 @@ public class FastApiClient {
         requestBody.put("num_images", numImages);
         requestBody.put("steps", steps);
         requestBody.put("guidance_scale", guidanceScale);
+        requestBody.put("lora_scale", loraScale != null ? loraScale : 1.0);  // 기본값 1.0
         if (seed != null) {
             requestBody.put("seed", seed);
         }

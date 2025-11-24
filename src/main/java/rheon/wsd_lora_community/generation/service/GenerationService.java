@@ -55,6 +55,7 @@ public class GenerationService {
      * @param negativePrompt 네거티브 프롬프트
      * @param steps 스텝 수
      * @param guidanceScale 가이던스 스케일
+     * @param loraScale LoRA 강도
      * @param seed 시드
      * @param numImages 생성된 이미지 개수
      * @param imageS3Keys S3에 저장된 이미지 키 리스트
@@ -69,6 +70,7 @@ public class GenerationService {
             String negativePrompt,
             Integer steps,
             Double guidanceScale,
+            Double loraScale,
             Long seed,
             Integer numImages,
             List<String> imageS3Keys
@@ -94,6 +96,10 @@ public class GenerationService {
                     ? BigDecimal.valueOf(guidanceScale)
                     : null;
 
+            BigDecimal loraScaleDecimal = loraScale != null
+                    ? BigDecimal.valueOf(loraScale)
+                    : null;
+
             history = GenerationHistory.builder()
                     .model(model)
                     .user(user)
@@ -101,6 +107,7 @@ public class GenerationService {
                     .negativePrompt(negativePrompt)
                     .steps(steps)
                     .guidanceScale(guidanceScaleDecimal)
+                    .loraScale(loraScaleDecimal)
                     .seed(seed)
                     .numImages(numImages != null ? numImages : 1)
                     .status("SUCCESS")
@@ -177,7 +184,7 @@ public class GenerationService {
             List<String> imageS3Keys
     ) {
         return completeGeneration(null, modelId, userId, prompt, negativePrompt,
-                steps, guidanceScale, seed, numImages, imageS3Keys);
+                steps, guidanceScale, null, seed, numImages, imageS3Keys);
     }
 
     /**
@@ -231,6 +238,10 @@ public class GenerationService {
                 ? BigDecimal.valueOf(request.getGuidanceScale())
                 : null;
 
+        BigDecimal loraScaleDecimal = request.getLoraScale() != null
+                ? BigDecimal.valueOf(request.getLoraScale())
+                : BigDecimal.valueOf(1.0);  // 기본값 1.0
+
         // GenerationHistory 생성 (GENERATING 상태)
         GenerationHistory history = GenerationHistory.builder()
                 .model(model)
@@ -239,6 +250,7 @@ public class GenerationService {
                 .negativePrompt(request.getNegativePrompt())
                 .steps(request.getSteps())
                 .guidanceScale(guidanceScaleDecimal)
+                .loraScale(loraScaleDecimal)
                 .seed(request.getSeed() != null ? request.getSeed().longValue() : null)
                 .numImages(request.getNumImages() != null ? request.getNumImages() : 1)
                 .status("GENERATING")

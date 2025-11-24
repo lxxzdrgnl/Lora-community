@@ -54,6 +54,9 @@ public class GenerationHistory extends BaseEntity {
     @Column
     private Long seed;
 
+    @Column(precision = 4, scale = 2)
+    private BigDecimal loraScale;
+
     /**
      * 생성된 이미지 수
      */

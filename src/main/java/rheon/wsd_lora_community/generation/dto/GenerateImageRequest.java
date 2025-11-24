@@ -48,4 +48,9 @@ public class GenerateImageRequest {
 
     @Schema(description = "시드 값 (재현성을 위해)", example = "123456")
     private Long seed;
+
+    @Min(value = 0, message = "LoRA 강도는 0 이상이어야 합니다")
+    @Max(value = 2, message = "LoRA 강도는 2 이하여야 합니다")
+    @Schema(description = "LoRA 강도 (0.0~2.0, 기본값 1.0)", example = "1.0")
+    private Double loraScale;
 }
