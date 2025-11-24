@@ -28,8 +28,8 @@
 
 ### 주요 링크
 - **프론트엔드 배포 링크**: http://blueming-front.s3-website.ap-northeast-2.amazonaws.com/
-- **백엔드 API 기본 URL**: http://bluemingai.ap-northeast-2.elasticbeanstalk.com/
-- **백엔드 API 문서 (Swagger UI)**: http://bluemingai.ap-northeast-2.elasticbeanstalk.com/swagger-ui/index.html
+- **백엔드 API 기본 URL**: http://blueming-ai-env.eba-gdfew9bx.ap-northeast-2.elasticbeanstalk.com/
+- **백엔드 API 문서 (Swagger UI)**: http://blueming-ai-env.eba-gdfew9bx.ap-northeast-2.elasticbeanstalk.com//index.html
 - **프론트엔드 Github**: https://github.com/lxxzdrgnl/LoRA-Platform-Front
 - **AI서버 Github** : https://github.com/lxxzdrgnl/Lora-training-api
 ### 시스템 아키텍처
@@ -45,7 +45,6 @@
                         │   AWS RDS (DB)  │
                         └─────────────────┘
 ```
-
 ---
 
 ## 기술 스택
@@ -147,11 +146,6 @@ cd WSD_Lora_community
 ```
 
 ---
-
-## API 문서
-
-**Live API 문서 (Swagger UI):** http://bluemingai.ap-northeast-2.elasticbeanstalk.com/swagger-ui/index.html
-
 ### 헬스 체크
 
 ```bash

@@ -73,7 +73,7 @@ spring:
 # JWT 설정
 jwt:
   secret: ${JWT_SECRET:wsd-lora-community-jwt-secret-key-2024-for-hs256-algorithm-minimum-256-bits-required}
-  access-token-validity: 3600000    # 1시간 (밀리초)
+  access-token-validity: 3600000    # 1시간 (밀리초
   refresh-token-validity: 604800000  # 7일 (밀리초)
 
 # Frontend URL (OAuth2 콜백용)

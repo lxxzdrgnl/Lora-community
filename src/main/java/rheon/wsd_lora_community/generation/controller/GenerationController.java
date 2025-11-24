@@ -101,7 +101,7 @@ public class GenerationController {
         String s3Uri = "s3://lora-models-bucket/" + startResponse.getS3Key();
 
         // Callback URL 설정
-        String callbackUrl = "http://bluemingai.ap-northeast-2.elasticbeanstalk.com/api/generate/history";
+        String callbackUrl = "http://blueming-ai-env.eba-gdfew9bx.ap-northeast-2.elasticbeanstalk.com/";
 
         // FastAPI/Modal로 이미지 생성 요청 (비동기)
         fastApiClient.startImageGeneration(

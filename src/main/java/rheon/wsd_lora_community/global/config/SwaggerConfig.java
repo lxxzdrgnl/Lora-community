@@ -82,7 +82,7 @@ public class SwaggerConfig {
                         .url("http://localhost:8080")
                         .description("로컬 개발 서버"),
                 new Server()
-                        .url("http://bluemingai.ap-northeast-2.elasticbeanstalk.com")
+                        .url("http://blueming-ai-env.eba-gdfew9bx.ap-northeast-2.elasticbeanstalk.com")
                         .description("프로덕션 서버")
         );
     }
