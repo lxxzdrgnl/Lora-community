@@ -6,7 +6,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
@@ -30,6 +31,32 @@ import java.util.Map;
 public class TagController {
 
     private final TagService tagService;
+
+    /**
+     * Authentication 객체에서 사용자 ID 추출
+     * OAuth2User 또는 UserDetails 모두 지원
+     */
+    private Long getUserIdFromAuthentication(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
+
+        Object principal = authentication.getPrincipal();
+
+        // OAuth2 로그인 (Google)
+        if (principal instanceof OAuth2User) {
+            OAuth2User oauth2User = (OAuth2User) principal;
+            return Long.valueOf(oauth2User.getAttribute("id").toString());
+        }
+
+        // JWT 인증
+        if (principal instanceof UserDetails) {
+            UserDetails userDetails = (UserDetails) principal;
+            return Long.valueOf(userDetails.getUsername()); // username에 userId 저장됨
+        }
+
+        throw new CustomException(ErrorCode.UNAUTHORIZED);
+    }
 
     /**
      * 모든 태그 조회
@@ -115,14 +142,10 @@ public class TagController {
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @RequestBody Map<String, Object> request
     ) {
-        if (principal == null) {
-            throw new CustomException(ErrorCode.UNAUTHORIZED);
-        }
-
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         String tagName = (String) request.get("tagName");
         String categoryStr = (String) request.get("category");
 
@@ -150,9 +173,9 @@ public class TagController {
             @Parameter(description = "태그 ID", required = true)
             @PathVariable Long tagId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         tagService.removeTagFromModel(modelId, tagId, userId);
 
         return ResponseEntity.ok(
