@@ -25,7 +25,7 @@ public interface LoraModelRepository extends JpaRepository<LoraModel, Long> {
 
     // 제목/설명 검색
     @Query("SELECT m FROM LoraModel m WHERE m.isPublic = true AND m.deletedAt IS NULL " +
-            "AND (m.title LIKE %:keyword% OR m.description LIKE %:keyword% OR m.characterName LIKE %:keyword%)")
+            "AND (m.title LIKE %:keyword% OR m.description LIKE %:keyword%)")
     Page<LoraModel> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
 
     // 태그로 검색
@@ -47,7 +47,7 @@ public interface LoraModelRepository extends JpaRepository<LoraModel, Long> {
     Page<LoraModel> findPublicModelsByTags(@Param("tagIds") java.util.List<Long> tagIds, Pageable pageable);
 
     @Query("SELECT m FROM LoraModel m WHERE m.isPublic = true AND m.deletedAt IS NULL " +
-            "AND (LOWER(m.title) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(m.description) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(m.characterName) LIKE LOWER(CONCAT('%', :query, '%')))")
+            "AND (LOWER(m.title) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(m.description) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<LoraModel> searchByTitleOrDescription(@Param("query") String query, Pageable pageable);
 
     Page<LoraModel> findByIsPublicAndStatusOrderByLikeCountDesc(Boolean isPublic, LoraModel.ModelStatus status, Pageable pageable);

@@ -385,45 +385,6 @@ public class GenerationController {
         );
     }
 
-    /**
-     * 생성된 이미지를 샘플로 등록
-     */
-    @PostMapping("/images/{imageId}/sample")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "샘플로 등록", description = "생성된 이미지를 모델의 샘플 이미지로 등록합니다. (모델 소유자만 가능)")
-    public ResponseEntity<ApiResponse<Void>> markImageAsSample(
-            @Parameter(description = "생성 이미지 ID", required = true)
-            @PathVariable Long imageId,
-            @Parameter(hidden = true)
-            Authentication authentication
-    ) {
-        Long userId = getUserIdFromAuthentication(authentication);
-        generationService.markImageAsSample(imageId, userId);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("샘플로 등록 성공", null)
-        );
-    }
-
-    /**
-     * 샘플 등록 취소
-     */
-    @DeleteMapping("/images/{imageId}/sample")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "샘플 등록 취소", description = "샘플 이미지 등록을 취소합니다. (모델 소유자만 가능)")
-    public ResponseEntity<ApiResponse<Void>> unmarkImageAsSample(
-            @Parameter(description = "생성 이미지 ID", required = true)
-            @PathVariable Long imageId,
-            @Parameter(hidden = true)
-            Authentication authentication
-    ) {
-        Long userId = getUserIdFromAuthentication(authentication);
-        generationService.unmarkImageAsSample(imageId, userId);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("샘플 등록 취소 성공", null)
-        );
-    }
 
     /**
      * 생성 기록 삭제

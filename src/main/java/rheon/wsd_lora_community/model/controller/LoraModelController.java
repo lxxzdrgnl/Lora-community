@@ -17,19 +17,23 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
+import rheon.wsd_lora_community.generation.dto.GeneratedImageResponse;
+import rheon.wsd_lora_community.generation.entity.GeneratedImage;
+import rheon.wsd_lora_community.generation.service.GenerationService;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.model.dto.*;
 import rheon.wsd_lora_community.model.service.LoraModelService;
-import rheon.wsd_lora_community.model.service.SampleService;
 import rheon.wsd_lora_community.model.service.PromptService;
+import rheon.wsd_lora_community.model.service.SampleService;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * LoRA 모델 컨트롤러
  * - 모델 CRUD
  * - 모델 검색/필터링
- * - 샘플 이미지 관리
+ * - 샘플 이미지 관리 (ModelSample 기반)
  * - 프롬프트 관리
  */
 @RestController
@@ -39,8 +43,9 @@ import java.util.List;
 public class LoraModelController {
 
     private final LoraModelService loraModelService;
-    private final SampleService sampleService;
     private final PromptService promptService;
+    private final SampleService sampleService;
+    private final GenerationService generationService;
 
     /**
      * Authentication 객체에서 사용자 ID 추출
@@ -309,48 +314,56 @@ public class LoraModelController {
     // ========== 샘플 이미지 관리 ==========
 
     /**
-     * 모델 샘플 이미지 목록 조회
+     * 모델의 생성 이미지 목록 조회 (샘플 선택용, 소유자만)
      */
-    @GetMapping("/{modelId}/samples")
-    @Operation(summary = "샘플 이미지 목록 조회", description = "모델의 샘플 이미지 목록을 조회합니다.")
-    public ResponseEntity<ApiResponse<List<ModelSampleResponse>>> getModelSamples(
-            @Parameter(description = "모델 ID", required = true)
-            @PathVariable Long modelId
-    ) {
-        List<ModelSampleResponse> samples = sampleService.getSamplesByModel(modelId);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("샘플 이미지 조회 성공", samples)
-        );
-    }
-
-    /**
-     * 샘플 이미지 추가
-     */
-    @PostMapping("/{modelId}/samples")
+    @GetMapping("/{modelId}/generated-images")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "샘플 이미지 추가", description = "모델에 샘플 이미지를 추가합니다. (작성자만 가능)")
-    public ResponseEntity<ApiResponse<ModelSampleResponse>> addSample(
+    @Operation(summary = "생성 이미지 목록 조회", description = "모델 소유자가 샘플 선택을 위해 생성한 이미지 목록을 조회합니다.")
+    public ResponseEntity<ApiResponse<List<GeneratedImageResponse>>> getGeneratedImages(
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @Parameter(hidden = true)
-            Authentication authentication,
-            @Valid @RequestBody SampleCreateRequest request
+            Authentication authentication
     ) {
         Long userId = getUserIdFromAuthentication(authentication);
-        ModelSampleResponse sample = sampleService.createSample(modelId, userId, request);
+        List<GeneratedImage> images = generationService.getModelGenerationImages(modelId, userId);
+        List<GeneratedImageResponse> responses = images.stream()
+                .map(GeneratedImageResponse::from)
+                .collect(Collectors.toList());
 
         return ResponseEntity.ok(
-                ApiResponse.success("샘플 이미지 추가 성공", sample)
+                ApiResponse.success("생성 이미지 목록 조회 성공", responses)
         );
     }
 
     /**
-     * 샘플 이미지 삭제
+     * 이미지를 샘플로 선택
+     */
+    @PostMapping("/{modelId}/samples/{generatedImageId}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "샘플 이미지로 선택", description = "생성 이미지를 샘플로 선택합니다. (소유자만 가능)")
+    public ResponseEntity<ApiResponse<ModelSampleResponse>> addSample(
+            @Parameter(description = "모델 ID", required = true)
+            @PathVariable Long modelId,
+            @Parameter(description = "생성 이미지 ID", required = true)
+            @PathVariable Long generatedImageId,
+            @Parameter(hidden = true)
+            Authentication authentication
+    ) {
+        Long userId = getUserIdFromAuthentication(authentication);
+        ModelSampleResponse sample = sampleService.addSample(modelId, generatedImageId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("샘플 이미지로 선택 성공", sample)
+        );
+    }
+
+    /**
+     * 샘플 선택 해제
      */
     @DeleteMapping("/{modelId}/samples/{sampleId}")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "샘플 이미지 삭제", description = "샘플 이미지를 삭제합니다. (작성자만 가능)")
+    @Operation(summary = "샘플 선택 해제", description = "샘플 이미지 선택을 해제합니다. (소유자만 가능)")
     public ResponseEntity<ApiResponse<Void>> deleteSample(
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
@@ -363,16 +376,38 @@ public class LoraModelController {
         sampleService.deleteSample(sampleId, userId);
 
         return ResponseEntity.ok(
-                ApiResponse.success("샘플 이미지 삭제 성공")
+                ApiResponse.success("샘플 선택 해제 성공")
         );
     }
 
     /**
-     * 대표 이미지 설정
+     * 샘플 이미지 순서 변경
+     */
+    @PutMapping("/{modelId}/samples/order")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "샘플 순서 변경", description = "샘플 이미지의 표시 순서를 변경합니다. (소유자만 가능)")
+    public ResponseEntity<ApiResponse<Void>> updateSampleOrder(
+            @Parameter(description = "모델 ID", required = true)
+            @PathVariable Long modelId,
+            @Parameter(description = "샘플 ID 목록 (순서대로)", required = true)
+            @RequestBody List<Long> sampleIds,
+            @Parameter(hidden = true)
+            Authentication authentication
+    ) {
+        Long userId = getUserIdFromAuthentication(authentication);
+        sampleService.updateSampleOrder(modelId, sampleIds, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("샘플 순서 변경 성공")
+        );
+    }
+
+    /**
+     * 대표 샘플 이미지 설정
      */
     @PutMapping("/{modelId}/samples/{sampleId}/primary")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "대표 이미지 설정", description = "샘플 이미지를 대표 이미지로 설정합니다. (작성자만 가능)")
+    @Operation(summary = "대표 샘플 이미지 설정", description = "샘플 이미지를 대표 이미지로 설정합니다. (소유자만 가능)")
     public ResponseEntity<ApiResponse<Void>> setPrimarySample(
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
@@ -385,7 +420,7 @@ public class LoraModelController {
         sampleService.setPrimarySample(sampleId, userId);
 
         return ResponseEntity.ok(
-                ApiResponse.success("대표 이미지 설정 성공")
+                ApiResponse.success("대표 샘플 이미지 설정 성공")
         );
     }
 

@@ -221,7 +221,7 @@ public class LoraModelService {
         return modelSampleRepository.findByModelIdOrderByDisplayOrder(model.getId())
                 .stream()
                 .findFirst()
-                .map(sample -> sample.getImageUrl())
+                .map(sample -> sample.getGeneratedImage().getS3Url())
                 .orElse(null);
     }
 }

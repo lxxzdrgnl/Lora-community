@@ -20,6 +20,7 @@ import rheon.wsd_lora_community.global.exception.ErrorCode;
 import rheon.wsd_lora_community.global.service.S3UploadService;
 import rheon.wsd_lora_community.model.entity.LoraModel;
 import rheon.wsd_lora_community.model.repository.LoraModelRepository;
+import rheon.wsd_lora_community.model.repository.ModelSampleRepository;
 import rheon.wsd_lora_community.user.entity.User;
 import rheon.wsd_lora_community.user.repository.UserRepository;
 
@@ -41,6 +42,7 @@ public class GenerationService {
 
     private final GenerationHistoryRepository generationHistoryRepository;
     private final GeneratedImageRepository generatedImageRepository;
+    private final ModelSampleRepository modelSampleRepository;
     private final LoraModelRepository loraModelRepository;
     private final UserRepository userRepository;
     private final S3UploadService s3UploadService;
@@ -129,7 +131,6 @@ public class GenerationService {
                         .s3Url(s3Url)
                         .s3Key(s3Key)
                         .displayOrder(i + 1)
-                        .isSample(false)
                         .build();
 
                 generatedImageRepository.save(image);
@@ -344,40 +345,10 @@ public class GenerationService {
         return PageResponse.of(historyPage, responses);
     }
 
-    /**
-     * 생성된 이미지를 샘플로 등록
-     */
-    @Transactional
-    public void markImageAsSample(Long imageId, Long userId) {
-        GeneratedImage image = generatedImageRepository.findById(imageId)
-                .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
-
-        // 권한 확인: 모델 소유자만 샘플로 등록 가능
-        if (!image.getGenerationHistory().getModel().getUser().getId().equals(userId)) {
-            throw new CustomException(ErrorCode.FORBIDDEN);
-        }
-
-        image.markAsSample();
-    }
-
-    /**
-     * 샘플 등록 취소
-     */
-    @Transactional
-    public void unmarkImageAsSample(Long imageId, Long userId) {
-        GeneratedImage image = generatedImageRepository.findById(imageId)
-                .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
-
-        // 권한 확인: 모델 소유자만 샘플 취소 가능
-        if (!image.getGenerationHistory().getModel().getUser().getId().equals(userId)) {
-            throw new CustomException(ErrorCode.FORBIDDEN);
-        }
-
-        image.unmarkAsSample();
-    }
 
     /**
      * 생성 기록 삭제
+     * - 샘플로 사용 중인 이미지가 있으면 삭제 불가
      */
     @Transactional
     public void deleteGenerationHistory(Long historyId, Long userId) {
@@ -389,6 +360,37 @@ public class GenerationService {
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
 
+        // 샘플로 사용 중인 이미지가 있는지 확인
+        List<Long> generatedImageIds = history.getGeneratedImages().stream()
+                .map(GeneratedImage::getId)
+                .collect(Collectors.toList());
+
+        boolean hasSampleImages = generatedImageIds.stream()
+                .anyMatch(imageId -> modelSampleRepository.existsByGeneratedImageId(imageId));
+
+        if (hasSampleImages) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE,
+                    "샘플로 사용 중인 이미지가 있어 삭제할 수 없습니다. 먼저 샘플 선택을 해제해주세요.");
+        }
+
         generationHistoryRepository.delete(history);
     }
+
+    /**
+     * 모델의 생성 이미지 조회 (소유자만)
+     * - 모델 소유자가 샘플 선택을 위해 자신이 생성한 이미지들을 조회
+     */
+    public List<GeneratedImage> getModelGenerationImages(Long modelId, Long userId) {
+        // 모델 소유자 확인
+        LoraModel model = loraModelRepository.findById(modelId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
+
+        if (!model.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        }
+
+        // 모델 소유자가 생성한 이미지들 조회
+        return generatedImageRepository.findByModelIdAndUserId(modelId, userId);
+    }
+
 }

@@ -95,13 +95,13 @@ public class LikeService {
     }
 
     /**
-     * 모델의 썸네일 URL 조회 (대표 샘플 이미지)
+     * 모델의 썸네일 URL 조회 (첫 번째 샘플 이미지)
      */
     private String getThumbnailUrl(LoraModel model) {
         return modelSampleRepository.findByModelIdOrderByDisplayOrder(model.getId())
                 .stream()
                 .findFirst()
-                .map(sample -> sample.getImageUrl())
+                .map(sample -> sample.getGeneratedImage().getS3Url())
                 .orElse(null);
     }
 }
