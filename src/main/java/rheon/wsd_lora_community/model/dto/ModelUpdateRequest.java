@@ -22,14 +22,6 @@ public class ModelUpdateRequest {
     @Schema(description = "모델 설명", example = "업데이트된 설명입니다.")
     private String description;
 
-    @Size(max = 100, message = "캐릭터 이름은 100자 이하여야 합니다")
-    @Schema(description = "캐릭터 이름", example = "M4A1")
-    private String characterName;
-
-    @Size(max = 100, message = "스타일은 100자 이하여야 합니다")
-    @Schema(description = "스타일", example = "애니메이션, 일러스트")
-    private String style;
-
     @Schema(description = "공개 여부", example = "true")
     private Boolean isPublic;
 }

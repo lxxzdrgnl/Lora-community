@@ -39,12 +39,6 @@ public class LoraModel extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(length = 100)
-    private String characterName;
-
-    @Column(length = 100)
-    private String style;
-
     @Column
     @Builder.Default
     private Integer trainingImagesCount = 0;
@@ -103,11 +97,9 @@ public class LoraModel extends BaseEntity {
     }
 
     // 비즈니스 메서드
-    public void updateInfo(String title, String description, String characterName, String style) {
+    public void updateInfo(String title, String description) {
         if (title != null) this.title = title;
         if (description != null) this.description = description;
-        if (characterName != null) this.characterName = characterName;
-        if (style != null) this.style = style;
     }
 
     public void updateTitle(String title) {
@@ -116,14 +108,6 @@ public class LoraModel extends BaseEntity {
 
     public void updateDescription(String description) {
         this.description = description;
-    }
-
-    public void updateCharacterName(String characterName) {
-        this.characterName = characterName;
-    }
-
-    public void updateStyle(String style) {
-        this.style = style;
     }
 
     public void updateIsPublic(Boolean isPublic) {

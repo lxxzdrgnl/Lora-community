@@ -44,8 +44,6 @@ public class LoraModelService {
                 .user(user)
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .characterName(request.getCharacterName())
-                .style(request.getStyle())
                 .trainingImagesCount(request.getTrainingImagesCount())
                 .epochs(request.getEpochs())
                 .learningRate(request.getLearningRate() != null ?
@@ -141,12 +139,6 @@ public class LoraModelService {
         }
         if (request.getDescription() != null) {
             model.updateDescription(request.getDescription());
-        }
-        if (request.getCharacterName() != null) {
-            model.updateCharacterName(request.getCharacterName());
-        }
-        if (request.getStyle() != null) {
-            model.updateStyle(request.getStyle());
         }
         if (request.getIsPublic() != null) {
             model.updateIsPublic(request.getIsPublic());

@@ -48,16 +48,46 @@ public class FastApiClient {
      * LoRA 모델 학습 시작 (Modal API)
      *
      * @param userId 사용자 ID
+     * @param modelId 모델 ID
+     * @param jobId 학습 작업 ID
      * @param modelName 모델 이름
      * @param trainingImageUrls S3 presigned URL 리스트
+     * @param triggerWord 트리거 워드 (프롬프트에 사용될 키워드)
+     * @param epochs 학습 에포크 수
+     * @param learningRate 학습률
+     * @param loraRank LoRA Rank (4, 8, 16, 32, 64)
+     * @param baseModel 베이스 모델 (예: stablediffusionapi/anything-v5)
+     * @param skipPreprocessing 전처리 스킵 여부
      * @param callbackUrl 완료 시 호출할 콜백 URL
      * @return 응답 메시지
      */
-    public Mono<String> startTraining(String userId, String modelName, List<String> trainingImageUrls, String callbackUrl) {
+    public Mono<String> startTraining(String userId, Long modelId, Long jobId, String modelName, List<String> trainingImageUrls,
+                                      String triggerWord, Integer epochs, Double learningRate, Integer loraRank,
+                                      String baseModel, Boolean skipPreprocessing, String callbackUrl) {
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("user_id", userId);
+        requestBody.put("model_id", modelId);
+        requestBody.put("job_id", jobId);
         requestBody.put("model_name", modelName);
         requestBody.put("training_image_urls", trainingImageUrls);
+        if (triggerWord != null && !triggerWord.isEmpty()) {
+            requestBody.put("trigger_word", triggerWord);
+        }
+        if (epochs != null) {
+            requestBody.put("epochs", epochs);
+        }
+        if (learningRate != null) {
+            requestBody.put("learning_rate", learningRate);
+        }
+        if (loraRank != null) {
+            requestBody.put("lora_rank", loraRank);
+        }
+        if (baseModel != null && !baseModel.isEmpty()) {
+            requestBody.put("base_model", baseModel);
+        }
+        if (skipPreprocessing != null) {
+            requestBody.put("skip_preprocessing", skipPreprocessing);
+        }
         if (callbackUrl != null) {
             requestBody.put("callback_url", callbackUrl);
         }
@@ -81,32 +111,6 @@ public class FastApiClient {
                 .map(response -> (String) response.get("message"))
                 .doOnSuccess(msg -> log.info("학습 시작 성공 (Modal): {}", msg))
                 .doOnError(error -> log.error("학습 시작 실패 (Modal): {}", error.getMessage()));
-    }
-
-    /**
-     * LoRA 모델 학습 시작 (로컬 FastAPI - 레거시)
-     *
-     * @deprecated Modal API의 startTraining(userId, modelName, trainingImageUrls, callbackUrl)을 사용하세요
-     * @param rawDatasetPath 원본 데이터셋 경로
-     * @param outputDir 학습된 모델이 저장될 경로
-     * @param skipPreprocessing 전처리 과정 스킵 여부
-     * @return 응답 메시지
-     */
-    @Deprecated
-    public Mono<String> startTrainingLocal(String rawDatasetPath, String outputDir, boolean skipPreprocessing) {
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("raw_dataset_path", rawDatasetPath);
-        requestBody.put("output_dir", outputDir);
-        requestBody.put("skip_preprocessing", skipPreprocessing);
-
-        return webClient.post()
-                .uri("/train")
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(Map.class)
-                .map(response -> (String) response.get("message"))
-                .doOnSuccess(msg -> log.info("학습 시작 성공 (로컬): {}", msg))
-                .doOnError(error -> log.error("학습 시작 실패 (로컬): {}", error.getMessage()));
     }
 
     /**

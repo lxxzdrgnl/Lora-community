@@ -77,7 +77,8 @@ public class TrainingController {
     @Operation(
             summary = "학습 이미지 업로드용 Presigned URL 생성",
             description = "학습 이미지를 S3에 업로드하기 위한 Presigned URL을 생성합니다. " +
-                    "프론트엔드에서 이 URL로 이미지를 직접 업로드하고, 업로드된 이미지의 URL을 학습 시작 시 전달합니다."
+                    "프론트엔드에서 이 URL로 이미지를 직접 업로드하고, 업로드된 이미지의 URL을 학습 시작 시 전달합니다. " +
+                    "**요청 바디**: {\"jobId\": 123, \"fileNames\": [\"image1.png\", \"image2.png\"]}"
     )
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateUploadUrls(
             @Parameter(hidden = true)
@@ -85,6 +86,17 @@ public class TrainingController {
             @RequestBody Map<String, Object> request
     ) {
         Long userId = Long.valueOf(principal.getAttribute("id").toString());
+
+        // jobId 필수 파라미터
+        Long jobId = request.get("jobId") != null
+                ? Long.valueOf(request.get("jobId").toString())
+                : null;
+
+        if (jobId == null) {
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.error("학습 작업 ID가 필요합니다. (jobId)")
+            );
+        }
 
         @SuppressWarnings("unchecked")
         List<String> fileNames = (List<String>) request.get("fileNames");
@@ -95,16 +107,16 @@ public class TrainingController {
             );
         }
 
-        // 각 파일에 대한 업로드 URL과 S3 키 생성
+        // 각 파일에 대한 업로드 URL과 S3 키 생성 (jobId 기반)
         List<Map<String, String>> uploadUrls = new ArrayList<>();
         List<String> downloadUrls = new ArrayList<>();
 
         for (String fileName : fileNames) {
-            // 업로드용 Presigned URL 생성
-            String uploadUrl = s3UploadService.generatePresignedUrl(userId.toString(), fileName);
+            // 업로드용 Presigned URL 생성 (training-{jobId} 폴더)
+            String uploadUrl = s3UploadService.generatePresignedUrl("training-" + jobId, fileName);
 
             // S3 키 생성 (다운로드용)
-            String s3Key = s3UploadService.generateS3Key(userId.toString(), fileName);
+            String s3Key = s3UploadService.generateS3Key("training-" + jobId, fileName);
 
             // 다운로드용 Presigned URL 생성 (학습 시 Modal에 전달할 URL)
             String downloadUrl = s3UploadService.generateDownloadPresignedUrl(s3Key);
@@ -133,10 +145,45 @@ public class TrainingController {
      */
     @PostMapping("/jobs/{jobId}/start")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "학습 작업 시작", description = "대기 중인 학습 작업을 시작하고 Modal API로 학습 요청을 전송합니다.")
+    @Operation(
+            summary = "학습 작업 시작",
+            description = """
+                    대기 중인 학습 작업을 시작하고 Modal API로 학습 요청을 전송합니다.
+
+                    **요청 바디 (JSON):**
+                    - `totalEpochs` (Integer, 필수): 총 학습 에포크 수
+                    - `modelName` (String, 필수): 모델 이름
+                    - `trainingImageUrls` (List<String>, 필수): S3 Presigned URL 리스트
+                    - `triggerWord` (String, 선택): 트리거 워드 (예: "sks", "ohwx")
+                    - `epochs` (Integer, 선택): 학습 에포크 수 (Modal로 전달)
+                    - `learningRate` (Double, 선택): 학습률 (예: 0.0001, 0.00002)
+                    - `loraRank` (Integer, 선택): LoRA Rank (16, 32, 64)
+                    - `baseModel` (String, 선택): 베이스 모델 (예: "stablediffusionapi/anything-v5")
+                    - `skipPreprocessing` (Boolean, 선택): 전처리 스킵 여부 (기본값: false)
+
+                    **예시:**
+                    ```json
+                    {
+                      "totalEpochs": 10,
+                      "modelName": "My Custom LoRA",
+                      "trainingImageUrls": ["https://s3.../image1.png", "https://s3.../image2.png"],
+                      "triggerWord": "sks",
+                      "epochs": 10,
+                      "learningRate": 0.0001,
+                      "loraRank": 32,
+                      "baseModel": "stablediffusionapi/anything-v5",
+                      "skipPreprocessing": false
+                    }
+                    ```
+                    """
+    )
     public ResponseEntity<ApiResponse<Map<String, Object>>> startTraining(
             @Parameter(description = "학습 작업 ID", required = true)
             @PathVariable Long jobId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "학습 시작 요청 파라미터",
+                    required = true
+            )
             @RequestBody Map<String, Object> request,
             @Parameter(hidden = true)
             @AuthenticationPrincipal OAuth2User principal
@@ -165,6 +212,26 @@ public class TrainingController {
             );
         }
 
+        // 트리거 워드 (선택)
+        String triggerWord = (String) request.get("triggerWord");
+
+        // 학습 파라미터 (선택)
+        Integer epochs = request.containsKey("epochs")
+                ? (Integer) request.get("epochs")
+                : null;
+        Double learningRate = request.containsKey("learningRate")
+                ? ((Number) request.get("learningRate")).doubleValue()
+                : null;
+        Integer loraRank = request.containsKey("loraRank")
+                ? (Integer) request.get("loraRank")
+                : null;
+        String baseModel = (String) request.get("baseModel");
+
+        // 전처리 스킵 여부 (선택, 기본값: false)
+        Boolean skipPreprocessing = request.containsKey("skipPreprocessing")
+                ? (Boolean) request.get("skipPreprocessing")
+                : false;
+
         // Callback URL 설정 (Spring Boot 서버 URL)
         String baseUrl = request.containsKey("callbackBaseUrl")
                 ? (String) request.get("callbackBaseUrl")
@@ -174,8 +241,16 @@ public class TrainingController {
         // Modal API로 학습 시작 요청 (비동기)
         fastApiClient.startTraining(
                 userId.toString(),
+                job.getModelId(),
+                jobId,
                 modelName,
                 trainingImageUrls,
+                triggerWord,
+                epochs,
+                learningRate,
+                loraRank,
+                baseModel,
+                skipPreprocessing,
                 callbackUrl
         ).subscribe(
                 message -> {

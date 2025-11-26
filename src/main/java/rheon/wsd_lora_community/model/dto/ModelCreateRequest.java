@@ -24,14 +24,6 @@ public class ModelCreateRequest {
     @Schema(description = "모델 설명", example = "소녀 전선 게임 캐릭터를 학습한 LoRA 모델입니다.")
     private String description;
 
-    @Size(max = 100, message = "캐릭터 이름은 100자 이하여야 합니다")
-    @Schema(description = "캐릭터 이름", example = "M4A1")
-    private String characterName;
-
-    @Size(max = 100, message = "스타일은 100자 이하여야 합니다")
-    @Schema(description = "스타일", example = "애니메이션, 일러스트")
-    private String style;
-
     @Schema(description = "학습 이미지 수", example = "50")
     private Integer trainingImagesCount;
 

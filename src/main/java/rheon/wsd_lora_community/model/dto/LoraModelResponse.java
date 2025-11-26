@@ -31,12 +31,6 @@ public class LoraModelResponse {
     @Schema(description = "설명", example = "소녀 전선 게임 캐릭터를 학습한 LoRA 모델입니다.")
     private String description;
 
-    @Schema(description = "캐릭터 이름", example = "M4A1")
-    private String characterName;
-
-    @Schema(description = "스타일", example = "애니메이션, 일러스트")
-    private String style;
-
     @Schema(description = "학습 이미지 수", example = "50")
     private Integer trainingImagesCount;
 
@@ -90,8 +84,6 @@ public class LoraModelResponse {
                 .userNickname(model.getUser().getNickname())
                 .title(model.getTitle())
                 .description(model.getDescription())
-                .characterName(model.getCharacterName())
-                .style(model.getStyle())
                 .trainingImagesCount(model.getTrainingImagesCount())
                 .baseModel(model.getBaseModel())
                 .isPublic(model.getIsPublic())
