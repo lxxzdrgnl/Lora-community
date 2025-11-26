@@ -7,27 +7,28 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * 커스텀 OAuth2 인증 요청 리졸버
  * - 모바일 지원을 위한 추가 파라미터 처리
+ * - 동적 리디렉션을 위해 Referer를 state 파라미터에 포함
  */
 @Component
 public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
 
     private final DefaultOAuth2AuthorizationRequestResolver defaultResolver;
-    private final String callbackUrlBase;
 
-
-    public CustomAuthorizationRequestResolver(ClientRegistrationRepository clientRegistrationRepository, @Value("${app.callback-url}") String callbackUrlBase) {
+    public CustomAuthorizationRequestResolver(ClientRegistrationRepository clientRegistrationRepository) {
         this.defaultResolver = new DefaultOAuth2AuthorizationRequestResolver(
                 clientRegistrationRepository,
                 "/oauth2/authorization"
         );
-        this.callbackUrlBase = callbackUrlBase;
     }
 
     @Override
@@ -72,44 +73,19 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
         // refresh token을 받기 위해 access_type=offline 추가
         additionalParameters.put("access_type", "offline");
 
-        // 동적 redirect_uri 생성 (devtunnel 지원)
-        String redirectUri = getRedirectUri(request);
+        // Referer 헤더를 state 파라미터에 인코딩하여 추가
+        String referer = request.getHeader("Referer");
+        String originalState = authorizationRequest.getState();
+        String newState = originalState;
+
+        if (referer != null && !referer.isEmpty()) {
+            String encodedReferer = URLEncoder.encode(referer, StandardCharsets.UTF_8);
+            newState = originalState + "::" + encodedReferer;
+        }
 
         return OAuth2AuthorizationRequest.from(authorizationRequest)
                 .additionalParameters(additionalParameters)
-                .redirectUri(redirectUri)
+                .state(newState) // 커스텀 state 설정
                 .build();
-    }
-
-    /**
-     * 요청 헤더에서 동적으로 redirect_uri 생성
-     */
-    private String getRedirectUri(HttpServletRequest request) {
-        // 1. Referer 헤더에서 origin 추출
-        String referer = request.getHeader("Referer");
-        String origin;
-
-        if (referer != null && referer.contains("devtunnels.ms")) {
-            // Referer에서 origin 추출
-            try {
-                java.net.URI uri = new java.net.URI(referer);
-                origin = uri.getScheme() + "://" + uri.getAuthority();
-            } catch (Exception e) {
-                origin = callbackUrlBase;
-            }
-        } else {
-            // 2. 기본값: 현재 요청의 origin
-            String scheme = request.getScheme();
-            String serverName = request.getServerName();
-            int serverPort = request.getServerPort();
-
-            origin = scheme + "://" + serverName;
-            if ((scheme.equals("http") && serverPort != 80) ||
-                (scheme.equals("https") && serverPort != 443)) {
-                origin += ":" + serverPort;
-            }
-        }
-
-        return origin + "/login/oauth2/code/google";
     }
 }

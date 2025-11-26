@@ -17,6 +17,8 @@ import rheon.wsd_lora_community.user.repository.RefreshTokenRepository;
 import rheon.wsd_lora_community.user.repository.UserRepository;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -56,14 +58,11 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         log.info("OAuth2 로그인 성공: email={}, name={}", email, name);
 
         // 사용자 조회 또는 생성
-        // 1. OAuth Provider ID로 조회
         User user = userRepository.findByOauthProviderAndOauthProviderId(
                 User.OAuthProvider.GOOGLE, providerId
         ).orElseGet(() -> {
-            // 2. 이메일로 조회 (기존 사용자가 있을 수 있음)
             return userRepository.findByEmail(email)
                     .map(existingUser -> {
-                        // 기존 사용자의 OAuth 정보 업데이트
                         existingUser.updateOAuthInfo(providerId, picture);
                         return userRepository.save(existingUser);
                     })
@@ -77,18 +76,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // Refresh Token 저장
         saveRefreshToken(user, refreshToken);
 
-        // 프론트엔드 URL 결정 (Referer 헤더 또는 기본값 사용)
-        String targetFrontendUrl = frontendUrl;
-        String referer = request.getHeader("Referer");
-        if (referer != null && (referer.contains("devtunnels.ms") || referer.contains("localhost"))) {
-            // Referer에서 origin 추출
-            try {
-                java.net.URI uri = new java.net.URI(referer);
-                targetFrontendUrl = uri.getScheme() + "://" + uri.getAuthority();
-            } catch (Exception e) {
-                log.warn("Failed to parse Referer: {}", referer);
-            }
-        }
+        // state 파라미터에서 프론트엔드 URL 결정
+        String targetFrontendUrl = determineTargetUrl(request);
 
         // 프론트엔드로 리다이렉트 (URL Fragment를 사용하여 토큰 전달)
         String redirectUrl = UriComponentsBuilder.fromUriString(targetFrontendUrl)
@@ -108,6 +97,27 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         );
 
         response.sendRedirect(redirectUrl + "#" + fragment);
+    }
+
+    private String determineTargetUrl(HttpServletRequest request) {
+        String state = request.getParameter("state");
+        if (state != null && state.contains("::")) {
+            try {
+                String[] parts = state.split("::");
+                if (parts.length > 1) {
+                    String encodedReferer = parts[1];
+                    String decodedReferer = URLDecoder.decode(encodedReferer, StandardCharsets.UTF_8);
+
+                    // Referer의 Origin만 추출하여 사용
+                    URI uri = new URI(decodedReferer);
+                    return uri.getScheme() + "://" + uri.getAuthority();
+                }
+            } catch (Exception e) {
+                log.warn("Failed to parse state parameter for redirect URL: {}", state, e);
+            }
+        }
+        // Fallback to default frontend URL
+        return frontendUrl;
     }
 
     /**

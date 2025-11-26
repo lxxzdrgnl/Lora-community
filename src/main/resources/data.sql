@@ -121,18 +121,6 @@ INSERT INTO comments (LIKE_COUNT, CREATED_AT, DELETED_AT, ID, MODEL_ID, UPDATED_
                                                                                                           (14, '2025-11-24 04:33:49.583735', NULL, 11, 7, '2025-11-25 04:33:49.583735', 3, '동의합니다!'),
                                                                                                           (8, '2025-11-24 16:33:49.583735', NULL, 12, 7, '2025-11-25 04:33:49.583735', 4, '색감이 정말 좋네요.');
 
--- 12. Comment Likes
-INSERT INTO comment_likes (COMMENT_ID, CREATED_AT, ID, UPDATED_AT, USER_ID) VALUES
-                                                                                (1, '2025-11-25 04:33:49.586256', 1, '2025-11-25 04:33:49.586256', 2),
-                                                                                (1, '2025-11-25 04:33:49.586256', 2, '2025-11-25 04:33:49.586256', 4),
-                                                                                (1, '2025-11-25 04:33:49.586256', 3, '2025-11-25 04:33:49.586256', 5),
-                                                                                (2, '2025-11-25 04:33:49.586256', 4, '2025-11-25 04:33:49.586256', 3),
-                                                                                (2, '2025-11-25 04:33:49.586256', 5, '2025-11-25 04:33:49.586256', 5),
-                                                                                (4, '2025-11-25 04:33:49.586256', 6, '2025-11-25 04:33:49.586256', 3),
-                                                                                (4, '2025-11-25 04:33:49.586256', 7, '2025-11-25 04:33:49.586256', 5),
-                                                                                (11, '2025-11-25 04:33:49.586256', 8, '2025-11-25 04:33:49.586256', 4),
-                                                                                (11, '2025-11-25 04:33:49.586256', 9, '2025-11-25 04:33:49.586256', 5);
-
 -- 13. Generation History (생성 기록 - 데이터가 많습니다)
 -- 컬럼 순서: CURRENT_STEP, GUIDANCE_SCALE, LORA_SCALE, NUM_IMAGES, STEPS, TOTAL_STEPS, CREATED_AT, ID, MODEL_ID, SEED, UPDATED_AT, USER_ID, STATUS, ERROR_MESSAGE, NEGATIVE_PROMPT, PROMPT
 INSERT INTO generation_history (CURRENT_STEP, GUIDANCE_SCALE, LORA_SCALE, NUM_IMAGES, STEPS, TOTAL_STEPS, CREATED_AT, ID, MODEL_ID, SEED, UPDATED_AT, USER_ID, STATUS, ERROR_MESSAGE, NEGATIVE_PROMPT, PROMPT) VALUES
@@ -185,8 +173,6 @@ INSERT INTO generated_images (DISPLAY_ORDER, IS_SAMPLE, CREATED_AT, FILE_SIZE, G
                                                                                                                                           (2, FALSE, '2025-11-25 09:18:08.979685', NULL, 39, 27, '2025-11-25 09:18:08.979685', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_091804_2.png', 'user-0/20251125_091804_2.png'),
                                                                                                                                           (1, FALSE, '2025-11-25 09:39:04.980634', NULL, 40, 28, '2025-11-25 09:39:04.980634', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_093900_1.png', 'user-0/20251125_093900_1.png'),
                                                                                                                                           (1, FALSE, '2025-11-20 04:33:49.591612', 2048576, 1, 1, '2025-11-25 04:33:49.591612', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/reze.png', '0/reze.png'),
-                                                                                                                                          (1, FALSE, '2025-11-21 04:33:49.591612', 2097152, 2, 2, '2025-11-25 04:33:49.591612', 'https://picsum.photos/512/512?random=102', '0/generated_102.png'),
-                                                                                                                                          (1, FALSE, '2025-11-22 04:33:49.591612', 2150000, 3, 3, '2025-11-25 04:33:49.591612', 'https://picsum.photos/512/512?random=103', '0/generated_103.png'),
                                                                                                                                           (1, FALSE, '2025-11-25 04:43:00.079819', NULL, 4, 4, '2025-11-25 04:43:00.079819', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_044257_1.png', 'user-0/20251125_044257_1.png'),
                                                                                                                                           (1, FALSE, '2025-11-25 06:00:04.617775', NULL, 18, 5, '2025-11-25 06:00:04.617775', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_060001_1.png', 'user-0/20251125_060001_1.png'),
                                                                                                                                           (1, FALSE, '2025-11-25 06:06:17.572395', NULL, 19, 6, '2025-11-25 06:06:17.572395', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_060614_1.png', 'user-0/20251125_060614_1.png'),
