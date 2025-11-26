@@ -120,6 +120,7 @@ public class GenerationController {
                 request.getGuidanceScale() != null ? request.getGuidanceScale() : 7.5,
                 request.getLoraScale(),  // LoRA 강도
                 request.getSeed(),
+                request.getBaseModel() != null ? request.getBaseModel() : "stablediffusionapi/anything-v5",  // 베이스 모델 (기본값)
                 callbackUrl  // 콜백 URL
         ).subscribe(
                 message -> {

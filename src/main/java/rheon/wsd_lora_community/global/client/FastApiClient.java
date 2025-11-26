@@ -161,6 +161,7 @@ public class FastApiClient {
      * @param guidanceScale CFG Scale
      * @param loraScale LoRA 강도 (0.0~2.0)
      * @param seed 랜덤 시드 (null 가능)
+     * @param baseModel 베이스 모델 ID (null 가능)
      * @param callbackUrl 완료 시 콜백 URL (null 가능)
      * @return 응답 메시지
      */
@@ -176,6 +177,7 @@ public class FastApiClient {
             double guidanceScale,
             Double loraScale,
             Long seed,
+            String baseModel,
             String callbackUrl
     ) {
         Map<String, Object> requestBody = new HashMap<>();
@@ -193,6 +195,9 @@ public class FastApiClient {
         requestBody.put("lora_scale", loraScale != null ? loraScale : 1.0);  // 기본값 1.0
         if (seed != null) {
             requestBody.put("seed", seed);
+        }
+        if (baseModel != null && !baseModel.isEmpty()) {
+            requestBody.put("base_model", baseModel);
         }
         if (callbackUrl != null) {
             requestBody.put("callback_url", callbackUrl);

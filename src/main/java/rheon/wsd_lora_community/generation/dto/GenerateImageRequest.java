@@ -53,4 +53,7 @@ public class GenerateImageRequest {
     @Max(value = 2, message = "LoRA 강도는 2 이하여야 합니다")
     @Schema(description = "LoRA 강도 (0.0~2.0, 기본값 1.0)", example = "1.0")
     private Double loraScale;
+
+    @Schema(description = "베이스 모델 ID (기본값: stablediffusionapi/anything-v5)", example = "stablediffusionapi/anything-v5")
+    private String baseModel;
 }
