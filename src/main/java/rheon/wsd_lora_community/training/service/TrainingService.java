@@ -57,6 +57,8 @@ public class TrainingService {
         TrainingJob job = TrainingJob.builder()
                 .model(model)
                 .user(user)
+                .modelName(model.getTitle())  // 모델의 title을 modelName으로 사용
+                .modelDescription(model.getDescription())  // 모델의 description 사용
                 .status(TrainingJob.TrainingStatus.PENDING)
                 .currentEpoch(0)
                 .build();
