@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import rheon.wsd_lora_community.generation.dto.AvailableModelResponse;
 import rheon.wsd_lora_community.generation.dto.GenerateImageRequest;
 import rheon.wsd_lora_community.generation.dto.GenerationHistoryResponse;
 import rheon.wsd_lora_community.generation.entity.GeneratedImage;
@@ -17,6 +18,7 @@ import rheon.wsd_lora_community.generation.repository.GenerationHistoryRepositor
 import rheon.wsd_lora_community.global.dto.PageResponse;
 import rheon.wsd_lora_community.global.exception.CustomException;
 import rheon.wsd_lora_community.global.exception.ErrorCode;
+import rheon.wsd_lora_community.global.service.S3Service;
 import rheon.wsd_lora_community.global.service.S3UploadService;
 import rheon.wsd_lora_community.model.entity.LoraModel;
 import rheon.wsd_lora_community.model.repository.LoraModelRepository;
@@ -46,6 +48,7 @@ public class GenerationService {
     private final LoraModelRepository loraModelRepository;
     private final UserRepository userRepository;
     private final S3UploadService s3UploadService;
+    private final S3Service s3Service;
 
     /**
      * 이미지 생성 완료 처리 (FastAPI 콜백)
@@ -307,6 +310,21 @@ public class GenerationService {
     }
 
     /**
+     * 사용자의 생성 기록 조회 (페이징, 모델 필터링 옵션)
+     * - modelId가 null이면 모든 생성 기록 반환
+     * - modelId가 있으면 해당 모델로 생성한 기록만 반환
+     */
+    public PageResponse<GenerationHistoryResponse> getUserGenerationHistory(Long userId, Long modelId, Pageable pageable) {
+        if (modelId == null) {
+            // 모델 필터링 없이 모든 생성 기록 반환
+            return getUserGenerationHistory(userId, pageable);
+        } else {
+            // 특정 모델로 필터링
+            return getUserModelGenerationHistory(userId, modelId, pageable);
+        }
+    }
+
+    /**
      * 모델의 생성 기록 조회 (페이징)
      */
     public PageResponse<GenerationHistoryResponse> getModelGenerationHistory(Long modelId, Pageable pageable) {
@@ -349,6 +367,7 @@ public class GenerationService {
     /**
      * 생성 기록 삭제
      * - 샘플로 사용 중인 이미지가 있으면 삭제 불가
+     * - S3에서 이미지도 함께 삭제
      */
     @Transactional
     public void deleteGenerationHistory(Long historyId, Long userId) {
@@ -373,7 +392,25 @@ public class GenerationService {
                     "샘플로 사용 중인 이미지가 있어 삭제할 수 없습니다. 먼저 샘플 선택을 해제해주세요.");
         }
 
+        // S3에서 이미지 삭제
+        List<String> s3Keys = history.getGeneratedImages().stream()
+                .map(GeneratedImage::getS3Key)
+                .filter(s3Key -> s3Key != null && !s3Key.isEmpty())
+                .collect(Collectors.toList());
+
+        // DB에서 먼저 삭제 (Cascade로 GeneratedImage도 함께 삭제됨)
         generationHistoryRepository.delete(history);
+
+        // S3에서 이미지 삭제 (DB 삭제 후 실행하여 트랜잭션 롤백 시 S3도 복구 가능)
+        for (String s3Key : s3Keys) {
+            try {
+                s3Service.deleteFile(S3Service.BucketType.GENERATED_IMAGES, s3Key);
+                log.info("Deleted S3 image: {}", s3Key);
+            } catch (Exception e) {
+                log.error("Failed to delete S3 image: {}, error: {}", s3Key, e.getMessage());
+                // S3 삭제 실패는 로그만 남기고 진행 (이미 DB에서는 삭제됨)
+            }
+        }
     }
 
     /**
@@ -391,6 +428,18 @@ public class GenerationService {
 
         // 모델 소유자가 생성한 이미지들 조회
         return generatedImageRepository.findByModelIdAndUserId(modelId, userId);
+    }
+
+    /**
+     * 사용자가 이미지 생성에 사용한 모델 목록 조회
+     * - 생성 히스토리 필터링 드롭다운용
+     * - 중복 제거, 최근 사용 순 정렬
+     */
+    public List<AvailableModelResponse> getAvailableModels(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        return generationHistoryRepository.findAvailableModelsByUser(user);
     }
 
 }

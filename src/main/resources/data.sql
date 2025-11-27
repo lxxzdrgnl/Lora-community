@@ -69,90 +69,174 @@ INSERT INTO model_tags (CREATED_AT, ID, MODEL_ID, TAG_ID, UPDATED_AT) VALUES
                                                                           ('2025-11-25 07:59:05.638332', 28, 5, 1, '2025-11-25 07:59:05.638332'),
                                                                           ('2025-11-25 07:59:05.644517', 29, 5, 25, '2025-11-25 07:59:05.644517');
 
--- 8. Generation History
-INSERT INTO generation_history (GUIDANCE_SCALE, LORA_SCALE, NUM_IMAGES, STEPS, CREATED_AT, ID, MODEL_ID, SEED, UPDATED_AT, USER_ID, NEGATIVE_PROMPT, PROMPT, STATUS) VALUES
-    -- Model 1 (Reze) samples
-    (6.50, 1.0, 2, 35, '2025-11-25 02:00:00', 1, 1, 12345, '2025-11-25 02:05:00', 0, 'ugly, lowres, bad anatomy', 'sks, manga girl, black hair, white shirt', 'SUCCESS'),
-    -- Model 2 (Pochita) samples
-    (9.00, 1.0, 2, 40, '2025-11-25 03:00:00', 2, 2, 111222, '2025-11-25 03:05:00', 0, 'cartoon, low quality', 'pochita, chainsaw, no humans', 'SUCCESS'),
-    -- Model 3 (Mouri Kogorou) samples
-    (8.50, 1.0, 2, 35, '2025-11-25 04:00:00', 3, 3, 777888, '2025-11-25 04:05:00', 0, 'dark, blurry', '1boy, solo, black eyes, mustache, black hair', 'SUCCESS'),
-    -- Model 4 (Naruto Style) samples
-    (8.00, 1.0, 2, 30, '2025-11-25 05:00:00', 4, 4, 131313, '2025-11-25 05:05:00', 0, 'blurry, organic', 'manga character, ninja, orange jacket', 'SUCCESS'),
-    -- Model 5 (Tanjiro) samples
-    (6.50, 1.0, 2, 22, '2025-11-25 06:00:00', 5, 5, 151515, '2025-11-25 06:05:00', 0, 'cute, sharp', 'watercolor, boy, checkered haori', 'SUCCESS'),
-    -- Model 6 (Animal Crossing) samples
-    (7.00, 1.0, 3, 20, '2025-11-25 07:00:00', 6, 6, 161616, '2025-11-25 07:05:00', 0, 'realistic, dark', 'cute animal, cartoon style', 'SUCCESS'),
-    -- Model 7 (Manga Outline) samples
-    (7.00, 1.0, 3, 20, '2025-11-25 08:00:00', 7, 7, 171717, '2025-11-25 08:05:00', 0, 'EasyNegative, badhandv4', 'masterpiece, best quality, 1girl, solo, lineart, monochrome', 'SUCCESS'),
-    -- Model 8 (Zelda Style) samples
-    (9.00, 1.0, 3, 28, '2025-11-25 09:00:00', 8, 8, 181818, '2025-11-25 09:05:00', 0, 'painting by bad-artist, watermark, text, blurry', 'botw style, zelda, breath of the wild', 'SUCCESS'),
-    -- Model 9 (Minimalist) samples
-    (7.20, 1.0, 2, 22, '2025-11-25 10:00:00', 9, 9, 191919, '2025-11-25 10:05:00', 0, 'worst quality, low quality, realistic', 'anime minimalist, 1girl, solo', 'SUCCESS');
+-- 8. Generation History (기존 데이터 + 새 데이터 통합)
+INSERT INTO generation_history (CURRENT_STEP, GUIDANCE_SCALE, LORA_SCALE, NUM_IMAGES, STEPS, TOTAL_STEPS, CREATED_AT, ID, MODEL_ID, SEED, UPDATED_AT, USER_ID, STATUS, ERROR_MESSAGE, NEGATIVE_PROMPT, PROMPT) VALUES
+    -- ID 1-9: 기존 샘플 데이터 (각 모델별 1개씩)
+    (NULL, 6.50, 1.0, 2, 35, NULL, '2025-11-19 02:00:00', 1, 1, 12345, '2025-11-24 02:05:00', 0, 'SUCCESS', NULL, 'ugly, lowres, bad anatomy', 'sks, manga girl, black hair, white shirt'),
+    (NULL, 9.00, 1.0, 2, 40, NULL, '2025-11-19 03:00:00', 2, 2, 111222, '2025-11-24 03:05:00', 0, 'SUCCESS', NULL, 'cartoon, low quality', 'pochita, chainsaw, no humans'),
+    (NULL, 8.50, 1.0, 2, 35, NULL, '2025-11-19 04:00:00', 3, 3, 777888, '2025-11-24 04:05:00', 0, 'SUCCESS', NULL, 'dark, blurry', '1boy, solo, black eyes, mustache, black hair'),
+    (NULL, 8.00, 1.0, 2, 30, NULL, '2025-11-19 05:00:00', 4, 4, 131313, '2025-11-24 05:05:00', 0, 'SUCCESS', NULL, 'blurry, organic', 'manga character, ninja, orange jacket'),
+    (NULL, 6.50, 1.0, 2, 22, NULL, '2025-11-19 06:00:00', 5, 5, 151515, '2025-11-24 06:05:00', 0, 'SUCCESS', NULL, 'cute, sharp', 'watercolor, boy, checkered haori'),
+    (NULL, 7.00, 1.0, 3, 20, NULL, '2025-11-19 07:00:00', 6, 6, 161616, '2025-11-24 07:05:00', 0, 'SUCCESS', NULL, 'realistic, dark', 'cute animal, cartoon style'),
+    (NULL, 7.00, 1.0, 3, 20, NULL, '2025-11-19 08:00:00', 7, 7, 171717, '2025-11-24 08:05:00', 0, 'SUCCESS', NULL, 'EasyNegative, badhandv4', 'masterpiece, best quality, 1girl, solo, lineart, monochrome'),
+    (NULL, 9.00, 1.0, 3, 28, NULL, '2025-11-19 09:00:00', 8, 8, 181818, '2025-11-24 09:05:00', 0, 'SUCCESS', NULL, 'painting by bad-artist, watermark, text, blurry', 'botw style, zelda, breath of the wild'),
+    (NULL, 7.20, 1.0, 2, 22, NULL, '2025-11-19 10:00:00', 9, 9, 191919, '2025-11-24 10:05:00', 0, 'SUCCESS', NULL, 'worst quality, low quality, realistic', 'anime minimalist, 1girl, solo'),
 
--- 9. Generated Images
+    -- ID 10-12: Model 1 초기 테스트
+    (NULL, 7.50, 1.00, 1, 35, NULL, '2025-11-20 04:33:49.59053', 10, 1, 111111, '2025-11-25 04:33:49.59053', 0, 'SUCCESS', NULL, 'ugly, deformed, noisy, blurry, distorted', 'sks, manga girl, black hair, white shirt'),
+    (NULL, 8.00, 1.00, 1, 30, NULL, '2025-11-21 04:33:49.59053', 11, 1, 222222, '2025-11-25 04:33:49.59053', 0, 'SUCCESS', NULL, 'ugly, deformed, noisy, blurry, distorted', 'sks, manga girl, black hair, white shirt'),
+    (NULL, 7.80, 1.00, 1, 28, NULL, '2025-11-22 04:33:49.59053', 12, 1, 333333, '2025-11-25 04:33:49.59053', 0, 'SUCCESS', NULL, 'deformed, blurry, bad anatomy', 'sks, manga girl, black hair, white shirt'),
+
+    -- ID 13: Model 6 첫 성공
+    (21, 7.00, 1.00, 1, 20, 20, '2025-11-25 04:40:15.998897', 13, 6, NULL, '2025-11-25 04:43:00.146636', 0, 'SUCCESS', NULL, 'text,username,logo,(low quality, worst quality:1.4), bad anatomy', 'masterpiece, best quality, chibi, cute animal'),
+
+    -- ID 14-16: 삭제된 레코드 (FAILED 또는 테스트)
+    (NULL, 7.50, 1.00, 1, 20, NULL, '2025-11-25 05:00:00', 14, 6, NULL, '2025-11-25 05:00:00', 0, 'FAILED', 'Training data error', 'text, low quality', 'test prompt'),
+    (NULL, 7.50, 1.00, 1, 20, NULL, '2025-11-25 05:05:00', 15, 6, NULL, '2025-11-25 05:05:00', 0, 'FAILED', 'Training data error', 'text, low quality', 'test prompt'),
+    (NULL, 7.50, 1.00, 1, 20, NULL, '2025-11-25 05:08:00', 16, 6, NULL, '2025-11-25 05:08:00', 0, 'FAILED', 'Training data error', 'text, low quality', 'test prompt'),
+
+    -- ID 17-26: Model 6 실패 케이스들
+    (21, 7.50, 1.00, 1, 20, 20, '2025-11-25 05:10:45.587569', 17, 6, NULL, '2025-11-25 05:11:59.44949', 0, 'FAILED', 'Input type (c10::Half) and bias type (float) should be the same', 'text, username, low quality', 'masterpiece, best quality'),
+    (21, 7.50, 1.00, 1, 20, 20, '2025-11-25 05:14:32.873869', 18, 6, NULL, '2025-11-25 05:15:44.496064', 0, 'FAILED', 'Input type (c10::Half) and bias type (float) should be the same', 'text, username, low quality', 'masterpiece, best quality'),
+    (19, 7.50, 1.00, 1, 20, 20, '2025-11-25 05:19:05.454201', 19, 6, NULL, '2025-11-25 05:19:12.086869', 0, 'FAILED', 'Input type (c10::Half) and bias type (float) should be the same', 'text, username, low quality', 'masterpiece, best quality'),
+    (18, 7.50, 1.00, 1, 20, 20, '2025-11-25 05:20:50.127978', 20, 6, NULL, '2025-11-25 05:20:56.799297', 0, 'FAILED', 'Input type (c10::Half) and bias type (float) should be the same', 'text, username, low quality', 'masterpiece, best quality'),
+    (21, 7.50, 1.00, 1, 20, 20, '2025-11-25 05:26:33.60939', 21, 6, NULL, '2025-11-25 05:28:32.573772', 0, 'FAILED', 'Input type (c10::Half) and bias type (float) should be the same', 'text, username, low quality', 'masterpiece, best quality'),
+    (21, 7.50, 1.00, 1, 20, 20, '2025-11-25 05:31:11.557386', 22, 6, NULL, '2025-11-25 05:32:23.203915', 0, 'FAILED', 'Input type (c10::Half) and bias type (float) should be the same', 'text, username, low quality', 'masterpiece, best quality'),
+    (NULL, 7.50, 1.00, 1, 20, NULL, '2025-11-25 05:35:00', 23, 6, NULL, '2025-11-25 05:35:00', 0, 'FAILED', 'Training error', 'text, low quality', 'test'),
+    (NULL, 7.50, 1.00, 1, 20, NULL, '2025-11-25 05:40:00', 24, 6, NULL, '2025-11-25 05:40:00', 0, 'FAILED', 'Training error', 'text, low quality', 'test'),
+    (31, 7.50, 1.00, 1, 30, 30, '2025-11-25 05:50:10.081894', 25, 6, NULL, '2025-11-25 05:52:26.177882', 0, 'FAILED', 'permute(sparse_coo): number of dimensions in the tensor input does not match', 'text, username, low quality', 'masterpiece, best quality'),
+    (NULL, 7.50, 1.00, 1, 20, NULL, '2025-11-25 05:55:00', 26, 6, NULL, '2025-11-25 05:55:00', 0, 'FAILED', 'Training error', 'text, low quality', 'test'),
+
+    -- ID 27-34: Model 6 성공 케이스들
+    (21, 7.50, 1.00, 1, 20, 20, '2025-11-25 05:57:06.222053', 27, 6, NULL, '2025-11-25 06:00:04.624866', 0, 'SUCCESS', NULL, 'text,username,logo,(low quality, worst quality:1.4), bad anatomy', 'masterpiece, best quality, chibi, cute'),
+    (21, 7.50, 1.00, 1, 20, 20, '2025-11-25 06:04:21.222919', 28, 6, NULL, '2025-11-25 06:06:17.574119', 0, 'SUCCESS', NULL, 'text,username,logo,(low quality, worst quality:1.4), bad anatomy', 'masterpiece, best quality, chibi, cute'),
+    (20, 7.50, 1.00, 1, 20, 20, '2025-11-25 06:09:42.384939', 29, 6, NULL, '2025-11-25 06:12:19.812421', 0, 'SUCCESS', NULL, 'text,username,logo,(low quality, worst quality:1.4), bad anatomy', 'masterpiece, best quality, chibi, cute'),
+    (20, 7.50, 1.00, 1, 20, 20, '2025-11-25 06:18:13.672308', 30, 6, NULL, '2025-11-25 06:20:04.495844', 0, 'SUCCESS', NULL, 'text,username,logo,(low quality, worst quality:1.4), bad anatomy', 'masterpiece, best quality, chibi, cute'),
+    (20, 7.50, 1.00, 1, 20, 20, '2025-11-25 06:27:25.945889', 31, 6, NULL, '2025-11-25 06:29:16.265169', 0, 'SUCCESS', NULL, 'text,username,logo,(low quality, worst quality:1.4), bad anatomy', 'masterpiece, best quality, chibi, cute'),
+    (20, 7.50, 1.00, 1, 20, 20, '2025-11-25 06:31:08.056271', 32, 6, NULL, '2025-11-25 06:33:37.580035', 0, 'SUCCESS', NULL, 'text,username,logo,(low quality, worst quality:1.4), bad anatomy', 'masterpiece, best quality, chibi, cute'),
+    (20, 7.50, 1.00, 1, 20, 20, '2025-11-25 06:43:57.387647', 33, 6, NULL, '2025-11-25 06:46:05.344298', 0, 'SUCCESS', NULL, 'text,username,logo,(low quality, worst quality:1.4), bad anatomy', 'masterpiece, best quality, chibi, cute'),
+    (20, 7.00, 1.00, 1, 20, 20, '2025-11-25 07:19:41.443614', 34, 6, NULL, '2025-11-25 07:22:58.23772', 0, 'SUCCESS', NULL, 'text,username,logo,(low quality, worst quality:1.4), bad anatomy', 'masterpiece, best quality, chibi, cute'),
+
+    -- ID 35-47: 다양한 모델 테스트
+    (31, 7.50, 0.65, 1, 30, 30, '2025-11-25 07:28:41.420707', 35, 3, NULL, '2025-11-25 07:30:33.217834', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', '1boy,solo, black eyes,mustache,black hair'),
+    (30, 7.50, 0.90, 1, 30, 30, '2025-11-25 07:33:15.003823', 36, 4, NULL, '2025-11-25 07:35:15.133305', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'a girl, manga style, naruto'),
+    (31, 7.50, 0.65, 1, 30, 30, '2025-11-25 07:43:44.423523', 37, 3, NULL, '2025-11-25 07:45:56.880237', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', '1boy,solo, black eyes,mustache,black hair'),
+    (31, 7.50, 0.90, 1, 30, 30, '2025-11-25 07:47:59.602794', 38, 2, NULL, '2025-11-25 07:49:51.461172', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'pochita, chainsaw, no humans'),
+    (31, 7.50, 1.00, 1, 30, 30, '2025-11-25 07:54:16.716238', 39, 5, NULL, '2025-11-25 07:56:06.543725', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'demon slayer, tanjiro, checkered haori'),
+    (40, 6.50, 1.20, 1, 40, 40, '2025-11-25 07:59:43.429086', 40, 1, NULL, '2025-11-25 08:01:47.780932', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'sks, a manga girl, black hair, white shirt'),
+    (31, 6.00, 2.00, 1, 30, 30, '2025-11-25 08:05:14.879683', 41, 1, NULL, '2025-11-25 08:06:50.459734', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'sks, a manga girl, black hair, white shirt'),
+    (31, 6.00, 1.00, 1, 30, 30, '2025-11-25 08:09:27.344109', 42, 1, NULL, '2025-11-25 08:11:08.948651', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'sks, a manga girl, black hair, white shirt'),
+    (41, 6.50, 1.00, 1, 40, 40, '2025-11-25 08:11:45.271014', 43, 1, NULL, '2025-11-25 08:13:47.525713', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'sks, a manga girl, black hair, white shirt'),
+    (31, 6.00, 1.10, 1, 30, 30, '2025-11-25 08:17:00.202881', 44, 1, NULL, '2025-11-25 08:18:37.892771', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'sks, a manga girl, black hair, white shirt'),
+    (31, 6.00, 1.10, 1, 30, 30, '2025-11-25 08:28:07.358186', 45, 1, NULL, '2025-11-25 08:30:26.993585', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'sks, a manga girl, black hair, white shirt'),
+    (31, 6.50, 1.10, 1, 30, 30, '2025-11-25 08:38:45.113346', 46, 1, NULL, '2025-11-25 08:41:06.044598', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'sks, a manga girl, black hair, white shirt'),
+    (31, 6.50, 1.10, 1, 30, 30, '2025-11-25 09:13:07.933755', 47, 1, NULL, '2025-11-25 09:14:54.010376', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'sks, a manga girl, black hair, white shirt'),
+
+    -- ID 48-49: 최신 생성
+    (30, 7.50, 0.90, 2, 30, 30, '2025-11-25 09:16:18.459402', 48, 6, NULL, '2025-11-25 09:18:08.980654', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'chibi, cute animal, cartoon style'),
+    (30, 7.50, 1.00, 1, 30, 30, '2025-11-25 09:37:23.372027', 49, 2, NULL, '2025-11-25 09:39:04.982155', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'pochita, chainsaw, no humans');
+
+-- 9. Generated Images (기존 + 새 데이터 통합)
 INSERT INTO generated_images (DISPLAY_ORDER, CREATED_AT, FILE_SIZE, GENERATION_HISTORY_ID, ID, UPDATED_AT, S3_KEY, S3_URL) VALUES
-    -- Model 1 images
-    (1, '2025-11-25 02:05:00', 1024000, 1, 1, '2025-11-25 02:05:00', '0/reze.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/reze.png'),
-    (2, '2025-11-25 02:05:00', 1024000, 1, 2, '2025-11-25 02:05:00', '0/20251111_181540_3.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/20251111_181540_3.png'),
-    -- Model 2 images
-    (1, '2025-11-25 03:05:00', 1024000, 2, 3, '2025-11-25 03:05:00', '0/pochita_1.jpeg', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/pochita_1.jpeg'),
-    (2, '2025-11-25 03:05:00', 1024000, 2, 4, '2025-11-25 03:05:00', '0/pochita_2.jpeg', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/pochita_2.jpeg'),
-    -- Model 3 images
-    (1, '2025-11-25 04:05:00', 1024000, 3, 5, '2025-11-25 04:05:00', '0/2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/2.png'),
-    (2, '2025-11-25 04:05:00', 1024000, 3, 6, '2025-11-25 04:05:00', '0/3.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/3.png'),
-    -- Model 4 images
-    (1, '2025-11-25 05:05:00', 1024000, 4, 7, '2025-11-25 05:05:00', '0/naru_11.webp', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/naru_11.webp'),
-    (2, '2025-11-25 05:05:00', 1024000, 4, 8, '2025-11-25 05:05:00', '0/naru_22.webp', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/naru_22.webp'),
-    -- Model 5 images
-    (1, '2025-11-25 06:05:00', 1024000, 5, 9, '2025-11-25 06:05:00', '0/tanji_1.webp', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/tanji_1.webp'),
-    (2, '2025-11-25 06:05:00', 1024000, 5, 10, '2025-11-25 06:05:00', '0/tanji_22.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/tanji_22.png'),
-    -- Model 6 images
-    (1, '2025-11-25 07:05:00', 1024000, 6, 11, '2025-11-25 07:05:00', '0/animal_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/animal_1.png'),
-    (2, '2025-11-25 07:05:00', 1024000, 6, 12, '2025-11-25 07:05:00', '0/animal_2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/animal_2.png'),
-    (3, '2025-11-25 07:05:00', 1024000, 6, 13, '2025-11-25 07:05:00', '0/animal_3.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/animal_3.png'),
-    -- Model 7 images
-    (1, '2025-11-25 08:05:00', 1024000, 7, 14, '2025-11-25 08:05:00', '0/manga_2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/manga_2.png'),
-    (2, '2025-11-25 08:05:00', 1024000, 7, 15, '2025-11-25 08:05:00', '0/manga_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/manga_1.png'),
-    (3, '2025-11-25 08:05:00', 1024000, 7, 16, '2025-11-25 08:05:00', '0/manga_3.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/manga_3.png'),
-    -- Model 8 images
-    (1, '2025-11-25 09:05:00', 1024000, 8, 17, '2025-11-25 09:05:00', '0/zelda_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/zelda_1.png'),
-    (2, '2025-11-25 09:05:00', 1024000, 8, 18, '2025-11-25 09:05:00', '0/zelda_2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/zelda_2.png'),
-    (3, '2025-11-25 09:05:00', 1024000, 8, 19, '2025-11-25 09:05:00', '0/zelda_3.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/zelda_3.png'),
-    -- Model 9 images
-    (1, '2025-11-25 10:05:00', 1024000, 9, 20, '2025-11-25 10:05:00', '0/minial_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/minial_1.png'),
-    (2, '2025-11-25 10:05:00', 1024000, 9, 21, '2025-11-25 10:05:00', '0/minial_2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/minial_2.png');
+    -- ID 1-21: 기존 샘플 이미지 (gen_hist 1-9 참조)
+    (1, '2025-11-19 02:05:00', 1024000, 1, 1, '2025-11-25 02:05:00', '0/reze.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/reze.png'),
+    (2, '2025-11-19 02:05:00', 1024000, 1, 2, '2025-11-25 02:05:00', '0/20251111_181540_3.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/20251111_181540_3.png'),
+    (1, '2025-11-19 03:05:00', 1024000, 2, 3, '2025-11-25 03:05:00', '0/pochita_1.jpeg', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/pochita_1.jpeg'),
+    (2, '2025-11-19 03:05:00', 1024000, 2, 4, '2025-11-25 03:05:00', '0/pochita_2.jpeg', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/pochita_2.jpeg'),
+    (1, '2025-11-19 04:05:00', 1024000, 3, 5, '2025-11-25 04:05:00', '0/2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/2.png'),
+    (2, '2025-11-19 04:05:00', 1024000, 3, 6, '2025-11-25 04:05:00', '0/3.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/3.png'),
+    (1, '2025-11-19 05:05:00', 1024000, 4, 7, '2025-11-25 05:05:00', '0/naru_11.webp', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/naru_11.webp'),
+    (2, '2025-11-19 05:05:00', 1024000, 4, 8, '2025-11-25 05:05:00', '0/naru_22.webp', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/naru_22.webp'),
+    (1, '2025-11-19 06:05:00', 1024000, 5, 9, '2025-11-25 06:05:00', '0/tanji_1.webp', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/tanji_1.webp'),
+    (2, '2025-11-19 06:05:00', 1024000, 5, 10, '2025-11-25 06:05:00', '0/tanji_22.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/tanji_22.png'),
+    (1, '2025-11-19 07:05:00', 1024000, 6, 11, '2025-11-25 07:05:00', '0/animal_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/animal_1.png'),
+    (2, '2025-11-19 07:05:00', 1024000, 6, 12, '2025-11-25 07:05:00', '0/animal_2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/animal_2.png'),
+    (3, '2025-11-19 07:05:00', 1024000, 6, 13, '2025-11-25 07:05:00', '0/animal_3.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/animal_3.png'),
+    (1, '2025-11-19 08:05:00', 1024000, 7, 14, '2025-11-25 08:05:00', '0/manga_2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/manga_2.png'),
+    (2, '2025-11-19 08:05:00', 1024000, 7, 15, '2025-11-25 08:05:00', '0/manga_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/manga_1.png'),
+    (3, '2025-11-19 08:05:00', 1024000, 7, 16, '2025-11-25 08:05:00', '0/manga_3.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/manga_3.png'),
+    (1, '2025-11-19 09:05:00', 1024000, 8, 17, '2025-11-25 09:05:00', '0/zelda_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/zelda_1.png'),
+    (2, '2025-11-19 09:05:00', 1024000, 8, 18, '2025-11-25 09:05:00', '0/zelda_2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/zelda_2.png'),
+    (3, '2025-11-19 09:05:00', 1024000, 8, 19, '2025-11-25 09:05:00', '0/zelda_3.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/zelda_3.png'),
+    (1, '2025-11-19 10:05:00', 1024000, 9, 20, '2025-11-25 10:05:00', '0/minial_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/minial_1.png'),
+    (2, '2025-11-19 10:05:00', 1024000, 9, 21, '2025-11-25 10:05:00', '0/minial_2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/minial_2.png'),
 
--- 10. Model Samples (참조 방식으로 변경)
+    -- ID 22: gen_hist 10 (Model 1 초기)
+    (1, '2025-11-20 04:33:49.591612', 2048576, 10, 22, '2025-11-25 04:33:49.591612', '0/reze.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/reze.png'),
+
+    -- ID 23: gen_hist 13 (Model 6 첫 성공)
+    (1, '2025-11-25 04:43:00.079819', NULL, 13, 23, '2025-11-25 04:43:00.079819', 'user-0/20251125_044257_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_044257_1.png'),
+
+    -- ID 24-31: gen_hist 27-34 (Model 6 성공 케이스들)
+    (1, '2025-11-25 06:00:04.617775', NULL, 27, 24, '2025-11-25 06:00:04.617775', 'user-0/20251125_060001_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_060001_1.png'),
+    (1, '2025-11-25 06:06:17.572395', NULL, 28, 25, '2025-11-25 06:06:17.572395', 'user-0/20251125_060614_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_060614_1.png'),
+    (1, '2025-11-25 06:12:19.810484', NULL, 29, 26, '2025-11-25 06:12:19.810484', 'user-0/20251125_061215_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_061215_1.png'),
+    (1, '2025-11-25 06:20:04.493617', NULL, 30, 27, '2025-11-25 06:20:04.493617', 'user-0/20251125_062000_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_062000_1.png'),
+    (1, '2025-11-25 06:29:16.263295', NULL, 31, 28, '2025-11-25 06:29:16.263295', 'user-0/20251125_062912_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_062912_1.png'),
+    (1, '2025-11-25 06:33:37.578199', NULL, 32, 29, '2025-11-25 06:33:37.578199', 'user-0/20251125_063333_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_063333_1.png'),
+    (1, '2025-11-25 06:46:05.342122', NULL, 33, 30, '2025-11-25 06:46:05.342122', 'user-0/20251125_064601_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_064601_1.png'),
+    (1, '2025-11-25 07:22:58.236053', NULL, 34, 31, '2025-11-25 07:22:58.236053', 'user-0/20251125_072253_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_072253_1.png'),
+
+    -- ID 32-36: gen_hist 35-39 (다양한 모델 테스트)
+    (1, '2025-11-25 07:30:33.216266', NULL, 35, 32, '2025-11-25 07:30:33.216266', 'user-0/20251125_073030_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_073030_1.png'),
+    (1, '2025-11-25 07:35:15.131264', NULL, 36, 33, '2025-11-25 07:35:15.131264', 'user-0/20251125_073511_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_073511_1.png'),
+    (1, '2025-11-25 07:45:56.878524', NULL, 37, 34, '2025-11-25 07:45:56.878524', 'user-0/20251125_074553_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_074553_1.png'),
+    (1, '2025-11-25 07:49:51.459664', NULL, 38, 35, '2025-11-25 07:49:51.459664', 'user-0/20251125_074948_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_074948_1.png'),
+    (1, '2025-11-25 07:56:06.542244', NULL, 39, 36, '2025-11-25 07:56:06.542244', 'user-0/20251125_075603_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_075603_1.png'),
+
+    -- ID 37-44: gen_hist 40-47 (Model 1 다양한 파라미터 테스트)
+    (1, '2025-11-25 08:01:47.774956', NULL, 40, 37, '2025-11-25 08:01:47.774956', 'user-0/20251125_080143_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_080143_1.png'),
+    (1, '2025-11-25 08:06:50.458179', NULL, 41, 38, '2025-11-25 08:06:50.458179', 'user-0/20251125_080647_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_080647_1.png'),
+    (1, '2025-11-25 08:11:08.947198', NULL, 42, 39, '2025-11-25 08:11:08.947198', 'user-0/20251125_081106_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_081106_1.png'),
+    (1, '2025-11-25 08:13:47.524268', NULL, 43, 40, '2025-11-25 08:13:47.524268', 'user-0/20251125_081343_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_081343_1.png'),
+    (1, '2025-11-25 08:18:37.889291', NULL, 44, 41, '2025-11-25 08:18:37.889291', 'user-0/20251125_081834_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_081834_1.png'),
+    (1, '2025-11-25 08:30:26.990081', NULL, 45, 42, '2025-11-25 08:30:26.990081', 'user-0/20251125_083023_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_083023_1.png'),
+    (1, '2025-11-25 08:41:06.043313', NULL, 46, 43, '2025-11-25 08:41:06.043313', 'user-0/20251125_084102_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_084102_1.png'),
+    (1, '2025-11-25 09:14:54.008874', NULL, 47, 44, '2025-11-25 09:14:54.008874', 'user-0/20251125_091451_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_091451_1.png'),
+
+    -- ID 45-47: gen_hist 48-49 (최신 생성, 48은 2개 이미지)
+    (1, '2025-11-25 09:18:08.978871', NULL, 48, 45, '2025-11-25 09:18:08.978871', 'user-0/20251125_091757_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_091757_1.png'),
+    (2, '2025-11-25 09:18:08.979685', NULL, 48, 46, '2025-11-25 09:18:08.979685', 'user-0/20251125_091804_2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_091804_2.png'),
+    (1, '2025-11-25 09:39:04.980634', NULL, 49, 47, '2025-11-25 09:39:04.980634', 'user-0/20251125_093900_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_093900_1.png');
+
+-- 10. Model Samples (기존 데이터 유지)
 INSERT INTO model_samples (DISPLAY_ORDER, IS_PRIMARY, CREATED_AT, GENERATED_IMAGE_ID, ID, MODEL_ID, UPDATED_AT) VALUES
-    -- Model 1 samples
+    -- Model 1 samples (generated_images ID 1, 2 사용)
     (1, TRUE, '2025-11-25 04:33:49.56957', 1, 1, 1, '2025-11-25 04:33:49.56957'),
     (2, FALSE, '2025-11-25 04:33:49.56957', 2, 2, 1, '2025-11-25 04:33:49.56957'),
-    -- Model 2 samples
+
+    -- Model 2 samples (generated_images ID 3, 4 사용)
     (1, TRUE, '2025-11-25 04:33:49.56957', 3, 3, 2, '2025-11-25 04:33:49.56957'),
     (2, FALSE, '2025-11-25 04:33:49.56957', 4, 4, 2, '2025-11-25 04:33:49.56957'),
-    -- Model 3 samples
+
+    -- Model 3 samples (generated_images ID 5, 6 사용)
     (1, TRUE, '2025-11-25 04:33:49.56957', 5, 5, 3, '2025-11-25 04:33:49.56957'),
     (2, FALSE, '2025-11-25 04:33:49.56957', 6, 6, 3, '2025-11-25 04:33:49.56957'),
-    -- Model 4 samples
+
+    -- Model 4 samples (generated_images ID 7, 8 사용)
     (1, TRUE, '2025-11-25 04:33:49.56957', 7, 7, 4, '2025-11-25 04:33:49.56957'),
     (2, FALSE, '2025-11-25 04:33:49.56957', 8, 8, 4, '2025-11-25 04:33:49.56957'),
-    -- Model 5 samples
+
+    -- Model 5 samples (generated_images ID 9, 10 사용)
     (1, TRUE, '2025-11-25 04:33:49.56957', 9, 9, 5, '2025-11-25 04:33:49.56957'),
     (2, FALSE, '2025-11-25 04:33:49.56957', 10, 10, 5, '2025-11-25 04:33:49.56957'),
-    -- Model 6 samples
+
+    -- Model 6 samples (generated_images ID 11, 12, 13 사용)
     (1, TRUE, '2025-11-25 04:33:49.56957', 11, 11, 6, '2025-11-25 04:33:49.56957'),
     (2, FALSE, '2025-11-25 04:33:49.56957', 12, 12, 6, '2025-11-25 04:33:49.56957'),
     (3, FALSE, '2025-11-25 04:33:49.56957', 13, 13, 6, '2025-11-25 04:33:49.56957'),
-    -- Model 7 samples
+
+    -- Model 7 samples (generated_images ID 14, 15, 16 사용)
     (1, TRUE, '2025-11-25 04:33:49.56957', 14, 14, 7, '2025-11-25 04:33:49.56957'),
     (2, FALSE, '2025-11-26 04:33:49.56957', 15, 15, 7, '2025-11-25 04:33:49.56957'),
     (3, FALSE, '2025-11-25 04:33:49.56957', 16, 16, 7, '2025-11-25 04:33:49.56957'),
-    -- Model 8 samples
+
+    -- Model 8 samples (generated_images ID 17, 18, 19 사용)
     (1, TRUE, '2025-11-25 04:33:49.56957', 17, 17, 8, '2025-11-25 04:33:49.56957'),
     (2, FALSE, '2025-11-25 04:33:49.56957', 18, 18, 8, '2025-11-25 04:33:49.56957'),
     (3, FALSE, '2025-11-25 04:33:49.56957', 19, 19, 8, '2025-11-25 04:33:49.56957'),
-    -- Model 9 samples
+
+    -- Model 9 samples (generated_images ID 20, 21 사용)
     (1, TRUE, '2025-11-25 04:33:49.56957', 20, 20, 9, '2025-11-25 04:33:49.56957'),
     (2, FALSE, '2025-11-25 04:33:49.56957', 21, 21, 9, '2025-11-25 04:33:49.56957');
 

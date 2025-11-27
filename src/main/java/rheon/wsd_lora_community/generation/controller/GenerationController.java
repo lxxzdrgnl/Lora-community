@@ -20,6 +20,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
+import rheon.wsd_lora_community.generation.dto.AvailableModelResponse;
 import rheon.wsd_lora_community.generation.dto.GenerateImageRequest;
 import rheon.wsd_lora_community.generation.dto.GenerationHistoryResponse;
 import rheon.wsd_lora_community.generation.service.GenerationService;
@@ -327,22 +328,42 @@ public class GenerationController {
     }
 
     /**
-     * 내 생성 기록 목록 조회
+     * 내 생성 기록 목록 조회 (모델 필터링 옵션 추가)
      */
     @GetMapping("/history/my")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "내 생성 기록 목록 조회", description = "현재 유저의 모든 생성 기록을 조회합니다.")
+    @Operation(summary = "내 생성 기록 목록 조회", description = "현재 유저의 생성 기록을 조회합니다. modelId로 필터링 가능합니다.")
     public ResponseEntity<ApiResponse<PageResponse<GenerationHistoryResponse>>> getMyGenerationHistory(
             @Parameter(hidden = true)
             Authentication authentication,
+            @Parameter(description = "필터링할 모델 ID (선택사항)")
+            @RequestParam(required = false) Long modelId,
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Long userId = getUserIdFromAuthentication(authentication);
-        PageResponse<GenerationHistoryResponse> history = generationService.getUserGenerationHistory(userId, pageable);
+        PageResponse<GenerationHistoryResponse> history = generationService.getUserGenerationHistory(userId, modelId, pageable);
 
         return ResponseEntity.ok(
                 ApiResponse.success("생성 기록 조회 성공", history)
+        );
+    }
+
+    /**
+     * 사용자가 사용한 모델 목록 조회 (생성 히스토리 필터링용)
+     */
+    @GetMapping("/history/available-models")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "사용 가능한 모델 목록 조회", description = "현재 유저가 이미지 생성에 사용한 모델 목록을 반환합니다 (중복 제거, 최근 사용 순)")
+    public ResponseEntity<ApiResponse<java.util.List<AvailableModelResponse>>> getAvailableModels(
+            @Parameter(hidden = true)
+            Authentication authentication
+    ) {
+        Long userId = getUserIdFromAuthentication(authentication);
+        java.util.List<AvailableModelResponse> models = generationService.getAvailableModels(userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("사용 가능한 모델 목록 조회 성공", models)
         );
     }
 
