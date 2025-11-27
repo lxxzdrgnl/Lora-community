@@ -6,7 +6,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
@@ -27,6 +29,26 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+
+    /**
+     * Authentication 객체에서 사용자 ID 추출
+     * OAuth2User 또는 UserDetails 모두 지원
+     */
+    private Long getUserIdFromAuthentication(Authentication authentication) {
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof UserDetails) {
+            // JWT 인증 (UserDetails)
+            UserDetails userDetails = (UserDetails) principal;
+            return Long.valueOf(userDetails.getUsername());
+        } else if (principal instanceof OAuth2User) {
+            // OAuth2 인증
+            OAuth2User oauth2User = (OAuth2User) principal;
+            return Long.valueOf(oauth2User.getAttribute("id").toString());
+        }
+
+        throw new IllegalStateException("Unknown principal type: " + principal.getClass());
+    }
 
     /**
      * Google OAuth2 로그인 시작
@@ -87,9 +109,9 @@ public class AuthController {
     @Operation(summary = "모든 디바이스 로그아웃", description = "유저의 모든 Refresh Token을 삭제하여 모든 디바이스에서 로그아웃합니다.")
     public ResponseEntity<ApiResponse<Void>> logoutAllDevices(
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         authService.logoutAllDevices(userId);
 
         return ResponseEntity.ok(
@@ -104,11 +126,25 @@ public class AuthController {
     @Operation(summary = "현재 인증 정보 확인", description = "현재 로그인된 유저의 정보를 확인합니다.")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCurrentUser(
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
+        Long userId = getUserIdFromAuthentication(authentication);
+        Object principal = authentication.getPrincipal();
+
+        Map<String, Object> userInfo = new java.util.HashMap<>();
+        userInfo.put("userId", userId);
+
+        if (principal instanceof OAuth2User) {
+            OAuth2User oauth2User = (OAuth2User) principal;
+            userInfo.putAll(oauth2User.getAttributes());
+        } else if (principal instanceof UserDetails) {
+            UserDetails userDetails = (UserDetails) principal;
+            userInfo.put("username", userDetails.getUsername());
+            userInfo.put("authorities", userDetails.getAuthorities());
+        }
+
         return ResponseEntity.ok(
-                ApiResponse.success("인증 정보 조회 성공",
-                        principal.getAttributes())
+                ApiResponse.success("인증 정보 조회 성공", userInfo)
         );
     }
 }

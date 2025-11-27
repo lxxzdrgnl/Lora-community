@@ -9,7 +9,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -50,6 +52,26 @@ public class TrainingController {
     private String callbackUrlBase;
 
     /**
+     * Authentication 객체에서 사용자 ID 추출
+     * OAuth2User 또는 UserDetails 모두 지원
+     */
+    private Long getUserIdFromAuthentication(Authentication authentication) {
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof UserDetails) {
+            // JWT 인증 (UserDetails)
+            UserDetails userDetails = (UserDetails) principal;
+            return Long.valueOf(userDetails.getUsername());
+        } else if (principal instanceof OAuth2User) {
+            // OAuth2 인증
+            OAuth2User oauth2User = (OAuth2User) principal;
+            return Long.valueOf(oauth2User.getAttribute("id").toString());
+        }
+
+        throw new IllegalStateException("Unknown principal type: " + principal.getClass());
+    }
+
+    /**
      * 학습 작업 생성
      */
     @PostMapping("/models/{modelId}")
@@ -59,9 +81,9 @@ public class TrainingController {
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         TrainingJobResponse job = trainingService.createTrainingJob(modelId, userId);
 
         return ResponseEntity.ok(
@@ -82,10 +104,10 @@ public class TrainingController {
     )
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateUploadUrls(
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal,
+            Authentication authentication,
             @RequestBody Map<String, Object> request
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
 
         // jobId 필수 파라미터
         Long jobId = request.get("jobId") != null
@@ -186,9 +208,9 @@ public class TrainingController {
             )
             @RequestBody Map<String, Object> request,
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
 
         // 학습 작업 상태 업데이트
         Integer totalEpochs = (Integer) request.get("totalEpochs");
@@ -364,9 +386,9 @@ public class TrainingController {
     @Operation(summary = "내 학습 작업 목록 조회", description = "현재 유저의 모든 학습 작업을 조회합니다.")
     public ResponseEntity<ApiResponse<List<TrainingJobResponse>>> getMyTrainingJobs(
             @Parameter(hidden = true)
-            @AuthenticationPrincipal OAuth2User principal
+            Authentication authentication
     ) {
-        Long userId = Long.valueOf(principal.getAttribute("id").toString());
+        Long userId = getUserIdFromAuthentication(authentication);
         List<TrainingJobResponse> jobs = trainingService.getUserTrainingJobs(userId);
 
         return ResponseEntity.ok(

@@ -73,10 +73,11 @@ public class LoraModelService {
     }
 
     /**
-     * 유저별 모델 목록 조회
+     * 유저별 모델 목록 조회 (FAILED 상태 제외)
+     * - 학습 실패한 모델은 학습 히스토리에만 남고, 내 모델 목록에는 표시하지 않음
      */
     public Page<LoraModelResponse> getModelsByUser(Long userId, Pageable pageable) {
-        Page<LoraModel> models = loraModelRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        Page<LoraModel> models = loraModelRepository.findByUserIdExcludingFailedOrderByCreatedAtDesc(userId, pageable);
         return models.map(model -> {
             String thumbnailUrl = getThumbnailUrl(model);
             return LoraModelResponse.from(model, null, thumbnailUrl);
