@@ -93,6 +93,7 @@ public class TrainingController {
 
     /**
      * 학습 이미지 업로드용 Presigned URL 생성
+     * - userId 기반으로 업로드 URL 생성
      */
     @PostMapping("/upload-urls")
     @PreAuthorize("isAuthenticated()")
@@ -100,7 +101,7 @@ public class TrainingController {
             summary = "학습 이미지 업로드용 Presigned URL 생성",
             description = "학습 이미지를 S3에 업로드하기 위한 Presigned URL을 생성합니다. " +
                     "프론트엔드에서 이 URL로 이미지를 직접 업로드하고, 업로드된 이미지의 URL을 학습 시작 시 전달합니다. " +
-                    "**요청 바디**: {\"jobId\": 123, \"fileNames\": [\"image1.png\", \"image2.png\"]}"
+                    "**요청 바디**: {\"fileNames\": [\"image1.png\", \"image2.png\"]}"
     )
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateUploadUrls(
             @Parameter(hidden = true)
@@ -108,17 +109,6 @@ public class TrainingController {
             @RequestBody Map<String, Object> request
     ) {
         Long userId = getUserIdFromAuthentication(authentication);
-
-        // jobId 필수 파라미터
-        Long jobId = request.get("jobId") != null
-                ? Long.valueOf(request.get("jobId").toString())
-                : null;
-
-        if (jobId == null) {
-            return ResponseEntity.badRequest().body(
-                    ApiResponse.error("학습 작업 ID가 필요합니다. (jobId)")
-            );
-        }
 
         @SuppressWarnings("unchecked")
         List<String> fileNames = (List<String>) request.get("fileNames");
@@ -129,16 +119,17 @@ public class TrainingController {
             );
         }
 
-        // 각 파일에 대한 업로드 URL과 S3 키 생성 (jobId 기반)
+        // 각 파일에 대한 업로드 URL과 S3 키 생성 (userId + timestamp 기반)
+        String folderName = "training-" + userId + "-" + System.currentTimeMillis();
         List<Map<String, String>> uploadUrls = new ArrayList<>();
         List<String> downloadUrls = new ArrayList<>();
 
         for (String fileName : fileNames) {
-            // 업로드용 Presigned URL 생성 (training-{jobId} 폴더)
-            String uploadUrl = s3UploadService.generatePresignedUrl("training-" + jobId, fileName);
+            // 업로드용 Presigned URL 생성
+            String uploadUrl = s3UploadService.generatePresignedUrl(folderName, fileName);
 
             // S3 키 생성 (다운로드용)
-            String s3Key = s3UploadService.generateS3Key("training-" + jobId, fileName);
+            String s3Key = s3UploadService.generateS3Key(folderName, fileName);
 
             // 다운로드용 Presigned URL 생성 (학습 시 Modal에 전달할 URL)
             String downloadUrl = s3UploadService.generateDownloadPresignedUrl(s3Key);
@@ -164,30 +155,33 @@ public class TrainingController {
 
     /**
      * 학습 작업 시작 (Modal API 연동)
+     * - TrainingJob 생성 및 학습 시작
+     * - 모델은 학습 완료 후 생성됨
      */
-    @PostMapping("/jobs/{jobId}/start")
+    @PostMapping("/start")
     @PreAuthorize("isAuthenticated()")
     @Operation(
             summary = "학습 작업 시작",
             description = """
-                    대기 중인 학습 작업을 시작하고 Modal API로 학습 요청을 전송합니다.
+                    학습을 시작하고 Modal API로 학습 요청을 전송합니다.
+                    학습 완료 후 모델이 자동으로 생성됩니다.
 
                     **요청 바디 (JSON):**
-                    - `totalEpochs` (Integer, 필수): 총 학습 에포크 수
                     - `modelName` (String, 필수): 모델 이름
+                    - `modelDescription` (String, 선택): 모델 설명
                     - `trainingImageUrls` (List<String>, 필수): S3 Presigned URL 리스트
                     - `triggerWord` (String, 선택): 트리거 워드 (예: "sks", "ohwx")
-                    - `epochs` (Integer, 선택): 학습 에포크 수 (Modal로 전달)
+                    - `epochs` (Integer, 필수): 학습 에포크 수
                     - `learningRate` (Double, 선택): 학습률 (예: 0.0001, 0.00002)
                     - `loraRank` (Integer, 선택): LoRA Rank (16, 32, 64)
-                    - `baseModel` (String, 선택): 베이스 모델 (예: "stablediffusionapi/anything-v5")
+                    - `baseModel` (String, 선택): 베이스 모델 (기본값: "stablediffusionapi/anything-v5")
                     - `skipPreprocessing` (Boolean, 선택): 전처리 스킵 여부 (기본값: false)
 
                     **예시:**
                     ```json
                     {
-                      "totalEpochs": 10,
                       "modelName": "My Custom LoRA",
+                      "modelDescription": "A custom LoRA model",
                       "trainingImageUrls": ["https://s3.../image1.png", "https://s3.../image2.png"],
                       "triggerWord": "sks",
                       "epochs": 10,
@@ -200,8 +194,6 @@ public class TrainingController {
                     """
     )
     public ResponseEntity<ApiResponse<Map<String, Object>>> startTraining(
-            @Parameter(description = "학습 작업 ID", required = true)
-            @PathVariable Long jobId,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "학습 시작 요청 파라미터",
                     required = true
@@ -212,21 +204,7 @@ public class TrainingController {
     ) {
         Long userId = getUserIdFromAuthentication(authentication);
 
-        // 학습 작업 상태 업데이트
-        Integer totalEpochs = (Integer) request.get("totalEpochs");
-        TrainingJobResponse job = trainingService.startTraining(jobId, totalEpochs);
-
-        // 학습 이미지 S3 URL 리스트 (요청에서 받아옴)
-        @SuppressWarnings("unchecked")
-        List<String> trainingImageUrls = (List<String>) request.get("trainingImageUrls");
-
-        if (trainingImageUrls == null || trainingImageUrls.isEmpty()) {
-            return ResponseEntity.badRequest().body(
-                    ApiResponse.error("학습 이미지 URL 리스트가 필요합니다. (trainingImageUrls)")
-            );
-        }
-
-        // 모델 이름 가져오기
+        // 필수 파라미터 추출
         String modelName = (String) request.get("modelName");
         if (modelName == null || modelName.isEmpty()) {
             return ResponseEntity.badRequest().body(
@@ -234,25 +212,35 @@ public class TrainingController {
             );
         }
 
-        // 트리거 워드 (선택)
-        String triggerWord = (String) request.get("triggerWord");
+        @SuppressWarnings("unchecked")
+        List<String> trainingImageUrls = (List<String>) request.get("trainingImageUrls");
+        if (trainingImageUrls == null || trainingImageUrls.isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.error("학습 이미지 URL 리스트가 필요합니다. (trainingImageUrls)")
+            );
+        }
 
-        // 학습 파라미터 (선택)
-        Integer epochs = request.containsKey("epochs")
+        Integer epochs = request.get("epochs") != null
                 ? (Integer) request.get("epochs")
-                : null;
+                : 10; // 기본값
+
+        // 선택 파라미터
+        String modelDescription = (String) request.get("modelDescription");
+        String triggerWord = (String) request.get("triggerWord");
         Double learningRate = request.containsKey("learningRate")
                 ? ((Number) request.get("learningRate")).doubleValue()
                 : null;
         Integer loraRank = request.containsKey("loraRank")
                 ? (Integer) request.get("loraRank")
                 : null;
-        String baseModel = (String) request.get("baseModel");
+        String baseModel = (String) request.getOrDefault("baseModel", "stablediffusionapi/anything-v5");
+        Boolean skipPreprocessing = (Boolean) request.getOrDefault("skipPreprocessing", false);
 
-        // 전처리 스킵 여부 (선택, 기본값: false)
-        Boolean skipPreprocessing = request.containsKey("skipPreprocessing")
-                ? (Boolean) request.get("skipPreprocessing")
-                : false;
+        // TrainingJob 생성 및 학습 시작
+        TrainingJobResponse job = trainingService.createAndStartTrainingJob(
+                userId, modelName, modelDescription, trainingImageUrls.size(),
+                epochs, learningRate, loraRank, baseModel, triggerWord
+        );
 
         // Callback URL 설정 (Spring Boot 서버 URL)
         String baseUrl = request.containsKey("callbackBaseUrl")
@@ -263,8 +251,8 @@ public class TrainingController {
         // Modal API로 학습 시작 요청 (비동기)
         fastApiClient.startTraining(
                 userId.toString(),
-                job.getModelId(),
-                jobId,
+                null,  // modelId는 학습 완료 후 생성
+                job.getId(),
                 modelName,
                 trainingImageUrls,
                 triggerWord,
@@ -282,7 +270,7 @@ public class TrainingController {
                 error -> {
                     // Modal 학습 시작 실패
                     System.err.println("Modal 학습 시작 실패: " + error.getMessage());
-                    trainingService.failTraining(jobId, error.getMessage());
+                    trainingService.failTraining(job.getId(), error.getMessage());
                 }
         );
 
@@ -482,45 +470,52 @@ public class TrainingController {
 
         if ("LOADING".equals(status) || "PREPROCESSING".equals(status) || "TRAINING".equals(status) || "UPLOADING".equals(status)) {
             // 진행률 업데이트
-            String userId = (String) request.get("userId");
-            Integer modelId = request.get("modelId") != null
-                    ? Integer.valueOf(request.get("modelId").toString())
+            Long jobId = request.get("jobId") != null
+                    ? Long.valueOf(request.get("jobId").toString())
                     : null;
             String message = (String) request.get("message");
-            Long userIdLong = request.get("userId") != null
-                    ? Long.valueOf(request.get("userId").toString())
+            Integer currentEpoch = request.get("currentEpoch") != null
+                    ? (Integer) request.get("currentEpoch")
                     : null;
 
-            // DB 업데이트
-            trainingService.handleTrainingProgress(userId, modelId, message);
+            if (jobId != null) {
+                // DB 업데이트
+                trainingService.updateProgress(jobId, currentEpoch, status);
 
-            // WebSocket으로 진행률 전송
-            if (userIdLong != null) {
+                // WebSocket으로 진행률 전송
+                TrainingJob job = trainingService.getTrainingJobEntity(jobId);
                 Map<String, Object> progressEvent = new HashMap<>();
                 progressEvent.put("status", status);
-                progressEvent.put("modelId", modelId);
+                progressEvent.put("jobId", jobId);
                 progressEvent.put("message", message);
-                webSocketHandler.sendToUser(userIdLong, progressEvent);
+                progressEvent.put("currentEpoch", currentEpoch);
+                webSocketHandler.sendToUser(job.getUser().getId(), progressEvent);
             }
 
             return ResponseEntity.ok(
                     ApiResponse.success("진행률 업데이트 성공", Map.of(
-                            "modelId", modelId != null ? modelId : 0,
+                            "jobId", jobId != null ? jobId : 0,
                             "message", message != null ? message : ""
                     ))
             );
         } else if ("SUCCESS".equals(status)) {
-            // 학습 성공
-            String userId = (String) request.get("userId");
-            Integer modelId = Integer.valueOf(request.get("modelId").toString());
-            String modelName = (String) request.get("modelName");
+            // 학습 성공 - 모델 생성
+            Long jobId = request.get("jobId") != null
+                    ? Long.valueOf(request.get("jobId").toString())
+                    : null;
             String s3ModelKey = (String) request.get("s3ModelKey");
             Long fileSize = request.get("fileSize") != null
                     ? Long.valueOf(request.get("fileSize").toString())
                     : null;
-            Long userIdLong = Long.valueOf(userId);
 
-            trainingService.handleTrainingCallback(userId, modelId, modelName, s3ModelKey, fileSize);
+            if (jobId == null) {
+                return ResponseEntity.badRequest().body(
+                        ApiResponse.error("학습 작업 ID가 필요합니다. (jobId)")
+                );
+            }
+
+            // 모델 생성 및 TrainingJob 완료 처리
+            Long modelId = trainingService.handleTrainingSuccess(jobId, s3ModelKey, fileSize);
 
             // WebSocket으로 완료 이벤트 전송
             Map<String, Object> completionEvent = new HashMap<>();
@@ -529,34 +524,30 @@ public class TrainingController {
             completionEvent.put("message", "Training completed successfully");
             completionEvent.put("s3ModelKey", s3ModelKey);
 
-            webSocketHandler.sendToUser(userIdLong, completionEvent);
+            TrainingJob job = trainingService.getTrainingJobEntity(jobId);
+            webSocketHandler.sendToUser(job.getUser().getId(), completionEvent);
 
             return ResponseEntity.ok(
-                    ApiResponse.success("학습 완료 콜백 처리 성공")
+                    ApiResponse.success("학습 완료 콜백 처리 성공", Map.of("modelId", modelId))
             );
         } else if ("FAIL".equals(status)) {
             // 학습 실패
-            String userId = (String) request.get("userId");
-            Integer modelId = request.get("modelId") != null
-                    ? Integer.valueOf(request.get("modelId").toString())
+            Long jobId = request.get("jobId") != null
+                    ? Long.valueOf(request.get("jobId").toString())
                     : null;
             String error = (String) request.get("error");
-            Long userIdLong = request.get("userId") != null
-                    ? Long.valueOf(request.get("userId").toString())
-                    : null;
 
-            if (modelId != null) {
-                trainingService.handleTrainingFailure(userId, modelId, error);
+            if (jobId != null) {
+                trainingService.failTraining(jobId, error);
 
                 // WebSocket으로 실패 이벤트 전송
-                if (userIdLong != null) {
-                    Map<String, Object> failureEvent = new HashMap<>();
-                    failureEvent.put("status", "FAILED");
-                    failureEvent.put("modelId", modelId);
-                    failureEvent.put("message", error);
+                TrainingJob job = trainingService.getTrainingJobEntity(jobId);
+                Map<String, Object> failureEvent = new HashMap<>();
+                failureEvent.put("status", "FAILED");
+                failureEvent.put("jobId", jobId);
+                failureEvent.put("message", error);
 
-                    webSocketHandler.sendToUser(userIdLong, failureEvent);
-                }
+                webSocketHandler.sendToUser(job.getUser().getId(), failureEvent);
             }
 
             return ResponseEntity.ok(

@@ -35,7 +35,9 @@ public class LoraModelService {
 
     /**
      * 모델 생성
+     * @deprecated 더 이상 사용하지 않음 - TrainingService.handleTrainingSuccess에서 자동 생성
      */
+    @Deprecated
     @Transactional
     public LoraModelResponse createModel(Long userId, ModelCreateRequest request) {
         User user = userService.findUserEntityById(userId);
@@ -44,14 +46,7 @@ public class LoraModelService {
                 .user(user)
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .trainingImagesCount(request.getTrainingImagesCount())
-                .epochs(request.getEpochs())
-                .learningRate(request.getLearningRate() != null ?
-                        java.math.BigDecimal.valueOf(request.getLearningRate()) : null)
-                .loraRank(request.getLoraRank())
-                .baseModel(request.getBaseModel() != null ? request.getBaseModel() : "stablediffusionapi/anything-v5")
                 .isPublic(request.getIsPublic() != null ? request.getIsPublic() : false)
-                .status(LoraModel.ModelStatus.TRAINING)
                 .build();
 
         LoraModel savedModel = loraModelRepository.save(model);
@@ -62,8 +57,7 @@ public class LoraModelService {
      * 모델 목록 조회 (공개 모델, 페이징)
      */
     public Page<LoraModelResponse> getPublicModels(Long currentUserId, Pageable pageable) {
-        Page<LoraModel> models = loraModelRepository.findByIsPublicTrueAndStatusOrderByCreatedAtDesc(
-                true, LoraModel.ModelStatus.COMPLETED, pageable);
+        Page<LoraModel> models = loraModelRepository.findByIsPublicTrueAndDeletedAtIsNull(pageable);
         return models.map(model -> {
             Boolean isLiked = currentUserId != null &&
                 modelLikeRepository.existsByModelIdAndUserId(model.getId(), currentUserId);
@@ -73,8 +67,8 @@ public class LoraModelService {
     }
 
     /**
-     * 유저별 모델 목록 조회 (FAILED 상태 제외)
-     * - 학습 실패한 모델은 학습 히스토리에만 남고, 내 모델 목록에는 표시하지 않음
+     * 유저별 모델 목록 조회
+     * - 학습 완료된 모델만 표시됨 (학습 실패 시 모델이 생성되지 않음)
      */
     public Page<LoraModelResponse> getModelsByUser(Long userId, Pageable pageable) {
         Page<LoraModel> models = loraModelRepository.findByUserIdExcludingFailedOrderByCreatedAtDesc(userId, pageable);
@@ -197,8 +191,7 @@ public class LoraModelService {
      * 인기 모델 조회 (좋아요 순)
      */
     public Page<LoraModelResponse> getPopularModels(Long currentUserId, Pageable pageable) {
-        Page<LoraModel> models = loraModelRepository.findByIsPublicTrueAndStatusOrderByLikeCountDesc(
-                true, LoraModel.ModelStatus.COMPLETED, pageable);
+        Page<LoraModel> models = loraModelRepository.findByIsPublicTrueAndDeletedAtIsNullOrderByLikeCountDesc(pageable);
         return models.map(model -> {
             Boolean isLiked = currentUserId != null &&
                 modelLikeRepository.existsByModelIdAndUserId(model.getId(), currentUserId);

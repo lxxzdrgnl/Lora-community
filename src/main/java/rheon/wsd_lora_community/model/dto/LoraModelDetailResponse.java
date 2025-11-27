@@ -36,26 +36,8 @@ public class LoraModelDetailResponse {
     @Schema(description = "설명", example = "소녀 전선 게임 캐릭터를 학습한 LoRA 모델입니다.")
     private String description;
 
-    @Schema(description = "학습 이미지 수", example = "50")
-    private Integer trainingImagesCount;
-
-    @Schema(description = "에포크 수", example = "250")
-    private Integer epochs;
-
-    @Schema(description = "학습률", example = "0.0001")
-    private BigDecimal learningRate;
-
-    @Schema(description = "LoRA Rank", example = "8")
-    private Integer loraRank;
-
-    @Schema(description = "베이스 모델", example = "stablediffusionapi/anything-v5")
-    private String baseModel;
-
     @Schema(description = "공개 여부", example = "true")
     private Boolean isPublic;
-
-    @Schema(description = "상태", example = "COMPLETED")
-    private String status;
 
     @Schema(description = "조회수", example = "150")
     private Integer viewCount;
@@ -93,13 +75,7 @@ public class LoraModelDetailResponse {
                 .userProfileImageUrl(model.getUser().getProfileImageUrl())
                 .title(model.getTitle())
                 .description(model.getDescription())
-                .trainingImagesCount(model.getTrainingImagesCount())
-                .epochs(model.getEpochs())
-                .learningRate(model.getLearningRate())
-                .loraRank(model.getLoraRank())
-                .baseModel(model.getBaseModel())
                 .isPublic(model.getIsPublic())
-                .status(model.getStatus().name())
                 .viewCount(model.getViewCount())
                 .likeCount(model.getLikeCount())
                 .samples(samples)

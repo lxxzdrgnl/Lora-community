@@ -227,14 +227,9 @@ public class GenerationService {
         LoraModel model = loraModelRepository.findById(request.getModelId())
                 .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
 
-        // 모델이 COMPLETED 상태인지 확인
-        if (model.getStatus() != LoraModel.ModelStatus.COMPLETED) {
-            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
-        }
-
-        // S3 키가 없으면 에러
+        // S3 키가 없으면 에러 (학습 완료되지 않은 모델)
         if (model.getS3Key() == null || model.getS3Key().isEmpty()) {
-            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "모델 파일이 아직 생성되지 않았습니다.");
         }
 
         // BigDecimal 변환

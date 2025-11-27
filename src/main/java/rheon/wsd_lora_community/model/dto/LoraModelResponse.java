@@ -31,17 +31,8 @@ public class LoraModelResponse {
     @Schema(description = "설명", example = "소녀 전선 게임 캐릭터를 학습한 LoRA 모델입니다.")
     private String description;
 
-    @Schema(description = "학습 이미지 수", example = "50")
-    private Integer trainingImagesCount;
-
-    @Schema(description = "베이스 모델", example = "stablediffusionapi/anything-v5")
-    private String baseModel;
-
     @Schema(description = "공개 여부", example = "true")
     private Boolean isPublic;
-
-    @Schema(description = "상태", example = "COMPLETED")
-    private String status;
 
     @Schema(description = "조회수", example = "150")
     private Integer viewCount;
@@ -84,10 +75,7 @@ public class LoraModelResponse {
                 .userNickname(model.getUser().getNickname())
                 .title(model.getTitle())
                 .description(model.getDescription())
-                .trainingImagesCount(model.getTrainingImagesCount())
-                .baseModel(model.getBaseModel())
                 .isPublic(model.getIsPublic())
-                .status(model.getStatus().name())
                 .viewCount(model.getViewCount())
                 .likeCount(model.getLikeCount())
                 .isLiked(isLiked)

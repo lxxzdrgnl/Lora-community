@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import rheon.wsd_lora_community.global.exception.CustomException;
 import rheon.wsd_lora_community.global.exception.ErrorCode;
 import rheon.wsd_lora_community.model.entity.LoraModel;
+import rheon.wsd_lora_community.model.entity.ModelPrompt;
 import rheon.wsd_lora_community.model.repository.LoraModelRepository;
 import rheon.wsd_lora_community.training.dto.TrainingJobResponse;
 import rheon.wsd_lora_community.training.entity.TrainingJob;
@@ -27,6 +28,7 @@ public class TrainingService {
     private final TrainingJobRepository trainingJobRepository;
     private final LoraModelRepository loraModelRepository;
     private final UserRepository userRepository;
+    private final rheon.wsd_lora_community.model.repository.ModelPromptRepository modelPromptRepository;
 
     /**
      * 학습 작업 생성
@@ -61,10 +63,94 @@ public class TrainingService {
 
         TrainingJob saved = trainingJobRepository.save(job);
 
-        // 모델 상태 업데이트
-        model.updateStatus(LoraModel.ModelStatus.TRAINING);
-
         return TrainingJobResponse.from(saved);
+    }
+
+    /**
+     * 학습 작업 생성 및 시작 (모델 없이)
+     * - 학습 완료 후 모델 생성
+     */
+    @Transactional
+    public TrainingJobResponse createAndStartTrainingJob(
+            Long userId, String modelName, String modelDescription, Integer trainingImagesCount,
+            Integer epochs, Double learningRate, Integer loraRank, String baseModel, String triggerWord) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // TrainingJob 생성
+        TrainingJob job = TrainingJob.builder()
+                .user(user)
+                .model(null)  // 학습 완료 후 생성
+                .modelName(modelName)
+                .modelDescription(modelDescription)
+                .trainingImagesCount(trainingImagesCount)
+                .epochs(epochs)
+                .learningRate(learningRate)
+                .loraRank(loraRank)
+                .baseModel(baseModel)
+                .triggerWord(triggerWord)
+                .status(TrainingJob.TrainingStatus.PENDING)
+                .currentEpoch(0)
+                .build();
+
+        job = trainingJobRepository.save(job);
+        job.start(epochs);
+
+        return TrainingJobResponse.from(job);
+    }
+
+    /**
+     * 학습 작업 자동 생성 또는 기존 작업 가져오기
+     * - 이미 진행 중인 작업이 있으면 에러
+     * - PENDING 상태 작업이 있으면 재사용
+     * - 없으면 새로 생성
+     * @deprecated 더 이상 사용하지 않음 - createAndStartTrainingJob 사용
+     */
+    @Deprecated
+    @Transactional
+    public TrainingJobResponse createOrGetTrainingJob(Long modelId, Long userId, Integer totalEpochs) {
+        LoraModel model = loraModelRepository.findById(modelId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 권한 확인: 모델 소유자만 학습 가능
+        if (!model.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        }
+
+        // 최신 학습 작업 확인
+        TrainingJob job = trainingJobRepository.findTopByModelOrderByCreatedAtDesc(model)
+                .map(existingJob -> {
+                    // 이미 진행 중이면 에러
+                    if (existingJob.isInProgress()) {
+                        throw new CustomException(ErrorCode.DUPLICATE_RESOURCE);
+                    }
+                    // PENDING 상태면 재사용
+                    if (existingJob.getStatus() == TrainingJob.TrainingStatus.PENDING) {
+                        existingJob.start(totalEpochs);
+                        return existingJob;
+                    }
+                    // 완료/실패 상태면 null 반환 (새로 생성)
+                    return null;
+                })
+                .orElse(null);
+
+        // TrainingJob이 없으면 새로 생성
+        if (job == null) {
+            job = TrainingJob.builder()
+                    .model(model)
+                    .user(user)
+                    .status(TrainingJob.TrainingStatus.PENDING)
+                    .currentEpoch(0)
+                    .build();
+            job = trainingJobRepository.save(job);
+            job.start(totalEpochs);
+        }
+
+        return TrainingJobResponse.from(job);
     }
 
     /**
@@ -102,8 +188,64 @@ public class TrainingService {
     }
 
     /**
-     * 학습 완료 처리
+     * 학습 성공 처리 - 모델 생성
      */
+    @Transactional
+    public Long handleTrainingSuccess(Long jobId, String s3Key, Long fileSize) {
+        TrainingJob job = trainingJobRepository.findById(jobId)
+                .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!job.isInProgress()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        // LoraModel 생성
+        LoraModel model = LoraModel.builder()
+                .user(job.getUser())
+                .trainingJobId(jobId)
+                .title(job.getModelName())
+                .description(job.getModelDescription())
+                .s3Key(s3Key)
+                .fileSize(fileSize)
+                .isPublic(false)  // 기본값: 비공개
+                .viewCount(0)
+                .likeCount(0)
+                .build();
+
+        model = loraModelRepository.save(model);
+
+        // 예시 프롬프트 생성 (triggerWord가 있는 경우)
+        if (job.getTriggerWord() != null && !job.getTriggerWord().trim().isEmpty()) {
+            ModelPrompt examplePrompt = ModelPrompt.builder()
+                    .model(model)
+                    .title("Example Prompt")
+                    .prompt(job.getTriggerWord())
+                    .negativePrompt("")
+                    .displayOrder(0)
+                    .build();
+            modelPromptRepository.save(examplePrompt);
+        }
+
+        // TrainingJob에 모델 연결 및 완료 처리
+        job.linkModel(model);
+        job.complete();
+
+        return model.getId();
+    }
+
+    /**
+     * TrainingJob 엔티티 조회
+     */
+    public TrainingJob getTrainingJobEntity(Long jobId) {
+        return trainingJobRepository.findById(jobId)
+                .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    /**
+     * 학습 완료 처리
+     * @deprecated handleTrainingSuccess 사용
+     */
+    @Deprecated
     @Transactional
     public TrainingJobResponse completeTraining(Long jobId) {
         TrainingJob job = trainingJobRepository.findById(jobId)
@@ -114,10 +256,6 @@ public class TrainingService {
         }
 
         job.complete();
-
-        // 모델 상태 업데이트
-        LoraModel model = job.getModel();
-        model.updateStatus(LoraModel.ModelStatus.COMPLETED);
 
         return TrainingJobResponse.from(job);
     }
@@ -136,9 +274,7 @@ public class TrainingService {
 
         job.fail(errorMessage);
 
-        // 모델 상태 업데이트
-        LoraModel model = job.getModel();
-        model.updateStatus(LoraModel.ModelStatus.FAILED);
+        // 모델은 생성되지 않음 (학습 실패 시)
 
         return TrainingJobResponse.from(job);
     }
@@ -252,7 +388,7 @@ public class TrainingService {
         }
 
         // S3 키로 모델 업데이트 (단일 .safetensors 파일 경로)
-        model.completeTrainingWithS3(s3ModelKey, fileSize);
+        model.setModelFileInfo(s3ModelKey, fileSize);
 
         // 해당 모델의 진행 중인 TrainingJob도 완료 처리
         trainingJobRepository.findTopByModelOrderByCreatedAtDesc(model)
@@ -279,10 +415,7 @@ public class TrainingService {
         LoraModel model = loraModelRepository.findById(modelIdLong)
                 .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
 
-        // 모델 실패 처리
-        model.failTraining();
-
-        // TrainingJob도 실패 처리
+        // TrainingJob 실패 처리
         trainingJobRepository.findTopByModelOrderByCreatedAtDesc(model)
                 .ifPresent(job -> {
                     if (job.isInProgress()) {

@@ -39,8 +39,6 @@ public interface LoraModelRepository extends JpaRepository<LoraModel, Long> {
     Page<LoraModel> findByIsPublicTrueAndDeletedAtIsNullOrderByLikeCountDesc(Pageable pageable);
 
     // Service에서 사용하는 메서드들
-    Page<LoraModel> findByIsPublicAndStatusOrderByCreatedAtDesc(Boolean isPublic, LoraModel.ModelStatus status, Pageable pageable);
-
     Page<LoraModel> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
     @Query("SELECT DISTINCT m FROM LoraModel m JOIN m.modelTags mt WHERE mt.tag.id IN :tagIds AND m.isPublic = true AND m.deletedAt IS NULL")
@@ -50,16 +48,7 @@ public interface LoraModelRepository extends JpaRepository<LoraModel, Long> {
             "AND (LOWER(m.title) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(m.description) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<LoraModel> searchByTitleOrDescription(@Param("query") String query, Pageable pageable);
 
-    Page<LoraModel> findByIsPublicAndStatusOrderByLikeCountDesc(Boolean isPublic, LoraModel.ModelStatus status, Pageable pageable);
-
-    // 유저의 모델 조회 (FAILED 상태 제외, 삭제되지 않은 것만)
-    @Query("SELECT m FROM LoraModel m WHERE m.user.id = :userId AND m.status != 'FAILED' AND m.deletedAt IS NULL ORDER BY m.createdAt DESC")
+    // 유저의 모델 조회 (학습 완료된 모델만, 삭제되지 않은 것만)
+    @Query("SELECT m FROM LoraModel m WHERE m.user.id = :userId AND m.deletedAt IS NULL ORDER BY m.createdAt DESC")
     Page<LoraModel> findByUserIdExcludingFailedOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
-
-    // 추가 메서드 (LoraModelService에서 사용)
-    @Query("SELECT m FROM LoraModel m WHERE m.isPublic = :isPublic AND m.status = :status AND m.deletedAt IS NULL ORDER BY m.createdAt DESC")
-    Page<LoraModel> findByIsPublicTrueAndStatusOrderByCreatedAtDesc(@Param("isPublic") Boolean isPublic, @Param("status") LoraModel.ModelStatus status, Pageable pageable);
-
-    @Query("SELECT m FROM LoraModel m WHERE m.isPublic = :isPublic AND m.status = :status AND m.deletedAt IS NULL ORDER BY m.likeCount DESC")
-    Page<LoraModel> findByIsPublicTrueAndStatusOrderByLikeCountDesc(@Param("isPublic") Boolean isPublic, @Param("status") LoraModel.ModelStatus status, Pageable pageable);
 }

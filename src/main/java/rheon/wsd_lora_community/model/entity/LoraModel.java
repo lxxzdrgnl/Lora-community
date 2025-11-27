@@ -33,24 +33,14 @@ public class LoraModel extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Column(name = "training_job_id", nullable = true)
+    private Long trainingJobId;  // 학습 작업 ID (TrainingJob 참조) - nullable
+
     @Column(nullable = false, length = 200)
     private String title;
 
     @Column(columnDefinition = "TEXT")
     private String description;
-
-    @Column
-    @Builder.Default
-    private Integer trainingImagesCount = 0;
-
-    @Column
-    private Integer epochs;
-
-    @Column(precision = 10, scale = 8)
-    private BigDecimal learningRate;
-
-    @Column
-    private Integer loraRank;
 
     @Column(name = "s3_key", length = 500)
     private String s3Key;  // S3 저장 경로 (models/{userId}/{modelName}.safetensors)
@@ -58,18 +48,9 @@ public class LoraModel extends BaseEntity {
     @Column(name = "file_size")
     private Long fileSize;  // 모델 파일 크기 (bytes)
 
-    @Column(length = 200)
-    @Builder.Default
-    private String baseModel = "stablediffusionapi/anything-v5";
-
     @Column(nullable = false)
     @Builder.Default
     private Boolean isPublic = false;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    @Builder.Default
-    private ModelStatus status = ModelStatus.TRAINING;
 
     @Column
     @Builder.Default
@@ -86,15 +67,6 @@ public class LoraModel extends BaseEntity {
     @OneToMany(mappedBy = "model", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ModelTag> modelTags = new ArrayList<>();
-
-    /**
-     * 모델 상태
-     */
-    public enum ModelStatus {
-        TRAINING,   // 학습 중
-        COMPLETED,  // 학습 완료
-        FAILED      // 학습 실패
-    }
 
     // 비즈니스 메서드
     public void updateInfo(String title, String description) {
@@ -114,27 +86,16 @@ public class LoraModel extends BaseEntity {
         this.isPublic = isPublic;
     }
 
-    public void updateTrainingInfo(Integer epochs, BigDecimal learningRate, Integer loraRank, Integer trainingImagesCount) {
-        this.epochs = epochs;
-        this.learningRate = learningRate;
-        this.loraRank = loraRank;
-        this.trainingImagesCount = trainingImagesCount;
-    }
-
-    public void completeTrainingWithS3(String s3Key, Long fileSize) {
+    public void setModelFileInfo(String s3Key, Long fileSize) {
         this.s3Key = s3Key;
         this.fileSize = fileSize;
-        this.status = ModelStatus.COMPLETED;
     }
 
-    public void failTraining() {
-        this.status = ModelStatus.FAILED;
+    public void setTrainingJobId(Long trainingJobId) {
+        this.trainingJobId = trainingJobId;
     }
 
     public void publish() {
-        if (this.status != ModelStatus.COMPLETED) {
-            throw new IllegalStateException("학습이 완료된 모델만 공개할 수 있습니다.");
-        }
         this.isPublic = true;
     }
 
@@ -166,9 +127,5 @@ public class LoraModel extends BaseEntity {
 
     public boolean isOwner(User user) {
         return this.user.getId().equals(user.getId());
-    }
-
-    public void updateStatus(ModelStatus status) {
-        this.status = status;
     }
 }

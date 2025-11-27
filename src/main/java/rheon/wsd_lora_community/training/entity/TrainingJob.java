@@ -28,12 +28,37 @@ public class TrainingJob extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "model_id", nullable = false)
-    private LoraModel model;
+    @JoinColumn(name = "model_id")
+    private LoraModel model;  // nullable - 학습 완료 후 생성
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    // 학습 파라미터 (학습 시작 시 저장)
+    @Column(nullable = false, length = 200)
+    private String modelName;
+
+    @Column(columnDefinition = "TEXT")
+    private String modelDescription;
+
+    @Column
+    private Integer trainingImagesCount;
+
+    @Column
+    private Integer epochs;
+
+    @Column
+    private Double learningRate;
+
+    @Column
+    private Integer loraRank;
+
+    @Column(length = 200)
+    private String baseModel;
+
+    @Column(length = 100)
+    private String triggerWord;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -100,5 +125,24 @@ public class TrainingJob extends BaseEntity {
         return status == TrainingStatus.PENDING ||
                 status == TrainingStatus.PREPROCESSING ||
                 status == TrainingStatus.TRAINING;
+    }
+
+    // 학습 완료 후 모델 연결
+    public void linkModel(LoraModel model) {
+        this.model = model;
+    }
+
+    // 학습 파라미터 설정
+    public void setTrainingParams(String modelName, String modelDescription, Integer trainingImagesCount,
+                                  Integer epochs, Double learningRate, Integer loraRank,
+                                  String baseModel, String triggerWord) {
+        this.modelName = modelName;
+        this.modelDescription = modelDescription;
+        this.trainingImagesCount = trainingImagesCount;
+        this.epochs = epochs;
+        this.learningRate = learningRate;
+        this.loraRank = loraRank;
+        this.baseModel = baseModel;
+        this.triggerWord = triggerWord;
     }
 }
