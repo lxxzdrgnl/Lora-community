@@ -472,4 +472,39 @@ public class TrainingService {
                     }
                 });
     }
+
+    /**
+     * 학습 작업 삭제
+     * - 진행 중인 작업은 삭제 불가
+     * - 연결된 모델의 trainingJobId를 null로 설정
+     * - TrainingJob 레코드 삭제
+     *
+     * @param jobId 학습 작업 ID
+     * @param userId 요청한 사용자 ID
+     */
+    @Transactional
+    public void deleteTrainingJob(Long jobId, Long userId) {
+        TrainingJob job = trainingJobRepository.findById(jobId)
+                .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        // 권한 확인: 본인의 작업만 삭제 가능
+        if (!job.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        }
+
+        // 진행 중인 작업은 삭제 불가
+        if (job.isInProgress()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "진행 중인 학습 작업은 삭제할 수 없습니다.");
+        }
+
+        // 연결된 모델이 있다면 trainingJobId를 null로 설정
+        if (job.getModel() != null) {
+            LoraModel model = job.getModel();
+            model.setTrainingJobId(null);
+            loraModelRepository.save(model);
+        }
+
+        // TrainingJob 삭제
+        trainingJobRepository.delete(job);
+    }
 }

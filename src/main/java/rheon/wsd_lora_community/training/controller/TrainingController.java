@@ -387,6 +387,28 @@ public class TrainingController {
     }
 
     /**
+     * 학습 작업 삭제
+     * - 진행 중인 작업은 삭제할 수 없음
+     * - 연결된 모델은 유지되며, 모델의 trainingJobId만 null로 설정됨
+     */
+    @DeleteMapping("/jobs/{jobId}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "학습 작업 삭제", description = "완료되었거나 실패한 학습 작업을 삭제합니다. 진행 중인 작업은 삭제할 수 없습니다. 연결된 모델은 유지됩니다.")
+    public ResponseEntity<ApiResponse<Void>> deleteTrainingJob(
+            @Parameter(description = "학습 작업 ID", required = true)
+            @PathVariable Long jobId,
+            @Parameter(hidden = true)
+            Authentication authentication
+    ) {
+        Long userId = getUserIdFromAuthentication(authentication);
+        trainingService.deleteTrainingJob(jobId, userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("학습 작업 삭제 성공", null)
+        );
+    }
+
+    /**
      * 진행 중인 학습 작업 조회 (내 작업 중)
      */
     @GetMapping("/my/active")
