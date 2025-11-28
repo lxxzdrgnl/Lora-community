@@ -44,7 +44,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Bean
     public ServletServerContainerFactoryBean createWebSocketContainer() {
         ServletServerContainerFactoryBean container = new ServletServerContainerFactoryBean();
-        container.setMaxSessionIdleTimeout(600000L); // 10분 (600,000 ms)
+        container.setMaxSessionIdleTimeout(3600000L); // 1시간 (3,600,000 ms) - 장시간 학습 대응
         container.setMaxTextMessageBufferSize(8192);
         container.setMaxBinaryMessageBufferSize(8192);
         return container;

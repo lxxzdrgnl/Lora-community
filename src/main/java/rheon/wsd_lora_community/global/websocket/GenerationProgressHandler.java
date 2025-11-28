@@ -25,8 +25,10 @@ public class GenerationProgressHandler extends TextWebSocketHandler {
 
     private final ObjectMapper objectMapper;
 
-    // userId -> WebSocketSession 매핑
-    private final Map<Long, WebSocketSession> sessions = new ConcurrentHashMap<>();
+    // sessionId -> WebSocketSession 매핑 (동일 유저의 여러 탭/작업 지원)
+    private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
+    // sessionId -> userId 매핑
+    private final Map<String, Long> sessionUserMap = new ConcurrentHashMap<>();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -35,8 +37,10 @@ public class GenerationProgressHandler extends TextWebSocketHandler {
         Long userId = extractUserIdFromQuery(query);
 
         if (userId != null) {
-            sessions.put(userId, session);
-            log.info("🔌 WebSocket 연결: userId={}, sessionId={}", userId, session.getId());
+            String sessionId = session.getId();
+            sessions.put(sessionId, session);
+            sessionUserMap.put(sessionId, userId);
+            log.info("🔌 WebSocket 연결: userId={}, sessionId={}", userId, sessionId);
         } else {
             log.warn("⚠️ WebSocket 연결 실패: userId가 없음");
             session.close(CloseStatus.BAD_DATA);
@@ -64,33 +68,59 @@ public class GenerationProgressHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         // 연결 종료 시 세션 제거
-        Long userId = findUserIdBySession(session);
+        String sessionId = session.getId();
+        Long userId = sessionUserMap.get(sessionId);
+
+        sessions.remove(sessionId);
+        sessionUserMap.remove(sessionId);
+
         if (userId != null) {
-            sessions.remove(userId);
-            log.info("🔌 WebSocket 연결 종료: userId={}, sessionId={}", userId, session.getId());
+            log.info("🔌 WebSocket 연결 종료: userId={}, sessionId={}", userId, sessionId);
         }
     }
 
     /**
-     * 특정 사용자에게 메시지 전송
+     * 특정 사용자의 모든 세션에 메시지 전송 (여러 탭 지원)
      */
     public void sendToUser(Long userId, Object message) {
-        WebSocketSession session = sessions.get(userId);
-        if (session != null && session.isOpen()) {
-            try {
-                String json = objectMapper.writeValueAsString(message);
-                session.sendMessage(new TextMessage(json));
-                log.info("📤 WebSocket 메시지 전송: userId={}, message={}", userId, json);
-            } catch (IOException e) {
-                log.error("❌ WebSocket 메시지 전송 실패: userId={}, error={}", userId, e.getMessage());
+        String json;
+        try {
+            json = objectMapper.writeValueAsString(message);
+        } catch (IOException e) {
+            log.error("❌ JSON 변환 실패: userId={}, error={}", userId, e.getMessage());
+            return;
+        }
+
+        // 해당 userId의 모든 세션에 메시지 전송
+        int sentCount = 0;
+        for (Map.Entry<String, Long> entry : sessionUserMap.entrySet()) {
+            if (entry.getValue().equals(userId)) {
+                String sessionId = entry.getKey();
+                WebSocketSession session = sessions.get(sessionId);
+
+                if (session != null && session.isOpen()) {
+                    try {
+                        session.sendMessage(new TextMessage(json));
+                        sentCount++;
+                        log.debug("📤 WebSocket 메시지 전송: userId={}, sessionId={}", userId, sessionId);
+                    } catch (IOException e) {
+                        log.error("❌ WebSocket 메시지 전송 실패: userId={}, sessionId={}, error={}",
+                                userId, sessionId, e.getMessage());
+                    }
+                }
             }
+        }
+
+        if (sentCount > 0) {
+            log.info("📤 WebSocket 메시지 전송 완료: userId={}, sessions={}, message={}",
+                    userId, sentCount, json);
         } else {
             log.warn("⚠️ WebSocket 세션 없음: userId={}", userId);
         }
     }
 
     /**
-     * 모든 연결된 사용자에게 메시지 브로드캐스트
+     * 모든 연결된 세션에 메시지 브로드캐스트
      */
     public void broadcast(Object message) {
         String json;
@@ -101,12 +131,12 @@ public class GenerationProgressHandler extends TextWebSocketHandler {
             return;
         }
 
-        sessions.forEach((userId, session) -> {
+        sessions.forEach((sessionId, session) -> {
             if (session.isOpen()) {
                 try {
                     session.sendMessage(new TextMessage(json));
                 } catch (IOException e) {
-                    log.error("❌ 브로드캐스트 실패: userId={}, error={}", userId, e.getMessage());
+                    log.error("❌ 브로드캐스트 실패: sessionId={}, error={}", sessionId, e.getMessage());
                 }
             }
         });
@@ -136,14 +166,4 @@ public class GenerationProgressHandler extends TextWebSocketHandler {
         return null;
     }
 
-    /**
-     * 세션으로 userId 찾기
-     */
-    private Long findUserIdBySession(WebSocketSession session) {
-        return sessions.entrySet().stream()
-                .filter(entry -> entry.getValue().getId().equals(session.getId()))
-                .map(Map.Entry::getKey)
-                .findFirst()
-                .orElse(null);
-    }
 }
