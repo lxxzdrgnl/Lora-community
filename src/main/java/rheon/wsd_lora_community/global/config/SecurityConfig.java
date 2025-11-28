@@ -82,6 +82,7 @@ public class SecurityConfig {
                                 "/api/generate/history",         // FastAPI 콜백 (인증 불필요)
                                 "/api/generate/history/**",      // 생성 기록 조회 (인증 불필요)
                                 "/api/training/stream",          // 학습 SSE 스트림 (인증 불필요)
+                                "/api/training/callback",        // FastAPI 학습 콜백 (인증 불필요)
                                 "/ws/**"                         // WebSocket 연결 (인증 불필요)
                         ).permitAll()
                         .anyRequest().authenticated()
