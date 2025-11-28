@@ -145,4 +145,42 @@ public class S3UploadService {
         String uniqueFileName = UUID.randomUUID().toString() + "_" + fileName;
         return String.format("users/%s/%s", userId, uniqueFileName);
     }
+
+    /**
+     * 업로드용 Presigned URL과 S3 Key를 함께 생성
+     *
+     * @param userId 사용자 ID
+     * @param fileName 파일명
+     * @return Map with keys: "uploadUrl", "s3Key"
+     */
+    public java.util.Map<String, String> generatePresignedUrlWithKey(String userId, String fileName) {
+        // UUID와 파일명을 조합하여 고유한 파일명 생성
+        String uniqueFileName = UUID.randomUUID().toString() + "_" + fileName;
+
+        // S3 Key(경로) 생성: users/{userId}/{UUID}_{fileName}
+        String s3Key = String.format("users/%s/%s", userId, uniqueFileName);
+
+        // PutObjectRequest 생성
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(modelsBucketName)
+                .key(s3Key)
+                .build();
+
+        // PutObjectPresignRequest 생성 (유효 시간 10분)
+        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(10))
+                .putObjectRequest(putObjectRequest)
+                .build();
+
+        // Presigned URL 생성
+        PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(presignRequest);
+        String presignedUrl = presignedRequest.url().toString();
+
+        log.info("Presigned URL 생성 완료 - userId: {}, fileName: {}, s3Key: {}", userId, fileName, s3Key);
+
+        java.util.Map<String, String> result = new java.util.HashMap<>();
+        result.put("uploadUrl", presignedUrl);
+        result.put("s3Key", s3Key);
+        return result;
+    }
 }

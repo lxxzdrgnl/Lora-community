@@ -121,25 +121,19 @@ public class TrainingController {
 
         // 각 파일에 대한 업로드 URL과 S3 키 생성 (userId + timestamp 기반)
         String folderName = "training-" + userId + "-" + System.currentTimeMillis();
-        List<Map<String, String>> uploadUrls = new ArrayList<>();
+        List<String> uploadUrls = new ArrayList<>();
         List<String> downloadUrls = new ArrayList<>();
 
         for (String fileName : fileNames) {
-            // 업로드용 Presigned URL 생성
-            String uploadUrl = s3UploadService.generatePresignedUrl(folderName, fileName);
-
-            // S3 키 생성 (다운로드용)
-            String s3Key = s3UploadService.generateS3Key(folderName, fileName);
+            // 업로드용 Presigned URL과 S3 키를 함께 생성
+            Map<String, String> urlAndKey = s3UploadService.generatePresignedUrlWithKey(folderName, fileName);
+            String uploadUrl = urlAndKey.get("uploadUrl");
+            String s3Key = urlAndKey.get("s3Key");
 
             // 다운로드용 Presigned URL 생성 (학습 시 Modal에 전달할 URL)
             String downloadUrl = s3UploadService.generateDownloadPresignedUrl(s3Key);
 
-            Map<String, String> urlInfo = new HashMap<>();
-            urlInfo.put("fileName", fileName);
-            urlInfo.put("uploadUrl", uploadUrl);
-            urlInfo.put("s3Key", s3Key);
-
-            uploadUrls.add(urlInfo);
+            uploadUrls.add(uploadUrl);
             downloadUrls.add(downloadUrl);
         }
 
