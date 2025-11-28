@@ -7,7 +7,9 @@ import rheon.wsd_lora_community.global.exception.CustomException;
 import rheon.wsd_lora_community.global.exception.ErrorCode;
 import rheon.wsd_lora_community.model.entity.LoraModel;
 import rheon.wsd_lora_community.model.entity.ModelPrompt;
+import rheon.wsd_lora_community.model.entity.ModelSample;
 import rheon.wsd_lora_community.model.repository.LoraModelRepository;
+import rheon.wsd_lora_community.model.repository.ModelSampleRepository;
 import rheon.wsd_lora_community.training.dto.TrainingJobResponse;
 import rheon.wsd_lora_community.training.entity.TrainingJob;
 import rheon.wsd_lora_community.training.repository.TrainingJobRepository;
@@ -28,6 +30,7 @@ public class TrainingService {
 
     private final TrainingJobRepository trainingJobRepository;
     private final LoraModelRepository loraModelRepository;
+    private final ModelSampleRepository modelSampleRepository;
     private final UserRepository userRepository;
     private final rheon.wsd_lora_community.model.repository.ModelPromptRepository modelPromptRepository;
 
@@ -339,8 +342,21 @@ public class TrainingService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        return trainingJobRepository.findByUser(user).stream()
-                .map(TrainingJobResponse::from)
+        return trainingJobRepository.findByUserOrderByCreatedAtDesc(user).stream()
+                .map(job -> {
+                    // 모델이 있으면 대표 샘플 이미지 조회
+                    if (job.getModel() != null) {
+                        Optional<ModelSample> primarySample = modelSampleRepository
+                                .findPrimarySampleByModelId(job.getModel().getId());
+
+                        if (primarySample.isPresent()) {
+                            String thumbnailUrl = primarySample.get().getGeneratedImage().getS3Url();
+                            return TrainingJobResponse.from(job, thumbnailUrl);
+                        }
+                    }
+                    // 모델이 없거나 샘플이 없으면 썸네일 null
+                    return TrainingJobResponse.from(job);
+                })
                 .collect(Collectors.toList());
     }
 

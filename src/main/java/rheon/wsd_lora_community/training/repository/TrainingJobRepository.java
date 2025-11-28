@@ -14,7 +14,7 @@ public interface TrainingJobRepository extends JpaRepository<TrainingJob, Long> 
 
     Optional<TrainingJob> findByModel(LoraModel model);
 
-    List<TrainingJob> findByUser(User user);
+    List<TrainingJob> findByUserOrderByCreatedAtDesc(User user);
 
     List<TrainingJob> findByStatus(TrainingJob.TrainingStatus status);
 
