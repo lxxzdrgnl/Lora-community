@@ -27,6 +27,9 @@ public class S3UploadService {
 
     private final S3Presigner s3Presigner;
 
+    @Value("${aws.s3.buckets.training-data}")
+    private String trainingDataBucketName;  // 학습 데이터용 버킷
+
     @Value("${aws.s3.buckets.models}")
     private String modelsBucketName;  // 모델 파일용 버킷
 
@@ -79,6 +82,16 @@ public class S3UploadService {
      */
     public String generateDownloadPresignedUrl(String s3Key) {
         return generateDownloadPresignedUrl(s3Key, modelsBucketName);
+    }
+
+    /**
+     * 학습 데이터 다운로드용 Presigned URL 생성 (GET 요청용)
+     *
+     * @param s3Key S3 키 (예: users/training-1-123456/image.png)
+     * @return Presigned URL (유효 시간 1시간)
+     */
+    public String generateTrainingDataDownloadUrl(String s3Key) {
+        return generateDownloadPresignedUrl(s3Key, trainingDataBucketName);
     }
 
     /**
@@ -147,7 +160,7 @@ public class S3UploadService {
     }
 
     /**
-     * 업로드용 Presigned URL과 S3 Key를 함께 생성
+     * 학습 데이터 업로드용 Presigned URL과 S3 Key를 함께 생성
      *
      * @param userId 사용자 ID
      * @param fileName 파일명
@@ -160,9 +173,9 @@ public class S3UploadService {
         // S3 Key(경로) 생성: users/{userId}/{UUID}_{fileName}
         String s3Key = String.format("users/%s/%s", userId, uniqueFileName);
 
-        // PutObjectRequest 생성
+        // PutObjectRequest 생성 (학습 데이터는 training-data 버킷에 저장)
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                .bucket(modelsBucketName)
+                .bucket(trainingDataBucketName)
                 .key(s3Key)
                 .build();
 

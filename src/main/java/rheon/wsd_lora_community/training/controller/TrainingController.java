@@ -131,7 +131,8 @@ public class TrainingController {
             String s3Key = urlAndKey.get("s3Key");
 
             // 다운로드용 Presigned URL 생성 (학습 시 Modal에 전달할 URL)
-            String downloadUrl = s3UploadService.generateDownloadPresignedUrl(s3Key);
+            // training-data 버킷에서 다운로드하도록 명시적으로 버킷 이름 전달
+            String downloadUrl = s3UploadService.generateTrainingDataDownloadUrl(s3Key);
 
             uploadUrls.add(uploadUrl);
             downloadUrls.add(downloadUrl);
@@ -243,30 +244,37 @@ public class TrainingController {
         String callbackUrl = baseUrl + "/api/training/callback";
 
         // Modal API로 학습 시작 요청 (비동기)
-        fastApiClient.startTraining(
-                userId.toString(),
-                null,  // modelId는 학습 완료 후 생성
-                job.getId(),
-                modelName,
-                trainingImageUrls,
-                triggerWord,
-                epochs,
-                learningRate,
-                loraRank,
-                baseModel,
-                skipPreprocessing,
-                callbackUrl
-        ).subscribe(
-                message -> {
-                    // Modal 학습 시작 성공
-                    System.out.println("Modal 학습 시작: " + message);
-                },
-                error -> {
-                    // Modal 학습 시작 실패
-                    System.err.println("Modal 학습 시작 실패: " + error.getMessage());
-                    trainingService.failTraining(job.getId(), error.getMessage());
-                }
-        );
+        try {
+            fastApiClient.startTraining(
+                    userId.toString(),
+                    null,  // modelId는 학습 완료 후 생성
+                    job.getId(),
+                    modelName,
+                    trainingImageUrls,
+                    triggerWord,
+                    epochs,
+                    learningRate,
+                    loraRank,
+                    baseModel,
+                    skipPreprocessing,
+                    callbackUrl
+            ).subscribe(
+                    message -> {
+                        // Modal 학습 시작 성공
+                        System.out.println("Modal 학습 시작: " + message);
+                    },
+                    error -> {
+                        // Modal 학습 시작 실패
+                        System.err.println("Modal 학습 시작 실패: " + error.getMessage());
+                        error.printStackTrace();
+                        trainingService.failTraining(job.getId(), error.getMessage());
+                    }
+            );
+        } catch (Exception e) {
+            System.err.println("FastAPI 호출 중 예외 발생: " + e.getMessage());
+            e.printStackTrace();
+            trainingService.failTraining(job.getId(), e.getMessage());
+        }
 
         return ResponseEntity.ok(
                 ApiResponse.success("학습 시작 성공. Modal GPU 서버로 요청이 전송되었습니다.",

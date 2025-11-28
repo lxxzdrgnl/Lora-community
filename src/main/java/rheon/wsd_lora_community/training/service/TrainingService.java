@@ -98,6 +98,7 @@ public class TrainingService {
 
         job = trainingJobRepository.save(job);
         job.start(epochs);
+        job = trainingJobRepository.save(job);  // start() 후 변경사항 저장
 
         return TrainingJobResponse.from(job);
     }
