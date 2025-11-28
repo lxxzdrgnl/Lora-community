@@ -162,38 +162,42 @@ public class GenerationController {
             @RequestBody Map<String, Object> request
     ) {
         String status = (String) request.get("status");
-        log.info("🔔 콜백 수신: status={}, historyId={}", status, request.get("historyId"));
+        log.info("🔔 생성 콜백 수신: status={}, request={}", status, request);
 
         if ("GENERATING".equals(status)) {
             // 진행률 업데이트
-            Long historyId = Long.valueOf(request.get("historyId").toString());
+            Long historyId = request.get("historyId") != null
+                    ? Long.valueOf(request.get("historyId").toString())
+                    : null;
             Integer currentStep = request.get("currentStep") != null
                     ? Integer.valueOf(request.get("currentStep").toString())
                     : null;
             Integer totalSteps = request.get("totalSteps") != null
                     ? Integer.valueOf(request.get("totalSteps").toString())
                     : null;
-            Long userId = request.get("userId") != null
-                    ? Long.valueOf(request.get("userId").toString())
-                    : null;
+            String message = (String) request.get("message");
 
-            generationService.updateProgress(historyId, currentStep, totalSteps);
+            if (historyId != null) {
+                // DB 업데이트
+                generationService.updateProgress(historyId, currentStep, totalSteps);
 
-            // WebSocket으로 진행률 전송
-            if (userId != null) {
+                // WebSocket으로 진행률 전송
+                GenerationHistoryResponse history = generationService.getGenerationHistory(historyId);
                 Map<String, Object> progressEvent = new HashMap<>();
-                progressEvent.put("status", "GENERATING");
+                progressEvent.put("status", status);
                 progressEvent.put("historyId", historyId);
+                progressEvent.put("message", message);
                 progressEvent.put("currentStep", currentStep);
                 progressEvent.put("totalSteps", totalSteps);
-                webSocketHandler.sendToUser(userId, progressEvent);
+                webSocketHandler.sendToUser(history.getUserId(), progressEvent);
+
+                log.info("✅ WebSocket message sent to user {}: {}", history.getUserId(), progressEvent);
             }
 
             return ResponseEntity.ok(
                     ApiResponse.success("진행률 업데이트 성공", Map.of(
-                            "historyId", historyId,
-                            "currentStep", currentStep != null ? currentStep : 0,
-                            "totalSteps", totalSteps != null ? totalSteps : 0
+                            "historyId", historyId != null ? historyId : 0,
+                            "message", message != null ? message : ""
                     ))
             );
         } else if ("SUCCESS".equals(status)) {
@@ -201,8 +205,12 @@ public class GenerationController {
             Long historyId = request.get("historyId") != null
                     ? Long.valueOf(request.get("historyId").toString())
                     : null;
-            Long modelId = Long.valueOf(request.get("modelId").toString());
-            Long userId = Long.valueOf(request.get("userId").toString());
+            Long userId = request.get("userId") != null
+                    ? Long.valueOf(request.get("userId").toString())
+                    : null;
+            Long modelId = request.get("modelId") != null
+                    ? Long.valueOf(request.get("modelId").toString())
+                    : null;
             String prompt = (String) request.get("prompt");
             String negativePrompt = (String) request.get("negativePrompt");
             Integer steps = request.get("steps") != null
@@ -225,58 +233,104 @@ public class GenerationController {
             @SuppressWarnings("unchecked")
             java.util.List<String> imageS3Keys = (java.util.List<String>) request.get("imageS3Keys");
 
-            GenerationHistoryResponse history = generationService.completeGeneration(
-                    historyId, modelId, userId, prompt, negativePrompt, steps, guidanceScale, loraScale, seed, numImages, imageS3Keys
-            );
+            // historyId가 없으면 userId로 진행 중인 작업 찾기
+            if (historyId == null && userId != null) {
+                log.warn("⚠️ historyId가 없어서 userId로 진행 중인 생성 작업을 찾습니다. userId: {}", userId);
+                GenerationHistoryResponse ongoingGeneration = generationService.getOngoingGeneration(userId);
+                if (ongoingGeneration != null) {
+                    historyId = ongoingGeneration.getId();
+                    log.info("✅ 진행 중인 생성 작업 발견: historyId={}", historyId);
+                } else {
+                    log.error("❌ 진행 중인 생성 작업을 찾을 수 없습니다. userId: {}", userId);
+                    return ResponseEntity.badRequest().body(
+                            ApiResponse.error("진행 중인 생성 작업을 찾을 수 없습니다. (userId=" + userId + ")")
+                    );
+                }
+            } else if (historyId == null) {
+                log.error("❌ historyId와 userId 모두 없습니다. request: {}", request);
+                return ResponseEntity.badRequest().body(
+                        ApiResponse.error("생성 기록 ID 또는 사용자 ID가 필요합니다. (historyId or userId)")
+                );
+            }
 
-            // WebSocket으로 완료 이벤트 전송 (해당 사용자에게만)
-            Map<String, Object> completionEvent = new HashMap<>();
-            completionEvent.put("status", "SUCCESS");
-            completionEvent.put("historyId", history.getId());
-            completionEvent.put("modelId", history.getModelId());
-            completionEvent.put("userId", history.getUserId());
-            completionEvent.put("message", "Image generation completed");
-            completionEvent.put("generatedImages", history.getGeneratedImages());
+            try {
+                GenerationHistoryResponse history = generationService.completeGeneration(
+                        historyId, modelId, userId, prompt, negativePrompt, steps, guidanceScale, loraScale, seed, numImages, imageS3Keys
+                );
+                log.info("✅ 생성 완료 처리 성공: historyId={}, images={}", historyId, imageS3Keys.size());
 
-            // WebSocket으로 해당 사용자에게만 전송
-            webSocketHandler.sendToUser(userId, completionEvent);
+                // WebSocket으로 완료 이벤트 전송
+                Map<String, Object> completionEvent = new HashMap<>();
+                completionEvent.put("status", "SUCCESS");
+                completionEvent.put("historyId", history.getId());
+                completionEvent.put("modelId", history.getModelId());
+                completionEvent.put("message", "Image generation completed");
+                completionEvent.put("generatedImages", history.getGeneratedImages());
 
-            // 레거시 SSE도 유지 (호환성)
-            completionSink.tryEmitNext(completionEvent);
+                webSocketHandler.sendToUser(history.getUserId(), completionEvent);
 
-            return ResponseEntity.ok(
-                    ApiResponse.success("생성 완료 처리 성공", history)
-            );
+                // 레거시 SSE도 유지 (호환성)
+                completionSink.tryEmitNext(completionEvent);
+
+                return ResponseEntity.ok(
+                        ApiResponse.success("생성 완료 처리 성공", history)
+                );
+            } catch (Exception e) {
+                log.error("❌ 생성 완료 처리 실패: {}", e.getMessage());
+                e.printStackTrace();
+                return ResponseEntity.status(500).body(
+                        ApiResponse.error("생성 완료 처리 실패: " + e.getMessage())
+                );
+            }
         } else if ("FAIL".equals(status)) {
             // 실패 처리
             Long historyId = request.get("historyId") != null
                     ? Long.valueOf(request.get("historyId").toString())
                     : null;
+            Long userId = request.get("userId") != null
+                    ? Long.valueOf(request.get("userId").toString())
+                    : null;
             String error = (String) request.get("error");
 
+            // historyId가 없으면 userId로 진행 중인 작업 찾기
+            if (historyId == null && userId != null) {
+                log.warn("⚠️ historyId가 없어서 userId로 진행 중인 생성 작업을 찾습니다. userId: {}", userId);
+                GenerationHistoryResponse ongoingGeneration = generationService.getOngoingGeneration(userId);
+                if (ongoingGeneration != null) {
+                    historyId = ongoingGeneration.getId();
+                    log.info("✅ 진행 중인 생성 작업 발견: historyId={}", historyId);
+                } else {
+                    log.error("❌ 진행 중인 생성 작업을 찾을 수 없습니다. userId: {}", userId);
+                    return ResponseEntity.badRequest().body(
+                            ApiResponse.error("진행 중인 생성 작업을 찾을 수 없습니다. (userId=" + userId + ")")
+                    );
+                }
+            }
+
             if (historyId != null) {
-                generationService.failGeneration(historyId, error);
+                try {
+                    generationService.failGeneration(historyId, error);
+                    log.info("✅ 생성 실패 처리 완료: historyId={}, error={}", historyId, error);
 
-                // WebSocket으로 실패 이벤트 전송
-                Long failedUserId = request.get("userId") != null
-                        ? Long.valueOf(request.get("userId").toString())
-                        : null;
-
-                if (failedUserId != null) {
+                    // WebSocket으로 실패 이벤트 전송
+                    GenerationHistoryResponse history = generationService.getGenerationHistory(historyId);
                     Map<String, Object> failureEvent = new HashMap<>();
                     failureEvent.put("status", "FAILED");
                     failureEvent.put("historyId", historyId);
                     failureEvent.put("message", error);
 
-                    webSocketHandler.sendToUser(failedUserId, failureEvent);
+                    webSocketHandler.sendToUser(history.getUserId(), failureEvent);
 
                     // 레거시 SSE도 유지
                     completionSink.tryEmitNext(failureEvent);
+                } catch (Exception e) {
+                    log.error("❌ 생성 실패 처리 중 오류: {}", e.getMessage());
+                    e.printStackTrace();
                 }
             }
 
             return ResponseEntity.ok(
-                    ApiResponse.success("생성 실패 처리 완료", Map.of("error", error))
+                    ApiResponse.success("생성 실패 처리 완료", Map.of("error", error != null ? error : "Unknown error"))
             );
         } else {
             return ResponseEntity.badRequest()
