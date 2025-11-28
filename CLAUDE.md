@@ -191,11 +191,22 @@ src/main/java/rheon/wsd_lora_community/
   - `application-local.yml` .gitignore 추가 (민감정보 보호)
   - Frontend URL 설정 (`frontend.url`)
 
+#### 9. Phase 7: FastAPI 콜백 처리 개선 완료 ✅
+- **Status**: 빌드 성공 ✅
+- **문제 해결**:
+  - `/api/training/callback` 엔드포인트를 `permitAll()` 목록에 추가
+  - FastAPI가 jobId 없이 SUCCESS/FAIL 콜백을 보낼 때 userId로 진행 중인 작업 자동 검색
+  - `handleTrainingSuccess`, `failTraining`의 상태 체크 완화 (이미 완료/실패한 경우 처리)
+- **개선 사항**:
+  - 명확한 로그 출력 (⚠️ 경고, ✅ 성공, ❌ 에러)
+  - SUCCESS/FAIL 콜백 에러 처리 강화 (try-catch 추가)
+  - 중복 완료/실패 방지 로직 추가
+
 ---
 
 ## 🚧 다음 작업 (우선순위 순)
 
-### Phase 7: 테스트 및 배포 준비
+### Phase 8: 테스트 및 배포 준비
 1. FastAPI 서버 실행 후 통합 테스트
 2. Swagger UI 문서 검증
 3. 프로덕션 환경 설정 (MySQL, S3, 환경변수)

@@ -548,51 +548,103 @@ public class TrainingController {
             Long jobId = request.get("jobId") != null
                     ? Long.valueOf(request.get("jobId").toString())
                     : null;
+            Long userId = request.get("userId") != null
+                    ? Long.valueOf(request.get("userId").toString())
+                    : null;
             String s3ModelKey = (String) request.get("s3ModelKey");
             Long fileSize = request.get("fileSize") != null
                     ? Long.valueOf(request.get("fileSize").toString())
                     : null;
 
-            if (jobId == null) {
+            // jobId가 없으면 userId로 진행 중인 작업 찾기
+            if (jobId == null && userId != null) {
+                System.out.println("⚠️ jobId가 없어서 userId로 진행 중인 학습 작업을 찾습니다. userId: " + userId);
+                TrainingJobResponse activeJob = trainingService.getUserActiveTrainingJob(userId);
+                if (activeJob != null) {
+                    jobId = activeJob.getId();
+                    System.out.println("✅ 진행 중인 학습 작업 발견: jobId=" + jobId);
+                } else {
+                    System.err.println("❌ 진행 중인 학습 작업을 찾을 수 없습니다. userId: " + userId);
+                    return ResponseEntity.badRequest().body(
+                            ApiResponse.error("진행 중인 학습 작업을 찾을 수 없습니다. (userId=" + userId + ")")
+                    );
+                }
+            } else if (jobId == null) {
+                System.err.println("❌ jobId와 userId 모두 없습니다. request: " + request);
                 return ResponseEntity.badRequest().body(
-                        ApiResponse.error("학습 작업 ID가 필요합니다. (jobId)")
+                        ApiResponse.error("학습 작업 ID 또는 사용자 ID가 필요합니다. (jobId or userId)")
                 );
             }
 
-            // 모델 생성 및 TrainingJob 완료 처리
-            Long modelId = trainingService.handleTrainingSuccess(jobId, s3ModelKey, fileSize);
+            try {
+                // 모델 생성 및 TrainingJob 완료 처리
+                Long modelId = trainingService.handleTrainingSuccess(jobId, s3ModelKey, fileSize);
+                System.out.println("✅ 학습 완료 처리 성공: jobId=" + jobId + ", modelId=" + modelId);
 
-            // WebSocket으로 완료 이벤트 전송
-            Map<String, Object> completionEvent = new HashMap<>();
-            completionEvent.put("status", "SUCCESS");
-            completionEvent.put("modelId", modelId);
-            completionEvent.put("message", "Training completed successfully");
-            completionEvent.put("s3ModelKey", s3ModelKey);
+                // WebSocket으로 완료 이벤트 전송
+                Map<String, Object> completionEvent = new HashMap<>();
+                completionEvent.put("status", "SUCCESS");
+                completionEvent.put("modelId", modelId);
+                completionEvent.put("message", "Training completed successfully");
+                completionEvent.put("s3ModelKey", s3ModelKey);
 
-            TrainingJob job = trainingService.getTrainingJobEntity(jobId);
-            webSocketHandler.sendToUser(job.getUser().getId(), completionEvent);
+                TrainingJob job = trainingService.getTrainingJobEntity(jobId);
+                webSocketHandler.sendToUser(job.getUser().getId(), completionEvent);
 
-            return ResponseEntity.ok(
-                    ApiResponse.success("학습 완료 콜백 처리 성공", Map.of("modelId", modelId))
-            );
+                return ResponseEntity.ok(
+                        ApiResponse.success("학습 완료 콜백 처리 성공", Map.of("modelId", modelId))
+                );
+            } catch (Exception e) {
+                System.err.println("❌ 학습 완료 처리 실패: " + e.getMessage());
+                e.printStackTrace();
+                return ResponseEntity.status(500).body(
+                        ApiResponse.error("학습 완료 처리 실패: " + e.getMessage())
+                );
+            }
         } else if ("FAIL".equals(status)) {
             // 학습 실패
             Long jobId = request.get("jobId") != null
                     ? Long.valueOf(request.get("jobId").toString())
                     : null;
+            Long userId = request.get("userId") != null
+                    ? Long.valueOf(request.get("userId").toString())
+                    : null;
             String error = (String) request.get("error");
 
+            // jobId가 없으면 userId로 진행 중인 작업 찾기
+            if (jobId == null && userId != null) {
+                System.out.println("⚠️ jobId가 없어서 userId로 진행 중인 학습 작업을 찾습니다. userId: " + userId);
+                TrainingJobResponse activeJob = trainingService.getUserActiveTrainingJob(userId);
+                if (activeJob != null) {
+                    jobId = activeJob.getId();
+                    System.out.println("✅ 진행 중인 학습 작업 발견: jobId=" + jobId);
+                } else {
+                    System.err.println("❌ 진행 중인 학습 작업을 찾을 수 없습니다. userId: " + userId);
+                    return ResponseEntity.badRequest().body(
+                            ApiResponse.error("진행 중인 학습 작업을 찾을 수 없습니다. (userId=" + userId + ")")
+                    );
+                }
+            }
+
             if (jobId != null) {
-                trainingService.failTraining(jobId, error);
+                try {
+                    trainingService.failTraining(jobId, error);
+                    System.out.println("✅ 학습 실패 처리 완료: jobId=" + jobId + ", error=" + error);
 
-                // WebSocket으로 실패 이벤트 전송
-                TrainingJob job = trainingService.getTrainingJobEntity(jobId);
-                Map<String, Object> failureEvent = new HashMap<>();
-                failureEvent.put("status", "FAILED");
-                failureEvent.put("jobId", jobId);
-                failureEvent.put("message", error);
+                    // WebSocket으로 실패 이벤트 전송
+                    TrainingJob job = trainingService.getTrainingJobEntity(jobId);
+                    Map<String, Object> failureEvent = new HashMap<>();
+                    failureEvent.put("status", "FAILED");
+                    failureEvent.put("jobId", jobId);
+                    failureEvent.put("message", error);
 
-                webSocketHandler.sendToUser(job.getUser().getId(), failureEvent);
+                    webSocketHandler.sendToUser(job.getUser().getId(), failureEvent);
+                } catch (Exception e) {
+                    System.err.println("❌ 학습 실패 처리 중 오류: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            } else {
+                System.err.println("❌ jobId와 userId 모두 없습니다. request: " + request);
             }
 
             return ResponseEntity.ok(

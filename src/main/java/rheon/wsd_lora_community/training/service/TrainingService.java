@@ -212,7 +212,13 @@ public class TrainingService {
         TrainingJob job = trainingJobRepository.findById(jobId)
                 .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        if (!job.isInProgress()) {
+        // 이미 완료되었거나 실패한 경우 처리하지 않음
+        if (job.getStatus() == TrainingJob.TrainingStatus.SUCCESS) {
+            System.out.println("⚠️ 이미 완료된 학습 작업입니다. jobId: " + jobId);
+            // 이미 생성된 모델 ID 반환
+            return job.getModel() != null ? job.getModel().getId() : null;
+        }
+        if (job.getStatus() == TrainingJob.TrainingStatus.FAILED) {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
@@ -285,8 +291,15 @@ public class TrainingService {
         TrainingJob job = trainingJobRepository.findById(jobId)
                 .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        if (!job.isInProgress()) {
-            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        // 이미 완료된 경우 실패 처리하지 않음
+        if (job.getStatus() == TrainingJob.TrainingStatus.SUCCESS) {
+            System.out.println("⚠️ 이미 완료된 학습 작업은 실패 처리하지 않습니다. jobId: " + jobId);
+            return TrainingJobResponse.from(job);
+        }
+        // 이미 실패한 경우 그대로 반환
+        if (job.getStatus() == TrainingJob.TrainingStatus.FAILED) {
+            System.out.println("⚠️ 이미 실패한 학습 작업입니다. jobId: " + jobId);
+            return TrainingJobResponse.from(job);
         }
 
         job.fail(errorMessage);
