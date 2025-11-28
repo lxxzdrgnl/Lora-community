@@ -216,7 +216,7 @@ public class TrainingController {
         }
 
         Integer epochs = request.get("epochs") != null
-                ? (Integer) request.get("epochs")
+                ? ((Number) request.get("epochs")).intValue()
                 : 10; // 기본값
 
         // 선택 파라미터
@@ -226,7 +226,7 @@ public class TrainingController {
                 ? ((Number) request.get("learningRate")).doubleValue()
                 : null;
         Integer loraRank = request.containsKey("loraRank")
-                ? (Integer) request.get("loraRank")
+                ? ((Number) request.get("loraRank")).intValue()
                 : null;
         String baseModel = (String) request.getOrDefault("baseModel", "stablediffusionapi/anything-v5");
         Boolean skipPreprocessing = (Boolean) request.getOrDefault("skipPreprocessing", false);

@@ -52,7 +52,7 @@ public class TrainingJobResponse {
     public static TrainingJobResponse from(TrainingJob job) {
         return TrainingJobResponse.builder()
                 .id(job.getId())
-                .modelId(job.getModel().getId())
+                .modelId(job.getModel() != null ? job.getModel().getId() : null)
                 .userId(job.getUser().getId())
                 .status(job.getStatus().name())
                 .currentEpoch(job.getCurrentEpoch())
