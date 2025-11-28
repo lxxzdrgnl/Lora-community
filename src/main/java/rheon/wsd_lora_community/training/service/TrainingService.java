@@ -15,6 +15,7 @@ import rheon.wsd_lora_community.user.entity.User;
 import rheon.wsd_lora_community.user.repository.UserRepository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -79,6 +80,19 @@ public class TrainingService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 중복 방지: 이미 진행 중인 학습이 있는지 확인
+        List<TrainingJob.TrainingStatus> activeStatuses = List.of(
+                TrainingJob.TrainingStatus.PENDING,
+                TrainingJob.TrainingStatus.PREPROCESSING,
+                TrainingJob.TrainingStatus.TRAINING
+        );
+        Optional<TrainingJob> existingJob = trainingJobRepository
+                .findTopByUserAndStatusInOrderByCreatedAtDesc(user, activeStatuses);
+
+        if (existingJob.isPresent()) {
+            throw new CustomException(ErrorCode.TRAINING_ALREADY_IN_PROGRESS);
+        }
 
         // TrainingJob 생성
         TrainingJob job = TrainingJob.builder()

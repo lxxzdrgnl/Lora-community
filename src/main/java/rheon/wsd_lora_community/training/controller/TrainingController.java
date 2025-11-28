@@ -470,7 +470,9 @@ public class TrainingController {
         String status = (String) request.get("status");
         System.out.println("🔔 학습 콜백 수신: status=" + status + ", request=" + request);
 
-        if ("LOADING".equals(status) || "PREPROCESSING".equals(status) || "TRAINING".equals(status) || "UPLOADING".equals(status)) {
+        if ("LOADING".equals(status) || "DOWNLOADING".equals(status) || "DOWNLOADING_COMPLETE".equals(status) ||
+            "PREPROCESSING".equals(status) || "CAPTIONING_COMPLETE".equals(status) ||
+            "TRAINING".equals(status) || "UPLOADING".equals(status)) {
             // 진행률 업데이트
             Long jobId = request.get("jobId") != null
                     ? Long.valueOf(request.get("jobId").toString())

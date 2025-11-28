@@ -29,6 +29,10 @@ public class WebSocketConfig implements WebSocketConfigurer {
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(generationProgressHandler, "/ws/generation")
                 .setAllowedOrigins(allowedOrigins);
+
+        // 학습 진행률도 같은 핸들러 사용 (범용 진행률 핸들러)
+        registry.addHandler(generationProgressHandler, "/ws/training")
+                .setAllowedOrigins(allowedOrigins);
     }
 
     /**

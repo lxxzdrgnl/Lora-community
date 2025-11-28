@@ -19,4 +19,10 @@ public interface TrainingJobRepository extends JpaRepository<TrainingJob, Long> 
     List<TrainingJob> findByStatus(TrainingJob.TrainingStatus status);
 
     Optional<TrainingJob> findTopByModelOrderByCreatedAtDesc(LoraModel model);
+
+    /**
+     * 사용자의 진행 중인 학습 작업 조회 (PENDING, IN_PROGRESS)
+     */
+    Optional<TrainingJob> findTopByUserAndStatusInOrderByCreatedAtDesc(
+            User user, List<TrainingJob.TrainingStatus> statuses);
 }
