@@ -332,6 +332,25 @@ public class TrainingService {
     }
 
     /**
+     * 사용자의 진행 중인 학습 작업 조회
+     */
+    public TrainingJobResponse getUserActiveTrainingJob(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        List<TrainingJob.TrainingStatus> activeStatuses = List.of(
+                TrainingJob.TrainingStatus.PENDING,
+                TrainingJob.TrainingStatus.PREPROCESSING,
+                TrainingJob.TrainingStatus.TRAINING
+        );
+
+        return trainingJobRepository
+                .findTopByUserAndStatusInOrderByCreatedAtDesc(user, activeStatuses)
+                .map(TrainingJobResponse::from)
+                .orElse(null);
+    }
+
+    /**
      * 상태별 학습 작업 조회
      */
     public List<TrainingJobResponse> getTrainingJobsByStatus(TrainingJob.TrainingStatus status) {

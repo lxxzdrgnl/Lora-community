@@ -387,6 +387,30 @@ public class TrainingController {
     }
 
     /**
+     * 진행 중인 학습 작업 조회 (내 작업 중)
+     */
+    @GetMapping("/my/active")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "내 진행 중인 학습 작업 조회", description = "현재 유저의 진행 중인 학습 작업을 조회합니다. (PENDING, PREPROCESSING, TRAINING)")
+    public ResponseEntity<ApiResponse<TrainingJobResponse>> getMyActiveTrainingJob(
+            @Parameter(hidden = true)
+            Authentication authentication
+    ) {
+        Long userId = getUserIdFromAuthentication(authentication);
+        TrainingJobResponse activeJob = trainingService.getUserActiveTrainingJob(userId);
+
+        if (activeJob == null) {
+            return ResponseEntity.ok(
+                    ApiResponse.success("진행 중인 학습 작업이 없습니다.", null)
+            );
+        }
+
+        return ResponseEntity.ok(
+                ApiResponse.success("진행 중인 학습 작업 조회 성공", activeJob)
+        );
+    }
+
+    /**
      * 상태별 학습 작업 조회
      */
     @GetMapping("/status/{status}")
@@ -482,6 +506,21 @@ public class TrainingController {
                     ? (Integer) request.get("currentEpoch")
                     : null;
 
+            // message에서 epoch 정보 추출 시도 (예: "Training 24/70")
+            if (message != null && message.contains("/") && "TRAINING".equals(status)) {
+                try {
+                    String[] parts = message.split(" ");
+                    if (parts.length >= 2) {
+                        String[] epochParts = parts[1].split("/");
+                        if (epochParts.length == 2) {
+                            currentEpoch = Integer.parseInt(epochParts[0]);
+                        }
+                    }
+                } catch (Exception e) {
+                    System.out.println("⚠️ Failed to parse epoch from message: " + message);
+                }
+            }
+
             if (jobId != null) {
                 // DB 업데이트
                 trainingService.updateProgress(jobId, currentEpoch, status);
@@ -494,6 +533,8 @@ public class TrainingController {
                 progressEvent.put("message", message);
                 progressEvent.put("currentEpoch", currentEpoch);
                 webSocketHandler.sendToUser(job.getUser().getId(), progressEvent);
+
+                System.out.println("✅ WebSocket message sent to user " + job.getUser().getId() + ": " + progressEvent);
             }
 
             return ResponseEntity.ok(
