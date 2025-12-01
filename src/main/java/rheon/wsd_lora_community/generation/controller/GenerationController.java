@@ -10,16 +10,10 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Sinks;
 import rheon.wsd_lora_community.generation.dto.AvailableModelResponse;
 import rheon.wsd_lora_community.generation.dto.GenerateImageRequest;
 import rheon.wsd_lora_community.generation.dto.GenerationHistoryResponse;
@@ -27,12 +21,13 @@ import rheon.wsd_lora_community.generation.service.GenerationService;
 import rheon.wsd_lora_community.global.client.FastApiClient;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.dto.PageResponse;
+import rheon.wsd_lora_community.global.service.JobCallbackService;
 import rheon.wsd_lora_community.global.service.S3UploadService;
+import rheon.wsd_lora_community.global.util.AuthenticationUtil;
 import rheon.wsd_lora_community.global.websocket.GenerationProgressHandler;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -53,33 +48,12 @@ public class GenerationController {
     private final GenerationService generationService;
     private final FastApiClient fastApiClient;
     private final S3UploadService s3UploadService;
-    private final GenerationProgressHandler webSocketHandler;
+    private final JobCallbackService jobCallbackService;
     private final rheon.wsd_lora_community.global.service.GpuResourceManager gpuResourceManager;
 
     @Value("${app.callback-url}")
     private String callbackUrlBase;
 
-    // SSE 브로드캐스트용 Sink (완료 이벤트 전송) - 레거시, WebSocket으로 대체
-    private final Sinks.Many<Map<String, Object>> completionSink = Sinks.many().multicast().onBackpressureBuffer();
-
-    /**
-     * Authentication에서 User ID 추출 (OAuth2 및 JWT 지원)
-     */
-    private Long getUserIdFromAuthentication(Authentication authentication) {
-        Object principal = authentication.getPrincipal();
-
-        if (principal instanceof UserDetails) {
-            // JWT 인증 (UserDetails)
-            UserDetails userDetails = (UserDetails) principal;
-            return Long.valueOf(userDetails.getUsername());
-        } else if (principal instanceof OAuth2User) {
-            // OAuth2 인증
-            OAuth2User oauth2User = (OAuth2User) principal;
-            return Long.valueOf(oauth2User.getAttribute("id").toString());
-        }
-
-        throw new IllegalStateException("Unknown principal type: " + principal.getClass());
-    }
 
     /**
      * 이미지 생성 요청 (FastAPI 연동)
@@ -96,7 +70,7 @@ public class GenerationController {
             Authentication authentication,
             @Valid @RequestBody GenerateImageRequest request
     ) {
-        Long userId = getUserIdFromAuthentication(authentication);
+        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
 
         // 생성 요청 시작 (DB에 GENERATING 상태로 저장)
         GenerationService.GenerationStartResponse startResponse =
@@ -202,22 +176,7 @@ public class GenerationController {
                     : null;
             String message = (String) request.get("message");
 
-            if (historyId != null) {
-                // DB 업데이트
-                generationService.updateProgress(historyId, currentStep, totalSteps);
-
-                // WebSocket으로 진행률 전송
-                GenerationHistoryResponse history = generationService.getGenerationHistory(historyId);
-                Map<String, Object> progressEvent = new HashMap<>();
-                progressEvent.put("status", status);
-                progressEvent.put("historyId", historyId);
-                progressEvent.put("message", message);
-                progressEvent.put("currentStep", currentStep);
-                progressEvent.put("totalSteps", totalSteps);
-                webSocketHandler.sendToUser(history.getUserId(), progressEvent);
-
-                log.info("✅ WebSocket message sent to user {}: {}", history.getUserId(), progressEvent);
-            }
+            jobCallbackService.handleGenerationProgress(historyId, currentStep, totalSteps, message);
 
             return ResponseEntity.ok(
                     ApiResponse.success("진행률 업데이트 성공", Map.of(
@@ -258,48 +217,10 @@ public class GenerationController {
             @SuppressWarnings("unchecked")
             java.util.List<String> imageS3Keys = (java.util.List<String>) request.get("imageS3Keys");
 
-            // historyId가 없으면 userId로 진행 중인 작업 찾기
-            if (historyId == null && userId != null) {
-                log.warn("⚠️ historyId가 없어서 userId로 진행 중인 생성 작업을 찾습니다. userId: {}", userId);
-                GenerationHistoryResponse ongoingGeneration = generationService.getOngoingGeneration(userId);
-                if (ongoingGeneration != null) {
-                    historyId = ongoingGeneration.getId();
-                    log.info("✅ 진행 중인 생성 작업 발견: historyId={}", historyId);
-                } else {
-                    log.error("❌ 진행 중인 생성 작업을 찾을 수 없습니다. userId: {}", userId);
-                    return ResponseEntity.badRequest().body(
-                            ApiResponse.error("진행 중인 생성 작업을 찾을 수 없습니다. (userId=" + userId + ")")
-                    );
-                }
-            } else if (historyId == null) {
-                log.error("❌ historyId와 userId 모두 없습니다. request: {}", request);
-                return ResponseEntity.badRequest().body(
-                        ApiResponse.error("생성 기록 ID 또는 사용자 ID가 필요합니다. (historyId or userId)")
-                );
-            }
-
             try {
-                GenerationHistoryResponse history = generationService.completeGeneration(
-                        historyId, modelId, userId, prompt, negativePrompt, steps, guidanceScale, loraScale, seed, numImages, imageS3Keys
+                GenerationHistoryResponse history = jobCallbackService.handleGenerationSuccess(
+                        historyId, userId, modelId, prompt, negativePrompt, steps, guidanceScale, loraScale, seed, numImages, imageS3Keys
                 );
-                log.info("✅ 생성 완료 처리 성공: historyId={}, images={}", historyId, imageS3Keys.size());
-
-                // GPU 리소스 반환
-                gpuResourceManager.release(historyId);
-
-                // WebSocket으로 완료 이벤트 전송
-                Map<String, Object> completionEvent = new HashMap<>();
-                completionEvent.put("status", "SUCCESS");
-                completionEvent.put("historyId", history.getId());
-                completionEvent.put("modelId", history.getModelId());
-                completionEvent.put("message", "Image generation completed");
-                completionEvent.put("generatedImages", history.getGeneratedImages());
-
-                webSocketHandler.sendToUser(history.getUserId(), completionEvent);
-
-                // 레거시 SSE도 유지 (호환성)
-                completionSink.tryEmitNext(completionEvent);
-
                 return ResponseEntity.ok(
                         ApiResponse.success("생성 완료 처리 성공", history)
                 );
@@ -320,45 +241,7 @@ public class GenerationController {
                     : null;
             String error = (String) request.get("error");
 
-            // historyId가 없으면 userId로 진행 중인 작업 찾기
-            if (historyId == null && userId != null) {
-                log.warn("⚠️ historyId가 없어서 userId로 진행 중인 생성 작업을 찾습니다. userId: {}", userId);
-                GenerationHistoryResponse ongoingGeneration = generationService.getOngoingGeneration(userId);
-                if (ongoingGeneration != null) {
-                    historyId = ongoingGeneration.getId();
-                    log.info("✅ 진행 중인 생성 작업 발견: historyId={}", historyId);
-                } else {
-                    log.error("❌ 진행 중인 생성 작업을 찾을 수 없습니다. userId: {}", userId);
-                    return ResponseEntity.badRequest().body(
-                            ApiResponse.error("진행 중인 생성 작업을 찾을 수 없습니다. (userId=" + userId + ")")
-                    );
-                }
-            }
-
-            if (historyId != null) {
-                try {
-                    generationService.failGeneration(historyId, error);
-                    log.info("✅ 생성 실패 처리 완료: historyId={}, error={}", historyId, error);
-
-                    // GPU 리소스 반환
-                    gpuResourceManager.release(historyId);
-
-                    // WebSocket으로 실패 이벤트 전송
-                    GenerationHistoryResponse history = generationService.getGenerationHistory(historyId);
-                    Map<String, Object> failureEvent = new HashMap<>();
-                    failureEvent.put("status", "FAILED");
-                    failureEvent.put("historyId", historyId);
-                    failureEvent.put("message", error);
-
-                    webSocketHandler.sendToUser(history.getUserId(), failureEvent);
-
-                    // 레거시 SSE도 유지
-                    completionSink.tryEmitNext(failureEvent);
-                } catch (Exception e) {
-                    log.error("❌ 생성 실패 처리 중 오류: {}", e.getMessage());
-                    e.printStackTrace();
-                }
-            }
+            jobCallbackService.handleGenerationFailure(historyId, userId, error);
 
             return ResponseEntity.ok(
                     ApiResponse.success("생성 실패 처리 완료", Map.of("error", error != null ? error : "Unknown error"))
@@ -379,7 +262,7 @@ public class GenerationController {
             @Parameter(hidden = true)
             Authentication authentication
     ) {
-        Long userId = getUserIdFromAuthentication(authentication);
+        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
         GenerationHistoryResponse ongoingGeneration = generationService.getOngoingGeneration(userId);
 
         if (ongoingGeneration != null) {
@@ -426,7 +309,7 @@ public class GenerationController {
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Long userId = getUserIdFromAuthentication(authentication);
+        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
         PageResponse<GenerationHistoryResponse> history = generationService.getUserGenerationHistory(userId, modelId, pageable);
 
         return ResponseEntity.ok(
@@ -444,7 +327,7 @@ public class GenerationController {
             @Parameter(hidden = true)
             Authentication authentication
     ) {
-        Long userId = getUserIdFromAuthentication(authentication);
+        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
         java.util.List<AvailableModelResponse> models = generationService.getAvailableModels(userId);
 
         return ResponseEntity.ok(
@@ -484,7 +367,7 @@ public class GenerationController {
             @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Long userId = getUserIdFromAuthentication(authentication);
+        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
         PageResponse<GenerationHistoryResponse> history = generationService.getUserModelGenerationHistory(userId, modelId, pageable);
 
         return ResponseEntity.ok(
@@ -505,7 +388,7 @@ public class GenerationController {
             @Parameter(hidden = true)
             Authentication authentication
     ) {
-        Long userId = getUserIdFromAuthentication(authentication);
+        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
         generationService.deleteGenerationHistory(historyId, userId);
 
         return ResponseEntity.ok(
@@ -513,75 +396,4 @@ public class GenerationController {
         );
     }
 
-    // ========== SSE 스트리밍 ==========
-
-    /**
-     * 이미지 생성 진행률 실시간 스트리밍 (SSE)
-     *
-     * FastAPI의 진행률 스트림 + 백엔드의 완료 이벤트를 모두 전송합니다.
-     * - FastAPI: 진행률 업데이트 (IN_PROGRESS)
-     * - Backend: 완료/실패 이벤트 (SUCCESS/FAILED) - 이미지 URL 포함
-     *
-     * 인증: EventSource는 Authorization 헤더를 지원하지 않으므로 인증 없이 모든 이벤트를 브로드캐스트합니다.
-     * 클라이언트는 자신의 historyId만 필터링하여 사용해야 합니다.
-     */
-    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    @Operation(
-            summary = "이미지 생성 진행률 실시간 스트리밍 (SSE)",
-            description = "FastAPI 서버의 이미지 생성 진행률과 완료 이벤트를 Server-Sent Events로 실시간 스트리밍합니다. " +
-                    "EventSource API를 사용하여 연결하세요. " +
-                    "진행률(IN_PROGRESS) 및 완료(SUCCESS), 실패(FAILED) 이벤트를 수신합니다. " +
-                    "인증 불필요 - 모든 이벤트를 브로드캐스트하므로 클라이언트에서 historyId로 필터링하세요."
-    )
-    public Flux<ServerSentEvent<Map<String, Object>>> streamGenerationProgress() {
-        System.out.println("🔌 SSE 클라이언트 연결됨");
-
-        // FastAPI 진행률 스트림 (IN_PROGRESS 상태)
-        Flux<Map<String, Object>> progressStream = fastApiClient.streamGenerationStatus()
-                .doOnNext(status -> System.out.println("📨 FastAPI 진행률: " + status))
-                .onErrorResume(error -> {
-                    System.err.println("❌ FastAPI 스트림 오류: " + error.getMessage());
-                    return Flux.empty();
-                });
-
-        // 백엔드 완료 이벤트 스트림 (SUCCESS/FAILED 상태)
-        Flux<Map<String, Object>> completionStream = completionSink.asFlux()
-                .doOnNext(event -> System.out.println("📤 완료 이벤트 브로드캐스트: " + event))
-                .doOnSubscribe(sub -> System.out.println("✅ 완료 스트림 구독됨"));
-
-        // 두 스트림 병합 (진행률 + 완료 이벤트)
-        return Flux.merge(progressStream, completionStream)
-                .map(status -> ServerSentEvent.<Map<String, Object>>builder()
-                        .data(status)
-                        .build())
-                .doOnComplete(() -> System.out.println("생성 스트림 종료"))
-                .doOnError(error -> System.err.println("생성 스트림 오류: " + error.getMessage()));
-    }
-
-    /**
-     * FastAPI 서버 생성 상태 조회
-     */
-    @GetMapping("/fastapi/status")
-    @Operation(summary = "FastAPI 생성 상태 조회", description = "FastAPI 서버의 현재 이미지 생성 상태를 조회합니다.")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getFastApiGenerationStatus() {
-        return fastApiClient.getGenerationStatus()
-                .map(status -> ResponseEntity.ok(
-                        ApiResponse.success("FastAPI 생성 상태 조회 성공", status)
-                ))
-                .block(); // 블로킹 방식으로 변환 (동기 API)
-    }
-
-    /**
-     * 생성된 이미지 URL 목록 조회
-     */
-    @GetMapping("/fastapi/images")
-    @Operation(summary = "생성된 이미지 URL 조회", description = "FastAPI 서버에서 생성된 이미지 URL 목록을 조회합니다.")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getGeneratedImages() {
-        return fastApiClient.getGeneratedImageUrls()
-                .map(urls -> ResponseEntity.ok(
-                        ApiResponse.success("생성된 이미지 조회 성공",
-                                Map.of("image_urls", urls, "count", urls.size()))
-                ))
-                .block(); // 블로킹 방식으로 변환 (동기 API)
-    }
 }

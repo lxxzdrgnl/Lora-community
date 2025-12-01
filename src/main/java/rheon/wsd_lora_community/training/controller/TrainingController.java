@@ -5,17 +5,13 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
 import rheon.wsd_lora_community.global.client.FastApiClient;
+import rheon.wsd_lora_community.global.service.JobCallbackService;
+import rheon.wsd_lora_community.global.util.AuthenticationUtil;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.service.S3UploadService;
 import rheon.wsd_lora_community.global.websocket.GenerationProgressHandler;
@@ -47,31 +43,11 @@ public class TrainingController {
     private final TrainingService trainingService;
     private final FastApiClient fastApiClient;
     private final S3UploadService s3UploadService;
-    private final GenerationProgressHandler webSocketHandler;
+    private final JobCallbackService jobCallbackService;
     private final rheon.wsd_lora_community.global.service.GpuResourceManager gpuResourceManager;
 
     @Value("${app.callback-url}")
     private String callbackUrlBase;
-
-    /**
-     * Authentication 객체에서 사용자 ID 추출
-     * OAuth2User 또는 UserDetails 모두 지원
-     */
-    private Long getUserIdFromAuthentication(Authentication authentication) {
-        Object principal = authentication.getPrincipal();
-
-        if (principal instanceof UserDetails) {
-            // JWT 인증 (UserDetails)
-            UserDetails userDetails = (UserDetails) principal;
-            return Long.valueOf(userDetails.getUsername());
-        } else if (principal instanceof OAuth2User) {
-            // OAuth2 인증
-            OAuth2User oauth2User = (OAuth2User) principal;
-            return Long.valueOf(oauth2User.getAttribute("id").toString());
-        }
-
-        throw new IllegalStateException("Unknown principal type: " + principal.getClass());
-    }
 
     /**
      * 학습 작업 생성
@@ -85,7 +61,7 @@ public class TrainingController {
             @Parameter(hidden = true)
             Authentication authentication
     ) {
-        Long userId = getUserIdFromAuthentication(authentication);
+        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
         TrainingJobResponse job = trainingService.createTrainingJob(modelId, userId);
 
         return ResponseEntity.ok(
@@ -110,7 +86,7 @@ public class TrainingController {
             Authentication authentication,
             @RequestBody Map<String, Object> request
     ) {
-        Long userId = getUserIdFromAuthentication(authentication);
+        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
 
         @SuppressWarnings("unchecked")
         List<String> fileNames = (List<String>) request.get("fileNames");
@@ -199,7 +175,7 @@ public class TrainingController {
             @Parameter(hidden = true)
             Authentication authentication
     ) {
-        Long userId = getUserIdFromAuthentication(authentication);
+        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
 
         // 필수 파라미터 추출
         String modelName = (String) request.get("modelName");
@@ -396,7 +372,7 @@ public class TrainingController {
             @Parameter(hidden = true)
             Authentication authentication
     ) {
-        Long userId = getUserIdFromAuthentication(authentication);
+        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
         List<TrainingJobResponse> jobs = trainingService.getUserTrainingJobs(userId);
 
         return ResponseEntity.ok(
@@ -418,7 +394,7 @@ public class TrainingController {
             @Parameter(hidden = true)
             Authentication authentication
     ) {
-        Long userId = getUserIdFromAuthentication(authentication);
+        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
         trainingService.deleteTrainingJob(jobId, userId);
 
         return ResponseEntity.ok(
@@ -436,7 +412,7 @@ public class TrainingController {
             @Parameter(hidden = true)
             Authentication authentication
     ) {
-        Long userId = getUserIdFromAuthentication(authentication);
+        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
         TrainingJobResponse activeJob = trainingService.getUserActiveTrainingJob(userId);
 
         if (activeJob == null) {
@@ -479,39 +455,6 @@ public class TrainingController {
         return ResponseEntity.ok(
                 ApiResponse.success("진행 중인 학습 작업 조회 성공", jobs)
         );
-    }
-
-    // ========== SSE 스트리밍 ==========
-
-    /**
-     * 학습 진행률 실시간 스트리밍 (SSE)
-     */
-    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    @Operation(
-            summary = "학습 진행률 실시간 스트리밍 (SSE)",
-            description = "FastAPI 서버의 학습 진행률을 Server-Sent Events로 실시간 스트리밍합니다. " +
-                    "EventSource API를 사용하여 연결하세요."
-    )
-    public Flux<ServerSentEvent<Map<String, Object>>> streamTrainingProgress() {
-        return fastApiClient.streamTrainingStatus()
-                .map(status -> ServerSentEvent.<Map<String, Object>>builder()
-                        .data(status)
-                        .build())
-                .doOnComplete(() -> System.out.println("학습 스트림 종료"))
-                .doOnError(error -> System.err.println("학습 스트림 오류: " + error.getMessage()));
-    }
-
-    /**
-     * FastAPI 서버 학습 상태 조회
-     */
-    @GetMapping("/fastapi/status")
-    @Operation(summary = "FastAPI 학습 상태 조회", description = "FastAPI 서버의 현재 학습 상태를 조회합니다.")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getFastApiTrainingStatus() {
-        return fastApiClient.getTrainingStatus()
-                .map(status -> ResponseEntity.ok(
-                        ApiResponse.success("FastAPI 학습 상태 조회 성공", status)
-                ))
-                .block(); // 블로킹 방식으로 변환 (동기 API)
     }
 
     // ========== FastAPI 콜백 엔드포인트 ==========
@@ -561,21 +504,7 @@ public class TrainingController {
                 }
             }
 
-            if (jobId != null) {
-                // DB 업데이트
-                trainingService.updateProgress(jobId, currentEpoch, status);
-
-                // WebSocket으로 진행률 전송
-                TrainingJob job = trainingService.getTrainingJobEntity(jobId);
-                Map<String, Object> progressEvent = new HashMap<>();
-                progressEvent.put("status", status);
-                progressEvent.put("jobId", jobId);
-                progressEvent.put("message", message);
-                progressEvent.put("currentEpoch", currentEpoch);
-                webSocketHandler.sendToUser(job.getUser().getId(), progressEvent);
-
-                System.out.println("✅ WebSocket message sent to user " + job.getUser().getId() + ": " + progressEvent);
-            }
+            jobCallbackService.handleTrainingProgress(jobId, currentEpoch, status, message);
 
             return ResponseEntity.ok(
                     ApiResponse.success("진행률 업데이트 성공", Map.of(
@@ -596,44 +525,8 @@ public class TrainingController {
                     ? Long.valueOf(request.get("fileSize").toString())
                     : null;
 
-            // jobId가 없으면 userId로 진행 중인 작업 찾기
-            if (jobId == null && userId != null) {
-                System.out.println("⚠️ jobId가 없어서 userId로 진행 중인 학습 작업을 찾습니다. userId: " + userId);
-                TrainingJobResponse activeJob = trainingService.getUserActiveTrainingJob(userId);
-                if (activeJob != null) {
-                    jobId = activeJob.getId();
-                    System.out.println("✅ 진행 중인 학습 작업 발견: jobId=" + jobId);
-                } else {
-                    System.err.println("❌ 진행 중인 학습 작업을 찾을 수 없습니다. userId: " + userId);
-                    return ResponseEntity.badRequest().body(
-                            ApiResponse.error("진행 중인 학습 작업을 찾을 수 없습니다. (userId=" + userId + ")")
-                    );
-                }
-            } else if (jobId == null) {
-                System.err.println("❌ jobId와 userId 모두 없습니다. request: " + request);
-                return ResponseEntity.badRequest().body(
-                        ApiResponse.error("학습 작업 ID 또는 사용자 ID가 필요합니다. (jobId or userId)")
-                );
-            }
-
             try {
-                // 모델 생성 및 TrainingJob 완료 처리
-                Long modelId = trainingService.handleTrainingSuccess(jobId, s3ModelKey, fileSize);
-                System.out.println("✅ 학습 완료 처리 성공: jobId=" + jobId + ", modelId=" + modelId);
-
-                // GPU 리소스 반환
-                gpuResourceManager.release(jobId);
-
-                // WebSocket으로 완료 이벤트 전송
-                Map<String, Object> completionEvent = new HashMap<>();
-                completionEvent.put("status", "SUCCESS");
-                completionEvent.put("modelId", modelId);
-                completionEvent.put("message", "Training completed successfully");
-                completionEvent.put("s3ModelKey", s3ModelKey);
-
-                TrainingJob job = trainingService.getTrainingJobEntity(jobId);
-                webSocketHandler.sendToUser(job.getUser().getId(), completionEvent);
-
+                Long modelId = jobCallbackService.handleTrainingSuccess(jobId, userId, s3ModelKey, fileSize);
                 return ResponseEntity.ok(
                         ApiResponse.success("학습 완료 콜백 처리 성공", Map.of("modelId", modelId))
                 );
@@ -654,44 +547,7 @@ public class TrainingController {
                     : null;
             String error = (String) request.get("error");
 
-            // jobId가 없으면 userId로 진행 중인 작업 찾기
-            if (jobId == null && userId != null) {
-                System.out.println("⚠️ jobId가 없어서 userId로 진행 중인 학습 작업을 찾습니다. userId: " + userId);
-                TrainingJobResponse activeJob = trainingService.getUserActiveTrainingJob(userId);
-                if (activeJob != null) {
-                    jobId = activeJob.getId();
-                    System.out.println("✅ 진행 중인 학습 작업 발견: jobId=" + jobId);
-                } else {
-                    System.err.println("❌ 진행 중인 학습 작업을 찾을 수 없습니다. userId: " + userId);
-                    return ResponseEntity.badRequest().body(
-                            ApiResponse.error("진행 중인 학습 작업을 찾을 수 없습니다. (userId=" + userId + ")")
-                    );
-                }
-            }
-
-            if (jobId != null) {
-                try {
-                    trainingService.failTraining(jobId, error);
-                    System.out.println("✅ 학습 실패 처리 완료: jobId=" + jobId + ", error=" + error);
-
-                    // GPU 리소스 반환
-                    gpuResourceManager.release(jobId);
-
-                    // WebSocket으로 실패 이벤트 전송
-                    TrainingJob job = trainingService.getTrainingJobEntity(jobId);
-                    Map<String, Object> failureEvent = new HashMap<>();
-                    failureEvent.put("status", "FAILED");
-                    failureEvent.put("jobId", jobId);
-                    failureEvent.put("message", error);
-
-                    webSocketHandler.sendToUser(job.getUser().getId(), failureEvent);
-                } catch (Exception e) {
-                    System.err.println("❌ 학습 실패 처리 중 오류: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            } else {
-                System.err.println("❌ jobId와 userId 모두 없습니다. request: " + request);
-            }
+            jobCallbackService.handleTrainingFailure(jobId, userId, error);
 
             return ResponseEntity.ok(
                     ApiResponse.success("학습 실패 콜백 처리 완료", Map.of("error", error != null ? error : ""))

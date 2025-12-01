@@ -179,7 +179,7 @@ public class LoraModelController {
      */
     @PutMapping("/{modelId}")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "모델 수정", description = "모델 정보를 수정합니다. (작성자만 가능)")
+    @Operation(summary = "모델 수정", description = "모델 정보를 수정합니다. (작성자만 가능, 테스트 유저 불가)")
     public ResponseEntity<ApiResponse<LoraModelResponse>> updateModel(
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
@@ -188,6 +188,10 @@ public class LoraModelController {
             @Valid @RequestBody ModelUpdateRequest request
     ) {
         Long userId = getUserIdFromAuthentication(authentication);
+
+        // 테스트 유저 체크 (모델 수정 불가)
+        rheon.wsd_lora_community.global.util.TestUserChecker.checkModelModification(userId);
+
         LoraModelResponse updatedModel = loraModelService.updateModel(modelId, userId, request);
 
         return ResponseEntity.ok(
@@ -200,7 +204,7 @@ public class LoraModelController {
      */
     @DeleteMapping("/{modelId}")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "모델 삭제", description = "모델을 삭제합니다. (작성자만 가능)")
+    @Operation(summary = "모델 삭제", description = "모델을 삭제합니다. (작성자만 가능, 테스트 유저 불가)")
     public ResponseEntity<ApiResponse<Void>> deleteModel(
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
@@ -208,6 +212,10 @@ public class LoraModelController {
             Authentication authentication
     ) {
         Long userId = getUserIdFromAuthentication(authentication);
+
+        // 테스트 유저 체크 (모델 삭제 불가)
+        rheon.wsd_lora_community.global.util.TestUserChecker.checkModelDeletion(userId);
+
         loraModelService.deleteModel(modelId, userId);
 
         return ResponseEntity.ok(
@@ -341,7 +349,7 @@ public class LoraModelController {
      */
     @PostMapping("/{modelId}/samples/{generatedImageId}")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "샘플 이미지로 선택", description = "생성 이미지를 샘플로 선택합니다. (소유자만 가능)")
+    @Operation(summary = "샘플 이미지로 선택", description = "생성 이미지를 샘플로 선택합니다. (소유자만 가능, 테스트 유저 불가)")
     public ResponseEntity<ApiResponse<ModelSampleResponse>> addSample(
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
@@ -351,6 +359,10 @@ public class LoraModelController {
             Authentication authentication
     ) {
         Long userId = getUserIdFromAuthentication(authentication);
+
+        // 테스트 유저 체크 (샘플 등록 불가)
+        rheon.wsd_lora_community.global.util.TestUserChecker.checkSampleModification(userId);
+
         ModelSampleResponse sample = sampleService.addSample(modelId, generatedImageId, userId);
 
         return ResponseEntity.ok(
@@ -363,7 +375,7 @@ public class LoraModelController {
      */
     @DeleteMapping("/{modelId}/samples/{sampleId}")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "샘플 선택 해제", description = "샘플 이미지 선택을 해제합니다. (소유자만 가능)")
+    @Operation(summary = "샘플 선택 해제", description = "샘플 이미지 선택을 해제합니다. (소유자만 가능, 테스트 유저 불가)")
     public ResponseEntity<ApiResponse<Void>> deleteSample(
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
@@ -373,6 +385,10 @@ public class LoraModelController {
             Authentication authentication
     ) {
         Long userId = getUserIdFromAuthentication(authentication);
+
+        // 테스트 유저 체크 (샘플 해제 불가)
+        rheon.wsd_lora_community.global.util.TestUserChecker.checkSampleModification(userId);
+
         sampleService.deleteSample(sampleId, userId);
 
         return ResponseEntity.ok(

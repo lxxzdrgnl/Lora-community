@@ -103,8 +103,9 @@ public class SecurityConfig {
                 // 예외 처리 (WebSocket 등 인증 실패 시 401 반환, OAuth2 리다이렉트 방지)
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
-                            // WebSocket 요청은 401 반환 (OAuth2 리다이렉트 방지)
-                            if (request.getRequestURI().startsWith("/ws/")) {
+                            String requestUri = request.getRequestURI();
+                            // WebSocket 또는 /api/auth/test 요청은 OAuth2 리다이렉트 방지
+                            if (requestUri.startsWith("/ws/") || requestUri.equals("/api/auth/test")) {
                                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
                             } else {
                                 // 기타 요청은 OAuth2 로그인 페이지로 리다이렉트

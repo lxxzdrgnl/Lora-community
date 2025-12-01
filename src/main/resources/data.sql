@@ -3,7 +3,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 -- 2. Users 데이터 (U& 유니코드 -> 한글 복원 완료)
 INSERT INTO users (CREATED_AT, DELETED_AT, ID, UPDATED_AT, NICKNAME, NAME, PROFILE_IMAGE_URL, EMAIL, OAUTH_PROVIDER_ID, OAUTH_PROVIDER, ROLE) VALUES
-                                                                                                                                                  ('2025-11-25 04:33:49.538308', NULL, 0, '2025-11-25 04:39:12.588406', '호그라이더', '호그라이더', 'https://i.namu.wiki/i/aQOMWPkdAQdPbTFq54MsoZiwOsxCWYwioCRnDuuP6hoihR5DlP3quxzC9hSP3y7H2bFIu6blY-sX7KvP6NsABA.webp', 'dldydwo9@gmail.com', '115796410464082379941', 'GOOGLE', 'USER');
+                                                                                                                                                  ('2025-11-25 04:33:49.538308', NULL, 0, '2025-11-25 04:39:12.588406', '호그라이더', '호그라이더', 'https://i.namu.wiki/i/aQOMWPkdAQdPbTFq54MsoZiwOsxCWYwioCRnDuuP6hoihR5DlP3quxzC9hSP3y7H2bFIu6blY-sX7KvP6NsABA.webp', 'dldydwo9@gmail.com', '115796410464082379941', 'GOOGLE', 'USER'),
+                                                                                                                                                  ('2025-11-01 00:00:00.000000', NULL, 100, '2025-11-01 00:00:00.000000', 'testUser1', 'Test User', 'https://i.pravatar.cc/300?img=1', 'test@test.com', 'test-oauth-id-100', 'GOOGLE', 'USER');
 
 -- 3. Training Jobs
 -- 컬럼 순서: MODEL_NAME, MODEL_DESCRIPTION, TRAINING_IMAGES_COUNT, EPOCHS, LEARNING_RATE, LORA_RANK, BASE_MODEL, TRIGGER_WORD, STATUS, CURRENT_EPOCH, TOTAL_EPOCHS, PHASE, ERROR_MESSAGE, STARTED_AT, COMPLETED_AT, CREATED_AT, UPDATED_AT, ID, MODEL_ID, USER_ID
@@ -154,7 +155,14 @@ INSERT INTO generation_history (CURRENT_STEP, GUIDANCE_SCALE, LORA_SCALE, NUM_IM
 
     -- ID 48-49: 최신 생성
     (30, 7.50, 0.90, 2, 30, 30, '2025-11-25 09:16:18.459402', 48, 6, NULL, '2025-11-25 09:18:08.980654', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'chibi, cute animal, cartoon style'),
-    (30, 7.50, 1.00, 1, 30, 30, '2025-11-25 09:37:23.372027', 49, 2, NULL, '2025-11-25 09:39:04.982155', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'pochita, chainsaw, no humans');
+    (30, 7.50, 1.00, 1, 30, 30, '2025-11-25 09:37:23.372027', 49, 2, NULL, '2025-11-25 09:39:04.982155', 0, 'SUCCESS', NULL, 'lowres, bad anatomy, bad hands, text', 'pochita, chainsaw, no humans'),
+
+    -- ID 50-54: 테스트 유저(100)의 생성 기록
+    (NULL, 7.00, 1.00, 2, 25, NULL, '2025-11-26 10:00:00', 50, 1, 54321, '2025-11-26 10:03:00', 100, 'SUCCESS', NULL, 'ugly, lowres, bad anatomy', 'sks, manga girl, test image'),
+    (NULL, 7.50, 1.00, 1, 30, NULL, '2025-11-26 11:00:00', 51, 3, 77777, '2025-11-26 11:04:00', 100, 'SUCCESS', NULL, 'dark, blurry', '1boy, solo, black eyes, test character'),
+    (NULL, 8.00, 0.90, 3, 28, NULL, '2025-11-26 12:00:00', 52, 6, 88888, '2025-11-26 12:05:00', 100, 'SUCCESS', NULL, 'realistic, dark', 'chibi, cute animal, test'),
+    (NULL, 7.20, 1.10, 1, 22, NULL, '2025-11-26 13:00:00', 53, 4, 99999, '2025-11-26 13:03:00', 100, 'SUCCESS', NULL, 'worst quality, low quality', 'naruto style, test ninja'),
+    (NULL, 6.50, 1.00, 2, 20, NULL, '2025-11-26 14:00:00', 54, 9, 11111, '2025-11-26 14:02:00', 100, 'SUCCESS', NULL, 'realistic', 'anime minimalist, 1girl, test');
 
 -- 9. Generated Images (기존 + 새 데이터 통합)
 INSERT INTO generated_images (DISPLAY_ORDER, CREATED_AT, FILE_SIZE, GENERATION_HISTORY_ID, ID, UPDATED_AT, S3_KEY, S3_URL) VALUES
@@ -217,7 +225,23 @@ INSERT INTO generated_images (DISPLAY_ORDER, CREATED_AT, FILE_SIZE, GENERATION_H
     -- ID 45-47: gen_hist 48-49 (최신 생성, 48은 2개 이미지)
     (1, '2025-11-25 09:18:08.978871', NULL, 48, 45, '2025-11-25 09:18:08.978871', 'user-0/20251125_091757_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_091757_1.png'),
     (2, '2025-11-25 09:18:08.979685', NULL, 48, 46, '2025-11-25 09:18:08.979685', 'user-0/20251125_091804_2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_091804_2.png'),
-    (1, '2025-11-25 09:39:04.980634', NULL, 49, 47, '2025-11-25 09:39:04.980634', 'user-0/20251125_093900_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_093900_1.png');
+    (1, '2025-11-25 09:39:04.980634', NULL, 49, 47, '2025-11-25 09:39:04.980634', 'user-0/20251125_093900_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/user-0/20251125_093900_1.png'),
+
+    -- ID 48-56: gen_hist 50-54 (테스트 유저의 생성 이미지 - 기존 모델 샘플 재사용)
+    -- gen_hist 50 (Model 1 - Reze): 기존 이미지 1, 2 재사용
+    (1, '2025-11-26 10:03:00', 1024000, 50, 48, '2025-11-26 10:03:00', '0/reze.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/reze.png'),
+    (2, '2025-11-26 10:03:00', 1024000, 50, 49, '2025-11-26 10:03:00', '0/20251111_181540_3.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/20251111_181540_3.png'),
+    -- gen_hist 51 (Model 3 - Mouri): 기존 이미지 5 재사용
+    (1, '2025-11-26 11:04:00', 1024000, 51, 50, '2025-11-26 11:04:00', '0/2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/2.png'),
+    -- gen_hist 52 (Model 6 - Animal Crossing): 기존 이미지 11, 12, 13 재사용
+    (1, '2025-11-26 12:05:00', 1024000, 52, 51, '2025-11-26 12:05:00', '0/animal_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/animal_1.png'),
+    (2, '2025-11-26 12:05:00', 1024000, 52, 52, '2025-11-26 12:05:00', '0/animal_2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/animal_2.png'),
+    (3, '2025-11-26 12:05:00', 1024000, 52, 53, '2025-11-26 12:05:00', '0/animal_3.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/animal_3.png'),
+    -- gen_hist 53 (Model 4 - Naruto): 기존 이미지 7 재사용
+    (1, '2025-11-26 13:03:00', 1024000, 53, 54, '2025-11-26 13:03:00', '0/naru_11.webp', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/naru_11.webp'),
+    -- gen_hist 54 (Model 9 - Minimalist): 기존 이미지 20, 21 재사용
+    (1, '2025-11-26 14:02:00', 1024000, 54, 55, '2025-11-26 14:02:00', '0/minial_1.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/minial_1.png'),
+    (2, '2025-11-26 14:02:00', 1024000, 54, 56, '2025-11-26 14:02:00', '0/minial_2.png', 'https://lora-generated-image-bucket.s3.ap-northeast-2.amazonaws.com/0/minial_2.png');
 
 -- 10. Model Samples (기존 데이터 유지)
 INSERT INTO model_samples (DISPLAY_ORDER, IS_PRIMARY, CREATED_AT, GENERATED_IMAGE_ID, ID, MODEL_ID, UPDATED_AT) VALUES

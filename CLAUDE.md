@@ -319,3 +319,22 @@ cd /home/rheon/Desktop/Semester/3-2/WSD/WSD_Lora_community
 
 **Author**: Claude Code Assistant
 **Project**: WSD_Lora_community
+
+
+todo
+옵션 1: 나머지 Controller도 AuthenticationUtil 사용
+
+다음 Controller들에도 AuthenticationUtil을 적용하면 좋습니다:
+- UserController
+- AuthController
+- LoraModelController
+- TagController
+- SearchController
+- CommentController
+- UploadController
+
+옵션 2: Import 정리
+
+불필요한 import 제거:
+- TrainingController: GenerationProgressHandler, GpuResourceManager, TrainingJob, HashMap 등
+- GenerationController: GenerationProgressHandler, GpuResourceManager, HashMap 등

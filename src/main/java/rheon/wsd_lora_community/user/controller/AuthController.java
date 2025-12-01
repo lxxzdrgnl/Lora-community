@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -12,6 +13,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
+import rheon.wsd_lora_community.global.security.JwtTokenProvider;
 import rheon.wsd_lora_community.user.service.AuthService;
 
 import java.io.IOException;
@@ -29,6 +31,10 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final JwtTokenProvider jwtTokenProvider;
+
+    @Value("${frontend.url}")
+    private String frontendUrl;
 
     /**
      * Authentication 객체에서 사용자 ID 추출
@@ -146,5 +152,30 @@ public class AuthController {
         return ResponseEntity.ok(
                 ApiResponse.success("인증 정보 조회 성공", userInfo)
         );
+    }
+
+    /**
+     * 테스트용 JWT 토큰 발급 엔드포인트
+     * 테스트 유저(ID: 100)로 자동 로그인
+     * 주의: 프로덕션에서는 반드시 비활성화해야 함
+     */
+    @GetMapping("/test")
+    @Operation(summary = "테스트 로그인", description = "테스트 유저로 자동 로그인하여 JWT 토큰을 발급받습니다. (개발용)")
+    public void testLogin(HttpServletResponse response) throws IOException {
+        // 테스트 유저 정보
+        Long testUserId = 100L;
+        String testEmail = "test@test.com";
+
+        // JWT 토큰 생성
+        String accessToken = jwtTokenProvider.createAccessToken(testUserId, testEmail);
+
+        // 프론트엔드 콜백 URL로 리다이렉트 (토큰을 URL Fragment에 포함)
+        String redirectUrl = String.format(
+                "%s/auth/callback#access_token=%s",
+                frontendUrl,
+                accessToken
+        );
+
+        response.sendRedirect(redirectUrl);
     }
 }
