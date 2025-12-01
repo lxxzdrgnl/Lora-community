@@ -1,15 +1,22 @@
 package rheon.wsd_lora_community.global.client;
 
+import io.netty.channel.ChannelOption;
+import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.handler.timeout.WriteTimeoutHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.netty.http.client.HttpClient;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * FastAPI 서버와 통신하는 HTTP 클라이언트
@@ -31,15 +38,25 @@ public class FastApiClient {
     public FastApiClient(
             @Value("${fastapi.base-url:http://127.0.0.1:8000}") String baseUrl
     ) {
+        // HTTP 클라이언트에 타임아웃 설정 (Modal 서버 연결 실패 시 즉시 감지)
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000) // 연결 타임아웃: 10초
+                .responseTimeout(Duration.ofSeconds(10)) // 응답 타임아웃: 10초
+                .doOnConnected(conn ->
+                        conn.addHandlerLast(new ReadTimeoutHandler(10, TimeUnit.SECONDS))
+                            .addHandlerLast(new WriteTimeoutHandler(10, TimeUnit.SECONDS))
+                );
+
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .defaultHeader("Content-Type", "application/json")
                 .defaultHeader("Accept", "application/json")
                 .codecs(configurer -> configurer
                         .defaultCodecs()
                         .maxInMemorySize(16 * 1024 * 1024)) // 16MB 버퍼 크기
                 .build();
-        log.info("FastAPI 클라이언트 초기화 완료. Base URL: {}", baseUrl);
+        log.info("FastAPI 클라이언트 초기화 완료. Base URL: {} (타임아웃: 10초)", baseUrl);
     }
 
     // ========== 학습 관련 API ==========

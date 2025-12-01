@@ -31,6 +31,7 @@ import rheon.wsd_lora_community.global.service.S3UploadService;
 import rheon.wsd_lora_community.global.websocket.GenerationProgressHandler;
 import org.springframework.beans.factory.annotation.Value;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -53,6 +54,7 @@ public class GenerationController {
     private final FastApiClient fastApiClient;
     private final S3UploadService s3UploadService;
     private final GenerationProgressHandler webSocketHandler;
+    private final rheon.wsd_lora_community.global.service.GpuResourceManager gpuResourceManager;
 
     @Value("${app.callback-url}")
     private String callbackUrlBase;
@@ -108,32 +110,55 @@ public class GenerationController {
         // Callback URL 설정
         String callbackUrl = callbackUrlBase + "/api/generate/history";
 
-        // FastAPI/Modal로 이미지 생성 요청 (비동기)
-        fastApiClient.startImageGeneration(
-                userId.toString(),  // 사용자 ID
-                request.getModelId(),  // 모델 ID
-                startResponse.getHistoryId(),  // GenerationHistory ID
-                request.getPrompt(),
-                request.getNegativePrompt(),
-                s3Uri,  // S3 URI 전달 (폴더 경로)
-                request.getNumImages() != null ? request.getNumImages() : 1,
-                request.getSteps() != null ? request.getSteps() : 40,
-                request.getGuidanceScale() != null ? request.getGuidanceScale() : 7.5,
-                request.getLoraScale(),  // LoRA 강도
-                request.getSeed(),
-                request.getBaseModel() != null ? request.getBaseModel() : "stablediffusionapi/anything-v5",  // 베이스 모델 (기본값)
-                callbackUrl  // 콜백 URL
-        ).subscribe(
-                message -> {
-                    // FastAPI 이미지 생성 시작 성공
-                    log.info("✅ FastAPI 이미지 생성 시작");
-                },
-                error -> {
-                    // FastAPI 이미지 생성 시작 실패
-                    System.err.println("❌ FastAPI 이미지 생성 시작 실패: " + error.getMessage());
-                    error.printStackTrace();
+        // GPU 작업을 큐에 추가 (대기열 지원)
+        final Long historyId = startResponse.getHistoryId();
+        boolean queued = gpuResourceManager.enqueueTask(
+                historyId,
+                rheon.wsd_lora_community.global.service.GpuResourceManager.TaskType.GENERATION,
+                () -> {
+                    // GPU가 여유 생기면 자동으로 실행되는 작업
+                    try {
+                        // Modal API로 이미지 생성 요청 (동기)
+                        String modalResponse = fastApiClient.startImageGeneration(
+                                userId.toString(),
+                                request.getModelId(),
+                                historyId,
+                                request.getPrompt(),
+                                request.getNegativePrompt(),
+                                s3Uri,
+                                request.getNumImages() != null ? request.getNumImages() : 1,
+                                request.getSteps() != null ? request.getSteps() : 40,
+                                request.getGuidanceScale() != null ? request.getGuidanceScale() : 7.5,
+                                request.getLoraScale(),
+                                request.getSeed(),
+                                request.getBaseModel() != null ? request.getBaseModel() : "stablediffusionapi/anything-v5",
+                                callbackUrl
+                        ).block(Duration.ofSeconds(10));
+
+                        log.info("✅ Modal 이미지 생성 시작 성공: {}", modalResponse);
+
+                    } catch (Exception e) {
+                        // Modal 연결 실패 또는 타임아웃
+                        log.error("❌ Modal 연결 실패: {}", e.getMessage());
+                        e.printStackTrace();
+
+                        // GPU 리소스 반환
+                        gpuResourceManager.release(historyId);
+
+                        // GenerationHistory를 실패 상태로 변경
+                        generationService.failGeneration(historyId,
+                                "Modal 서버 연결 실패: " + e.getMessage());
+                    }
                 }
         );
+
+        if (!queued) {
+            // 큐 추가 실패 (매우 드문 경우)
+            generationService.failGeneration(startResponse.getHistoryId(), "GPU 작업 큐가 가득 찼습니다.");
+            return ResponseEntity.status(503).body(
+                    ApiResponse.error("GPU 작업 큐가 가득 찼습니다. 잠시 후 다시 시도해주세요.")
+            );
+        }
 
         return ResponseEntity.ok(
                 ApiResponse.success(
@@ -259,6 +284,9 @@ public class GenerationController {
                 );
                 log.info("✅ 생성 완료 처리 성공: historyId={}, images={}", historyId, imageS3Keys.size());
 
+                // GPU 리소스 반환
+                gpuResourceManager.release(historyId);
+
                 // WebSocket으로 완료 이벤트 전송
                 Map<String, Object> completionEvent = new HashMap<>();
                 completionEvent.put("status", "SUCCESS");
@@ -311,6 +339,9 @@ public class GenerationController {
                 try {
                     generationService.failGeneration(historyId, error);
                     log.info("✅ 생성 실패 처리 완료: historyId={}, error={}", historyId, error);
+
+                    // GPU 리소스 반환
+                    gpuResourceManager.release(historyId);
 
                     // WebSocket으로 실패 이벤트 전송
                     GenerationHistoryResponse history = generationService.getGenerationHistory(historyId);

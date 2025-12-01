@@ -25,6 +25,7 @@ import rheon.wsd_lora_community.training.entity.TrainingJob;
 import rheon.wsd_lora_community.training.service.TrainingService;
 
 import jakarta.validation.Valid;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,7 @@ public class TrainingController {
     private final FastApiClient fastApiClient;
     private final S3UploadService s3UploadService;
     private final GenerationProgressHandler webSocketHandler;
+    private final rheon.wsd_lora_community.global.service.GpuResourceManager gpuResourceManager;
 
     @Value("${app.callback-url}")
     private String callbackUrlBase;
@@ -237,43 +239,59 @@ public class TrainingController {
                 epochs, learningRate, loraRank, baseModel, triggerWord
         );
 
-        // Callback URL 설정 (Spring Boot 서버 URL)
+        // Callback URL 설정
         String baseUrl = request.containsKey("callbackBaseUrl")
                 ? (String) request.get("callbackBaseUrl")
-                : callbackUrlBase; // 기본값
+                : callbackUrlBase;
         String callbackUrl = baseUrl + "/api/training/callback";
 
-        // Modal API로 학습 시작 요청 (비동기)
-        try {
-            fastApiClient.startTraining(
-                    userId.toString(),
-                    null,  // modelId는 학습 완료 후 생성
-                    job.getId(),
-                    modelName,
-                    trainingImageUrls,
-                    triggerWord,
-                    epochs,
-                    learningRate,
-                    loraRank,
-                    baseModel,
-                    skipPreprocessing,
-                    callbackUrl
-            ).subscribe(
-                    message -> {
-                        // Modal 학습 시작 성공
-                        System.out.println("Modal 학습 시작: " + message);
-                    },
-                    error -> {
-                        // Modal 학습 시작 실패
-                        System.err.println("Modal 학습 시작 실패: " + error.getMessage());
-                        error.printStackTrace();
-                        trainingService.failTraining(job.getId(), error.getMessage());
+        // GPU 작업을 큐에 추가 (대기열 지원)
+        final Long jobId = job.getId();
+        boolean queued = gpuResourceManager.enqueueTask(
+                jobId,
+                rheon.wsd_lora_community.global.service.GpuResourceManager.TaskType.TRAINING,
+                () -> {
+                    // GPU가 여유 생기면 자동으로 실행되는 작업
+                    try {
+                        // Modal API로 학습 시작 요청 (동기)
+                        String modalResponse = fastApiClient.startTraining(
+                                userId.toString(),
+                                null,
+                                jobId,
+                                modelName,
+                                trainingImageUrls,
+                                triggerWord,
+                                epochs,
+                                learningRate,
+                                loraRank,
+                                baseModel,
+                                skipPreprocessing,
+                                callbackUrl
+                        ).block(Duration.ofSeconds(10));
+
+                        System.out.println("✅ Modal 학습 시작 성공: " + modalResponse);
+
+                    } catch (Exception e) {
+                        // Modal 연결 실패 또는 타임아웃
+                        System.err.println("❌ Modal 연결 실패: " + e.getMessage());
+                        e.printStackTrace();
+
+                        // GPU 리소스 반환
+                        gpuResourceManager.release(jobId);
+
+                        // TrainingJob을 실패 상태로 변경
+                        trainingService.failTraining(jobId,
+                                "Modal 서버 연결 실패: " + e.getMessage());
                     }
+                }
+        );
+
+        if (!queued) {
+            // 큐 추가 실패 (매우 드문 경우)
+            trainingService.failTraining(job.getId(), "GPU 작업 큐가 가득 찼습니다.");
+            return ResponseEntity.status(503).body(
+                    ApiResponse.error("GPU 작업 큐가 가득 찼습니다. 잠시 후 다시 시도해주세요.")
             );
-        } catch (Exception e) {
-            System.err.println("FastAPI 호출 중 예외 발생: " + e.getMessage());
-            e.printStackTrace();
-            trainingService.failTraining(job.getId(), e.getMessage());
         }
 
         return ResponseEntity.ok(
@@ -603,6 +621,9 @@ public class TrainingController {
                 Long modelId = trainingService.handleTrainingSuccess(jobId, s3ModelKey, fileSize);
                 System.out.println("✅ 학습 완료 처리 성공: jobId=" + jobId + ", modelId=" + modelId);
 
+                // GPU 리소스 반환
+                gpuResourceManager.release(jobId);
+
                 // WebSocket으로 완료 이벤트 전송
                 Map<String, Object> completionEvent = new HashMap<>();
                 completionEvent.put("status", "SUCCESS");
@@ -652,6 +673,9 @@ public class TrainingController {
                 try {
                     trainingService.failTraining(jobId, error);
                     System.out.println("✅ 학습 실패 처리 완료: jobId=" + jobId + ", error=" + error);
+
+                    // GPU 리소스 반환
+                    gpuResourceManager.release(jobId);
 
                     // WebSocket으로 실패 이벤트 전송
                     TrainingJob job = trainingService.getTrainingJobEntity(jobId);
