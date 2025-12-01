@@ -72,6 +72,30 @@ public class AuthService {
     }
 
     /**
+     * Refresh Token 생성 및 저장
+     */
+    @Transactional
+    public String createRefreshToken(Long userId) {
+        // 유저 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // Refresh Token 생성
+        String token = jwtTokenProvider.createRefreshToken(userId);
+        LocalDateTime expiresAt = jwtTokenProvider.getRefreshTokenExpiryDate();
+
+        // DB에 저장
+        RefreshToken refreshToken = RefreshToken.builder()
+                .user(user)
+                .token(token)
+                .expiresAt(expiresAt)
+                .build();
+        refreshTokenRepository.save(refreshToken);
+
+        return token;
+    }
+
+    /**
      * Refresh Token 저장 (OAuth2 로그인 성공 시 사용)
      */
     @Transactional

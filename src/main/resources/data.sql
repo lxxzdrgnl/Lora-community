@@ -4,7 +4,9 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- 2. Users 데이터 (U& 유니코드 -> 한글 복원 완료)
 INSERT INTO users (CREATED_AT, DELETED_AT, ID, UPDATED_AT, NICKNAME, NAME, PROFILE_IMAGE_URL, EMAIL, OAUTH_PROVIDER_ID, OAUTH_PROVIDER, ROLE) VALUES
                                                                                                                                                   ('2025-11-25 04:33:49.538308', NULL, 0, '2025-11-25 04:39:12.588406', '호그라이더', '호그라이더', 'https://i.namu.wiki/i/aQOMWPkdAQdPbTFq54MsoZiwOsxCWYwioCRnDuuP6hoihR5DlP3quxzC9hSP3y7H2bFIu6blY-sX7KvP6NsABA.webp', 'dldydwo9@gmail.com', '115796410464082379941', 'GOOGLE', 'USER'),
-                                                                                                                                                  ('2025-11-01 00:00:00.000000', NULL, 100, '2025-11-01 00:00:00.000000', 'testUser1', 'Test User', 'https://i.pravatar.cc/300?img=1', 'test@test.com', 'test-oauth-id-100', 'GOOGLE', 'USER');
+                                                                                                                                                  ('2025-11-01 00:00:00.000000', NULL, 100, '2025-11-01 00:00:00.000000', 'testUser1', 'Test User', 'https://previews.123rf.com/images/alexraths/alexraths1501/alexraths150100053/35560687-portrait-of-a-screaming-clown-isolated-on-white-background.jpg', 'test@test.com', 'test-oauth-id-100', 'GOOGLE', 'USER'),
+                                                                                                                                                  ('2025-11-20 10:00:00.000000', NULL, 101, '2025-11-20 10:00:00.000000', 'fakeUser1', 'Fake User 1', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTxNKOirm3pJEReRAFc1VTQ_mmpdKFlqsSGXmmpPHnw24qlM3PekwGy1glAiDA5kQE5Lhc&usqp=CAU', 'fake1@example.com', 'fake-oauth-id-101', 'GOOGLE', 'USER'),
+                                                                                                                                                  ('2025-11-21 10:00:00.000000', NULL, 102, '2025-11-21 10:00:00.000000', 'fakeUser2', 'Fake User 2', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTK_N21b6QD1emRqHOgWbg3FYU3M5vqtyjKZiCmj5M0jcGkT8LucfMKnvIJ7or0A0NvdBQ&usqp=CAU', 'fake2@example.com', 'fake-oauth-id-102', 'GOOGLE', 'USER');
 
 -- 3. Training Jobs
 -- 컬럼 순서: MODEL_NAME, MODEL_DESCRIPTION, TRAINING_IMAGES_COUNT, EPOCHS, LEARNING_RATE, LORA_RANK, BASE_MODEL, TRIGGER_WORD, STATUS, CURRENT_EPOCH, TOTAL_EPOCHS, PHASE, ERROR_MESSAGE, STARTED_AT, COMPLETED_AT, CREATED_AT, UPDATED_AT, ID, MODEL_ID, USER_ID
@@ -26,7 +28,12 @@ INSERT INTO training_jobs (MODEL_NAME, MODEL_DESCRIPTION, TRAINING_IMAGES_COUNT,
     -- 완료된 학습 (모델 8 - Zelda Style)
     ('Zelda Style', '젤다 야생의 숨결 스타일의 이미지를 생성합니다.', 40, 150, 0.00015, 16, 'Lykon/AnyLoRA', NULL, 'SUCCESS', 150, 150, 'model_saved', NULL, '2025-11-24 08:05:30.000000', '2025-11-24 14:30:15.123456', '2025-11-24 08:00:00.000000', '2025-11-24 14:30:15.123456', 8, NULL, 0),
     -- 완료된 학습 (모델 9 - Minimalist)
-    ('Minimalist', '간결한 표현이 특징인 Lora', 40, 150, 0.00015, 16, 'stablediffusionapi/anything-v5', NULL, 'SUCCESS', 150, 150, 'model_saved', NULL, '2025-11-25 08:05:30.000000', '2025-11-25 14:30:15.123456', '2025-11-25 08:00:00.000000', '2025-11-25 14:30:15.123456', 9, NULL, 0);
+    ('Minimalist', '간결한 표현이 특징인 Lora', 40, 150, 0.00015, 16, 'stablediffusionapi/anything-v5', NULL, 'SUCCESS', 150, 150, 'model_saved', NULL, '2025-11-25 08:05:30.000000', '2025-11-25 14:30:15.123456', '2025-11-25 08:00:00.000000', '2025-11-25 14:30:15.123456', 9, NULL, 0),
+
+    -- 테스트 유저(100)의 학습 작업들
+    ('Test LoRA Model 1', 'My first custom LoRA model', 15, 100, 0.0001, 16, 'stablediffusionapi/anything-v5', 'test1', 'SUCCESS', 100, 100, 'model_saved', NULL, '2025-11-26 09:00:00.000000', '2025-11-26 11:30:15.123456', '2025-11-26 09:00:00.000000', '2025-11-26 11:30:15.123456', 10, NULL, 100),
+    ('Test Anime Style', 'Anime style training test', 25, 120, 0.00008, 32, 'Lykon/AnyLoRA', 'anime_test', 'SUCCESS', 120, 120, 'model_saved', NULL, '2025-11-27 10:00:00.000000', '2025-11-27 13:20:15.123456', '2025-11-27 10:00:00.000000', '2025-11-27 13:20:15.123456', 11, NULL, 100),
+    ('Failed Training Test', 'This training failed for testing', 20, 80, 0.0001, 16, 'stablediffusionapi/anything-v5', NULL, 'FAILED', 45, 80, NULL, 'Out of memory error', '2025-11-28 08:00:00.000000', '2025-11-28 09:30:00.000000', '2025-11-28 08:00:00.000000', '2025-11-28 09:30:00.000000', 12, NULL, 100);
 -- 4. Tags
 INSERT INTO tags (USAGE_COUNT, CREATED_AT, ID, UPDATED_AT, NAME, CATEGORY) VALUES
     -- STYLE
@@ -296,5 +303,26 @@ INSERT INTO model_prompts (DISPLAY_ORDER, CREATED_AT, ID, MODEL_ID, UPDATED_AT, 
                                                                                                                                  (1, '2025-11-25 04:33:49.572518', 8, 8, '2025-11-25 04:33:49.572518', 'Trigger', '귀여운 동물', '(painting by bad-artist-anime:0.9), (painting by bad-artist:0.9), watermark, text, error, blurry, jpeg artifacts, cropped, worst quality, low quality, normal quality, jpeg artifacts, (signature), watermark, username, artist name, (worst quality, low quality:1.4), bad anatomy', 'botw style'),
                                                                                                                                  (1, '2025-11-25 04:33:49.572518', 9, 9, '2025-11-25 04:33:49.572518', 'Trigger', '귀여운 동물', '(worst quality, low quality:1.4), (realistic, lip, nose, tooth, rouge, lipstick, eyeshadow:1.0), (abs, muscular, rib:1.0),', 'anime minimalist');
 
--- 12. 중요! 외래 키 체크 다시 켜기 (필수)
+-- 12. Model Likes (테스트 유저의 좋아요 목록)
+INSERT INTO model_likes (CREATED_AT, ID, MODEL_ID, UPDATED_AT, USER_ID) VALUES
+    ('2025-11-26 10:00:00.000000', 1, 1, '2025-11-26 10:00:00.000000', 100),  -- 테스트 유저가 Model 1 (Reze) 좋아요
+    ('2025-11-26 10:30:00.000000', 2, 6, '2025-11-26 10:30:00.000000', 100);  -- 테스트 유저가 Model 6 (Animal Crossing Style) 좋아요
+
+-- 13. Comments (각 모델에 댓글 하나씩, fake_user1과 fake_user2가 골고루 작성)
+-- 컬럼 순서: CONTENT, LIKE_COUNT, CREATED_AT, ID, MODEL_ID, UPDATED_AT, USER_ID
+INSERT INTO comments (CONTENT, LIKE_COUNT, CREATED_AT, ID, MODEL_ID, UPDATED_AT, USER_ID) VALUES
+    ('This is my first model.', 12, '2025-11-12 15:00:00.000000', 1, 1, '2025-11-12 15:00:00.000000', 0),  -- 호그라이더 -> Model 1 (Reze)
+    ('This is amazing! The style is perfect for manga art.', 5, '2025-11-26 11:00:00.000000', 2, 1, '2025-11-26 11:00:00.000000', 101),  -- fake_user1 -> Model 1
+    ('Love this! Pochita looks so cute!', 3, '2025-11-26 11:30:00.000000', 3, 2, '2025-11-26 11:30:00.000000', 102),  -- fake_user2 -> Model 2
+    ('I agree! This is really well made.', 2, '2025-11-26 16:00:00.000000', 4, 2, '2025-11-26 16:00:00.000000', 101),  -- fake_user1 -> Model 2 (추가)
+    ('Great work on this character model!', 4, '2025-11-26 12:00:00.000000', 5, 3, '2025-11-26 12:00:00.000000', 101),  -- fake_user1 -> Model 3
+    ('Will definitely use this. Thanks!', 3, '2025-11-26 16:30:00.000000', 6, 3, '2025-11-26 16:30:00.000000', 102),  -- fake_user2 -> Model 3 (추가)
+    ('The Naruto style is on point! Well done.', 7, '2025-11-26 12:30:00.000000', 7, 4, '2025-11-26 12:30:00.000000', 102),  -- fake_user2 -> Model 4
+    ('Beautiful Tanjiro render! Really captures the essence.', 6, '2025-11-26 13:00:00.000000', 8, 5, '2025-11-26 13:00:00.000000', 101),  -- fake_user1 -> Model 5
+    ('So adorable! Perfect for creating cute characters.', 8, '2025-11-26 13:30:00.000000', 9, 6, '2025-11-26 13:30:00.000000', 102),  -- fake_user2 -> Model 6
+    ('The outline style is very clean and professional!', 5, '2025-11-26 14:00:00.000000', 10, 7, '2025-11-26 14:00:00.000000', 101),  -- fake_user1 -> Model 7
+    ('Zelda vibes are amazing! Love this art style.', 9, '2025-11-26 14:30:00.000000', 11, 8, '2025-11-26 14:30:00.000000', 102),  -- fake_user2 -> Model 8
+    ('Minimalist perfection! Exactly what I needed.', 4, '2025-11-26 15:00:00.000000', 12, 9, '2025-11-26 15:00:00.000000', 101);  -- fake_user1 -> Model 9
+
+-- 14. 중요! 외래 키 체크 다시 켜기 (필수)
 SET FOREIGN_KEY_CHECKS = 1;

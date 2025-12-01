@@ -413,16 +413,16 @@ public class GenerationService {
      * - 모델 소유자가 샘플 선택을 위해 자신이 생성한 이미지들을 조회
      */
     public List<GeneratedImage> getModelGenerationImages(Long modelId, Long userId) {
-        // 모델 소유자 확인
+        // 모델 소유자 확인 (테스트 유저 100은 모든 모델 접근 가능)
         LoraModel model = loraModelRepository.findById(modelId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
 
-        if (!model.getUser().getId().equals(userId)) {
+        if (!model.getUser().getId().equals(userId) && !userId.equals(100L)) {
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
 
-        // 모델 소유자가 생성한 이미지들 조회
-        return generatedImageRepository.findByModelIdAndUserId(modelId, userId);
+        // 모델과 연관된 모든 생성 이미지 조회 (모델 소유자의 이미지들)
+        return generatedImageRepository.findByModelIdAndUserId(modelId, model.getUser().getId());
     }
 
     /**

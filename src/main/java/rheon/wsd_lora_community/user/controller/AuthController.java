@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -24,6 +25,7 @@ import java.util.Map;
  * - 토큰 갱신
  * - 로그아웃
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -162,20 +164,29 @@ public class AuthController {
     @GetMapping("/test")
     @Operation(summary = "테스트 로그인", description = "테스트 유저로 자동 로그인하여 JWT 토큰을 발급받습니다. (개발용)")
     public void testLogin(HttpServletResponse response) throws IOException {
+        log.info("===== /api/auth/test 엔드포인트 호출됨 =====");
+        log.info("Frontend URL: {}", frontendUrl);
+
         // 테스트 유저 정보
         Long testUserId = 100L;
         String testEmail = "test@test.com";
 
-        // JWT 토큰 생성
+        // JWT 토큰 생성 (Access Token + Refresh Token)
         String accessToken = jwtTokenProvider.createAccessToken(testUserId, testEmail);
+        String refreshToken = authService.createRefreshToken(testUserId);
+
+        log.info("Access Token 생성 완료: {}", accessToken.substring(0, Math.min(20, accessToken.length())) + "...");
+        log.info("Refresh Token 생성 완료: {}", refreshToken.substring(0, Math.min(20, refreshToken.length())) + "...");
 
         // 프론트엔드 콜백 URL로 리다이렉트 (토큰을 URL Fragment에 포함)
         String redirectUrl = String.format(
-                "%s/auth/callback#access_token=%s",
+                "%s/auth/callback#access_token=%s&refresh_token=%s",
                 frontendUrl,
-                accessToken
+                accessToken,
+                refreshToken
         );
 
+        log.info("리다이렉트 URL: {}", redirectUrl);
         response.sendRedirect(redirectUrl);
     }
 }
