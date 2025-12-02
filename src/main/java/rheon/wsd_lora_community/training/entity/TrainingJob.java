@@ -91,6 +91,7 @@ public class TrainingJob extends BaseEntity {
         PENDING,        // 대기 중
         PREPROCESSING,  // 전처리 중
         TRAINING,       // 학습 중
+        UPLOADING,      // 모델 업로드 중
         SUCCESS,        // 성공
         FAILED          // 실패
     }
@@ -105,14 +106,33 @@ public class TrainingJob extends BaseEntity {
     public void updateProgress(Integer currentEpoch, String phase) {
         this.currentEpoch = currentEpoch;
         this.phase = phase;
-        if (this.status == TrainingStatus.PREPROCESSING && phase != null && phase.equals("training")) {
-            this.status = TrainingStatus.TRAINING;
+
+        // phase에 따라 status 자동 업데이트
+        if (phase != null) {
+            String phaseUpper = phase.toUpperCase();
+            if ((phaseUpper.equals("PREPROCESSING") || phaseUpper.equals("DOWNLOADING") ||
+                 phaseUpper.equals("LOADING") || phaseUpper.equals("DOWNLOADING_COMPLETE") ||
+                 phaseUpper.equals("CAPTIONING_COMPLETE")) &&
+                (this.status == TrainingStatus.PENDING || this.status == TrainingStatus.PREPROCESSING)) {
+                this.status = TrainingStatus.PREPROCESSING;
+            } else if (phaseUpper.equals("TRAINING") &&
+                       (this.status == TrainingStatus.PREPROCESSING || this.status == TrainingStatus.TRAINING)) {
+                this.status = TrainingStatus.TRAINING;
+            } else if (phaseUpper.equals("UPLOADING") &&
+                       (this.status == TrainingStatus.TRAINING || this.status == TrainingStatus.UPLOADING)) {
+                this.status = TrainingStatus.UPLOADING;
+            }
         }
     }
 
     public void complete() {
         this.status = TrainingStatus.SUCCESS;
         this.completedAt = LocalDateTime.now();
+        // 완료 시 진행률을 100%로 설정
+        if (this.totalEpochs != null) {
+            this.currentEpoch = this.totalEpochs;
+        }
+        this.phase = "COMPLETE";
     }
 
     public void fail(String errorMessage) {
@@ -124,7 +144,8 @@ public class TrainingJob extends BaseEntity {
     public boolean isInProgress() {
         return status == TrainingStatus.PENDING ||
                 status == TrainingStatus.PREPROCESSING ||
-                status == TrainingStatus.TRAINING;
+                status == TrainingStatus.TRAINING ||
+                status == TrainingStatus.UPLOADING;
     }
 
     // 학습 완료 후 모델 연결

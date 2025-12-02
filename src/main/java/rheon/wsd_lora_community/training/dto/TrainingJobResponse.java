@@ -77,7 +77,17 @@ public class TrainingJobResponse {
     @Schema(description = "모델 썸네일 URL", example = "https://...")
     private String modelThumbnailUrl;
 
+    @Schema(description = "진행률 (0-100)", example = "75.5")
+    private Double progressPercentage;
+
     public static TrainingJobResponse from(TrainingJob job) {
+        // 진행률 계산
+        Double progressPercentage = null;
+        if (job.getTotalEpochs() != null && job.getTotalEpochs() > 0) {
+            int currentEpoch = job.getCurrentEpoch() != null ? job.getCurrentEpoch() : 0;
+            progressPercentage = (currentEpoch * 100.0) / job.getTotalEpochs();
+        }
+
         return TrainingJobResponse.builder()
                 .id(job.getId())
                 .modelId(job.getModel() != null ? job.getModel().getId() : null)
@@ -99,6 +109,7 @@ public class TrainingJobResponse {
                 .loraRank(job.getLoraRank())
                 .baseModel(job.getBaseModel())
                 .triggerWord(job.getTriggerWord())
+                .progressPercentage(progressPercentage)
                 .build();
     }
 
@@ -125,6 +136,7 @@ public class TrainingJobResponse {
                 .loraRank(response.getLoraRank())
                 .baseModel(response.getBaseModel())
                 .triggerWord(response.getTriggerWord())
+                .progressPercentage(response.getProgressPercentage())
                 .modelThumbnailUrl(thumbnailUrl)
                 .build();
     }

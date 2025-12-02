@@ -472,22 +472,19 @@ public class TrainingController {
                     "진행 상태를 DB에 저장하고 WebSocket으로 사용자에게 알립니다."
     )
     public ResponseEntity<ApiResponse<?>> handleTrainingCallback(
-            @RequestBody Map<String, Object> request
+            @Valid @RequestBody TrainingCallbackRequest request
     ) {
-        String status = (String) request.get("status");
-        System.out.println("🔔 학습 콜백 수신: status=" + status + ", request=" + request);
+        String status = request.getStatus();
+        System.out.println("🔔 학습 콜백 수신: status=" + status + ", jobId=" + request.getJobId() +
+                           ", userId=" + request.getUserId() + ", message=" + request.getMessage());
 
         if ("LOADING".equals(status) || "DOWNLOADING".equals(status) || "DOWNLOADING_COMPLETE".equals(status) ||
             "PREPROCESSING".equals(status) || "CAPTIONING_COMPLETE".equals(status) ||
             "TRAINING".equals(status) || "UPLOADING".equals(status)) {
             // 진행률 업데이트
-            Long jobId = request.get("jobId") != null
-                    ? Long.valueOf(request.get("jobId").toString())
-                    : null;
-            String message = (String) request.get("message");
-            Integer currentEpoch = request.get("currentEpoch") != null
-                    ? (Integer) request.get("currentEpoch")
-                    : null;
+            Long jobId = request.getJobId();
+            String message = request.getMessage();
+            Integer currentEpoch = request.getCurrentEpoch();
 
             // message에서 epoch 정보 추출 시도 (예: "Training 24/70")
             if (message != null && message.contains("/") && "TRAINING".equals(status)) {
@@ -508,22 +505,16 @@ public class TrainingController {
 
             return ResponseEntity.ok(
                     ApiResponse.success("진행률 업데이트 성공", Map.of(
-                            "jobId", jobId != null ? jobId : 0,
+                            "jobId", jobId,
                             "message", message != null ? message : ""
                     ))
             );
         } else if ("SUCCESS".equals(status)) {
             // 학습 성공 - 모델 생성
-            Long jobId = request.get("jobId") != null
-                    ? Long.valueOf(request.get("jobId").toString())
-                    : null;
-            Long userId = request.get("userId") != null
-                    ? Long.valueOf(request.get("userId").toString())
-                    : null;
-            String s3ModelKey = (String) request.get("s3ModelKey");
-            Long fileSize = request.get("fileSize") != null
-                    ? Long.valueOf(request.get("fileSize").toString())
-                    : null;
+            Long jobId = request.getJobId();
+            Long userId = request.getUserId();
+            String s3ModelKey = request.getS3ModelKey();
+            Long fileSize = request.getFileSize();
 
             try {
                 Long modelId = jobCallbackService.handleTrainingSuccess(jobId, userId, s3ModelKey, fileSize);
@@ -539,13 +530,9 @@ public class TrainingController {
             }
         } else if ("FAIL".equals(status)) {
             // 학습 실패
-            Long jobId = request.get("jobId") != null
-                    ? Long.valueOf(request.get("jobId").toString())
-                    : null;
-            Long userId = request.get("userId") != null
-                    ? Long.valueOf(request.get("userId").toString())
-                    : null;
-            String error = (String) request.get("error");
+            Long jobId = request.getJobId();
+            Long userId = request.getUserId();
+            String error = request.getError();
 
             jobCallbackService.handleTrainingFailure(jobId, userId, error);
 

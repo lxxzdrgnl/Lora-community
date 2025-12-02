@@ -82,14 +82,16 @@ public class JobCallbackService {
         // GPU 리소스 반환
         gpuResourceManager.release(jobId);
 
-        // WebSocket으로 완료 이벤트 전송
+        // WebSocket으로 완료 이벤트 전송 (진행률 100% 포함)
+        TrainingJob job = trainingService.getTrainingJobEntity(jobId);
         Map<String, Object> completionEvent = new HashMap<>();
         completionEvent.put("status", "SUCCESS");
+        completionEvent.put("jobId", jobId);
         completionEvent.put("modelId", modelId);
         completionEvent.put("message", "Training completed successfully");
         completionEvent.put("s3ModelKey", s3ModelKey);
-
-        TrainingJob job = trainingService.getTrainingJobEntity(jobId);
+        completionEvent.put("currentEpoch", job.getCurrentEpoch()); // 100%로 설정된 값
+        completionEvent.put("totalEpochs", job.getTotalEpochs());
         webSocketHandler.sendToUser(job.getUser().getId(), completionEvent);
 
         return modelId;

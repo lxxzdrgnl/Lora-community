@@ -128,7 +128,7 @@ pagination:
 
 # CORS 설정 (멀티 인스턴스 고려)
 cors:
-  allowed-origins: http://localhost:5173,${CORS_ORIGINS:}
+  allowed-origins: http://localhost:5173,http://localhost:5174,${CORS_ORIGINS:}
   allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
   allowed-headers: "*"
   allow-credentials: true

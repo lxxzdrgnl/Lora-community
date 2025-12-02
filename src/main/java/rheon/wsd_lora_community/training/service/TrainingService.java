@@ -370,7 +370,8 @@ public class TrainingService {
         List<TrainingJob.TrainingStatus> activeStatuses = List.of(
                 TrainingJob.TrainingStatus.PENDING,
                 TrainingJob.TrainingStatus.PREPROCESSING,
-                TrainingJob.TrainingStatus.TRAINING
+                TrainingJob.TrainingStatus.TRAINING,
+                TrainingJob.TrainingStatus.UPLOADING
         );
 
         return trainingJobRepository
