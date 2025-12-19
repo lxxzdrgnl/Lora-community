@@ -2,24 +2,29 @@ spring:
   application:
     name: WSD_Lora_community
 
-  # H2 Database (인메모리 - 개발용)
+  # MySQL Database (기본 설정)
   datasource:
-    driver-class-name: org.h2.Driver
-    url: jdbc:h2:mem:loradb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    username: sa
-    password:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:loradb}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: ${DB_MIN_IDLE:2}
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
-  # H2 Console 활성화 (개발 편의용)
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+  # Flyway 설정 (DB 마이그레이션) - 순환 의존성 문제로 비활성화
+  flyway:
+    enabled: false  # Flyway 비활성화 (JPA가 스키마 관리)
 
   # JPA 설정
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
-      ddl-auto: create-drop  # 개발: create-drop, 프로덕션: validate
+      ddl-auto: update  # Flyway 비활성화로 JPA가 스키마 관리
+    defer-datasource-initialization: true  # JPA 테이블 생성 후 data.sql 실행
     properties:
       hibernate:
         format_sql: false  # SQL 포맷팅 비활성화 (로그 간결화)
@@ -28,12 +33,12 @@ spring:
         highlight_sql: false  # SQL 하이라이트 비활성화 (ANSI 색상 코드 제거)
     show-sql: false
     open-in-view: false  # 멀티 인스턴스 환경에서 권장
-    defer-datasource-initialization: true  # data.sql 실행을 위해 필요
 
   # SQL 초기화 설정
   sql:
     init:
-      mode: always  # 항상 data.sql 실행
+      mode: never  # data.sql 실행 안 함 (이미 RDS에 데이터 있음)
+      continue-on-error: false  # 에러 발생 시 중단
 
   # OAuth2 설정 (Google)
   security:
@@ -172,6 +177,7 @@ logging:
     com.zaxxer.hikari: ERROR
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+  exception-conversion-word: "%nopex"  # 스택트레이스 완전히 숨김
 
 # 멀티 인스턴스 환경 고려사항
 # - 세션 사용 안 함 (JWT 기반 Stateless)

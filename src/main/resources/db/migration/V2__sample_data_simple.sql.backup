@@ -1,0 +1,45 @@
+-- =====================================================
+-- WSD LoRA Community - Sample Data Migration
+-- Version: V2
+-- Description: 개발/테스트용 샘플 데이터
+-- Author: System
+-- Created: 2025-01-20
+-- NOTE: 프로덕션 환경에서는 이 마이그레이션을 실행하지 마세요
+-- =====================================================
+
+-- 1. 테스트 유저 추가
+INSERT INTO users (email, name, nickname, oauth_provider, oauth_provider_id, role, created_at, updated_at)
+VALUES
+    ('test1@example.com', 'Test User 1', 'testuser1', 'GOOGLE', 'google_test_1', 'USER', NOW(), NOW()),
+    ('test2@example.com', 'Test User 2', 'testuser2', 'GOOGLE', 'google_test_2', 'USER', NOW(), NOW()),
+    ('admin@example.com', 'Admin User', 'admin', 'GOOGLE', 'google_admin', 'ADMIN', NOW(), NOW());
+
+-- 2. 기본 태그 추가
+INSERT INTO tags (name, category, usage_count, created_at, updated_at)
+VALUES
+    -- 스타일
+    ('anime', 'STYLE', 0, NOW(), NOW()),
+    ('manga', 'STYLE', 0, NOW(), NOW()),
+    ('realistic', 'STYLE', 0, NOW(), NOW()),
+    ('cartoon', 'STYLE', 0, NOW(), NOW()),
+    ('pixel-art', 'STYLE', 0, NOW(), NOW()),
+    -- 캐릭터
+    ('girl', 'CHARACTER', 0, NOW(), NOW()),
+    ('boy', 'CHARACTER', 0, NOW(), NOW()),
+    ('animal', 'CHARACTER', 0, NOW(), NOW()),
+    ('robot', 'CHARACTER', 0, NOW(), NOW()),
+    -- 장르
+    ('fantasy', 'GENRE', 0, NOW(), NOW()),
+    ('sci-fi', 'GENRE', 0, NOW(), NOW()),
+    ('horror', 'GENRE', 0, NOW(), NOW()),
+    ('romance', 'GENRE', 0, NOW(), NOW()),
+    -- 기타
+    ('portrait', 'OTHER', 0, NOW(), NOW()),
+    ('landscape', 'OTHER', 0, NOW(), NOW()),
+    ('concept-art', 'OTHER', 0, NOW(), NOW());
+
+-- =====================================================
+-- 샘플 데이터 추가 완료
+-- - 3명의 테스트 유저 (testuser1, testuser2, admin)
+-- - 16개의 기본 태그 (스타일, 캐릭터, 장르, 기타)
+-- =====================================================

@@ -42,9 +42,11 @@ jobs:
           region: ap-northeast-2
           
           # 아래 두 이름은 AWS 콘솔에서 복사해오세요!
-          application_name: Blueming-AI
-          environment_name: Blueming-AI-env-1
+          application_name: Blueming-AI-env-1
+          environment_name: Blueming-AI-env-1-env
           
           version_label: github-action-${{ github.sha }}
           deployment_package: build/libs/application.jar  # 위에서 바꾼 이름 사용
-          use_existing_version_if_available: true
+          use_existing_version_if_available: false
+          wait_for_deployment: true
+          wait_for_environment_recovery: 60

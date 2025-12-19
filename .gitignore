@@ -18,6 +18,14 @@ secrets.txt
 *.key
 *.pem
 
+### Backup Files ###
+*.backup
+!**/db/migration/*.backup
+*.bak
+*.old
+*.tmp
+*~
+
 ### STS ###
 .apt_generated
 .classpath

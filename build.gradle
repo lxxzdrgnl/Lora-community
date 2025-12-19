@@ -38,11 +38,15 @@ dependencies {
     // WebSocket
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
-    // H2 Database (인메모리 - 개발용)
-    runtimeOnly 'com.h2database:h2'
+    // H2 Database (사용 안 함 - RDS MySQL로 전환)
+    // runtimeOnly 'com.h2database:h2'
 
-    // MySQL Connector (프로덕션용 - 나중에 사용)
-    // runtimeOnly 'com.mysql:mysql-connector-j'
+    // MySQL Connector (개발/프로덕션 공통)
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // Flyway (DB 마이그레이션) - 순환 의존성 문제로 비활성화
+    // implementation 'org.flywaydb:flyway-core'
+    // implementation 'org.flywaydb:flyway-mysql'
 
     // JWT
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
