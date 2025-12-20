@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rheon.wsd_lora_community.generation.dto.GenerationHistoryResponse;
 import rheon.wsd_lora_community.generation.service.GenerationService;
+import rheon.wsd_lora_community.global.queue.RedisQueueService;
+import rheon.wsd_lora_community.global.queue.RedisQueueService.JobType;
 import rheon.wsd_lora_community.global.websocket.GenerationProgressHandler;
 import rheon.wsd_lora_community.training.dto.TrainingJobResponse;
 import rheon.wsd_lora_community.training.entity.TrainingJob;
@@ -17,7 +19,7 @@ import java.util.Map;
 /**
  * 학습/생성 작업 콜백 처리 공통 서비스
  * - Training과 Generation의 콜백 로직을 통합
- * - GPU 리소스 관리 및 WebSocket 전송 처리
+ * - Redis 작업 큐 관리 및 WebSocket 전송 처리
  */
 @Slf4j
 @Service
@@ -26,7 +28,7 @@ public class JobCallbackService {
 
     private final TrainingService trainingService;
     private final GenerationService generationService;
-    private final GpuResourceManager gpuResourceManager;
+    private final RedisQueueService queueService;
     private final GenerationProgressHandler webSocketHandler;
 
     /**
@@ -79,8 +81,8 @@ public class JobCallbackService {
         Long modelId = trainingService.handleTrainingSuccess(jobId, s3ModelKey, fileSize);
         log.info("✅ 학습 완료 처리 성공: jobId={}, modelId={}", jobId, modelId);
 
-        // GPU 리소스 반환
-        gpuResourceManager.release(jobId);
+        // Redis 작업 완료 처리
+        queueService.complete(JobType.TRAINING, jobId);
 
         // WebSocket으로 완료 이벤트 전송 (진행률 100% 포함)
         TrainingJob job = trainingService.getTrainingJobEntity(jobId);
@@ -119,8 +121,8 @@ public class JobCallbackService {
             trainingService.failTraining(jobId, error);
             log.info("✅ 학습 실패 처리 완료: jobId={}, error={}", jobId, error);
 
-            // GPU 리소스 반환
-            gpuResourceManager.release(jobId);
+            // Redis 작업 실패 처리
+            queueService.fail(JobType.TRAINING, jobId);
 
             // WebSocket으로 실패 이벤트 전송
             TrainingJob job = trainingService.getTrainingJobEntity(jobId);
@@ -197,8 +199,8 @@ public class JobCallbackService {
         );
         log.info("✅ 생성 완료 처리 성공: historyId={}, images={}", historyId, imageS3Keys.size());
 
-        // GPU 리소스 반환
-        gpuResourceManager.release(historyId);
+        // Redis 작업 완료 처리
+        queueService.complete(JobType.GENERATION, historyId);
 
         // WebSocket으로 완료 이벤트 전송
         Map<String, Object> completionEvent = new HashMap<>();
@@ -235,8 +237,8 @@ public class JobCallbackService {
             generationService.failGeneration(historyId, error);
             log.info("✅ 생성 실패 처리 완료: historyId={}, error={}", historyId, error);
 
-            // GPU 리소스 반환
-            gpuResourceManager.release(historyId);
+            // Redis 작업 실패 처리
+            queueService.fail(JobType.GENERATION, historyId);
 
             // WebSocket으로 실패 이벤트 전송
             GenerationHistoryResponse history = generationService.getGenerationHistory(historyId);

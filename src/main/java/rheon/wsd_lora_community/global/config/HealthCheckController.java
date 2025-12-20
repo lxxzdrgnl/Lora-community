@@ -7,7 +7,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
-import rheon.wsd_lora_community.global.service.GpuResourceManager;
+import rheon.wsd_lora_community.global.queue.RedisQueueService;
+import rheon.wsd_lora_community.global.queue.RedisQueueService.JobType;
+import rheon.wsd_lora_community.global.queue.RedisQueueService.QueueStatus;
 
 import java.util.Map;
 
@@ -20,22 +22,27 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class HealthCheckController {
 
-    private final GpuResourceManager gpuResourceManager;
+    private final RedisQueueService queueService;
 
     @Operation(summary = "서버 상태 확인", description = "서버가 정상적으로 실행 중인지 확인합니다.")
     @GetMapping
     public ApiResponse<Map<String, Object>> healthCheck() {
-        GpuResourceManager.GpuResourceStatus gpuStatus = gpuResourceManager.getStatus();
+        QueueStatus trainingQueue = queueService.getQueueStatus(JobType.TRAINING);
+        QueueStatus generationQueue = queueService.getQueueStatus(JobType.GENERATION);
 
         return ApiResponse.success("LoRA 모델 공유 플랫폼 API가 정상적으로 실행 중입니다.", Map.of(
                 "status", "UP",
                 "service", "WSD_Lora_community",
                 "version", "1.0.0",
-                "gpu", Map.of(
-                        "total", gpuStatus.total,
-                        "used", gpuStatus.used,
-                        "available", gpuStatus.available,
-                        "queued", gpuStatus.queued
+                "queue", Map.of(
+                        "training", Map.of(
+                                "pending", trainingQueue.pending(),
+                                "processing", trainingQueue.processing()
+                        ),
+                        "generation", Map.of(
+                                "pending", generationQueue.pending(),
+                                "processing", generationQueue.processing()
+                        )
                 )
         ));
     }

@@ -38,6 +38,9 @@ dependencies {
     // WebSocket
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
+    // Redis (작업 큐, 세션, 캐시)
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
     // H2 Database (사용 안 함 - RDS MySQL로 전환)
     // runtimeOnly 'com.h2database:h2'
 

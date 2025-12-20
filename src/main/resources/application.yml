@@ -75,6 +75,22 @@ spring:
     time-zone: Asia/Seoul
     default-property-inclusion: non_null
 
+  # Redis 설정 (Upstash Redis - Modal과 공유)
+  data:
+    redis:
+      host: ${REDIS_HOST:super-gator-36826.upstash.io}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:true}
+      timeout: 3000
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 2
+          max-wait: 3000
+
 # JWT 설정
 jwt:
   secret: ${JWT_SECRET:wsd-lora-community-jwt-secret-key-2024-for-hs256-algorithm-minimum-256-bits-required}

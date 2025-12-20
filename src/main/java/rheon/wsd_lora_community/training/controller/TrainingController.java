@@ -10,6 +10,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.global.client.FastApiClient;
+import rheon.wsd_lora_community.global.queue.RedisQueueService;
+import rheon.wsd_lora_community.global.queue.RedisQueueService.JobType;
 import rheon.wsd_lora_community.global.service.JobCallbackService;
 import rheon.wsd_lora_community.global.util.AuthenticationUtil;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
@@ -44,7 +46,7 @@ public class TrainingController {
     private final FastApiClient fastApiClient;
     private final S3UploadService s3UploadService;
     private final JobCallbackService jobCallbackService;
-    private final rheon.wsd_lora_community.global.service.GpuResourceManager gpuResourceManager;
+    private final RedisQueueService queueService;
 
     @Value("${app.callback-url}")
     private String callbackUrlBase;
@@ -215,64 +217,25 @@ public class TrainingController {
                 epochs, learningRate, loraRank, baseModel, triggerWord
         );
 
-        // Callback URL 설정
-        String baseUrl = request.containsKey("callbackBaseUrl")
-                ? (String) request.get("callbackBaseUrl")
-                : callbackUrlBase;
-        String callbackUrl = baseUrl + "/api/training/callback";
+        // Redis 큐에 작업 추가 (JobQueueWorker가 자동으로 처리)
+        Map<String, Object> jobData = new HashMap<>();
+        jobData.put("userId", userId);
+        jobData.put("modelName", modelName);
+        jobData.put("characterName", modelName);
+        jobData.put("totalEpochs", epochs);
+        jobData.put("trainingImageUrls", trainingImageUrls);
+        jobData.put("triggerWord", triggerWord);
+        jobData.put("learningRate", learningRate);
+        jobData.put("loraRank", loraRank);
+        jobData.put("baseModel", baseModel);
+        jobData.put("skipPreprocessing", skipPreprocessing);
+        jobData.put("datasetS3Path", ""); // JobQueueWorker에서 사용할 S3 경로 (필요시)
 
-        // GPU 작업을 큐에 추가 (대기열 지원)
-        final Long jobId = job.getId();
-        boolean queued = gpuResourceManager.enqueueTask(
-                jobId,
-                rheon.wsd_lora_community.global.service.GpuResourceManager.TaskType.TRAINING,
-                () -> {
-                    // GPU가 여유 생기면 자동으로 실행되는 작업
-                    try {
-                        // Modal API로 학습 시작 요청 (동기)
-                        String modalResponse = fastApiClient.startTraining(
-                                userId.toString(),
-                                null,
-                                jobId,
-                                modelName,
-                                trainingImageUrls,
-                                triggerWord,
-                                epochs,
-                                learningRate,
-                                loraRank,
-                                baseModel,
-                                skipPreprocessing,
-                                callbackUrl
-                        ).block(Duration.ofSeconds(10));
-
-                        System.out.println("✅ Modal 학습 시작 성공: " + modalResponse);
-
-                    } catch (Exception e) {
-                        // Modal 연결 실패 또는 타임아웃
-                        System.err.println("❌ Modal 연결 실패: " + e.getMessage());
-                        e.printStackTrace();
-
-                        // GPU 리소스 반환
-                        gpuResourceManager.release(jobId);
-
-                        // TrainingJob을 실패 상태로 변경
-                        trainingService.failTraining(jobId,
-                                "Modal 서버 연결 실패: " + e.getMessage());
-                    }
-                }
-        );
-
-        if (!queued) {
-            // 큐 추가 실패 (매우 드문 경우)
-            trainingService.failTraining(job.getId(), "GPU 작업 큐가 가득 찼습니다.");
-            return ResponseEntity.status(503).body(
-                    ApiResponse.error("GPU 작업 큐가 가득 찼습니다. 잠시 후 다시 시도해주세요.")
-            );
-        }
+        queueService.enqueue(JobType.TRAINING, job.getId(), jobData);
 
         return ResponseEntity.ok(
-                ApiResponse.success("학습 시작 성공. Modal GPU 서버로 요청이 전송되었습니다.",
-                        Map.of("job", job, "message", "학습이 Modal에서 백그라운드로 시작되었습니다."))
+                ApiResponse.success("학습 작업이 큐에 추가되었습니다. 순차적으로 처리됩니다.",
+                        Map.of("job", job, "message", "학습이 대기열에 추가되었습니다."))
         );
     }
 
