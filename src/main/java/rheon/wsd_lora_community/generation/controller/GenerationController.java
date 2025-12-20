@@ -335,7 +335,6 @@ public class GenerationController {
         );
     }
 
-
     /**
      * 생성 기록 삭제
      */

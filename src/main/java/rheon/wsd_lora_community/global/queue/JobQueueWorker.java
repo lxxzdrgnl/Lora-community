@@ -145,17 +145,33 @@ public class JobQueueWorker {
 
             } catch (Exception e) {
                 log.error("❌ Training 큐 처리 중 오류: {}", e.getMessage());
-                // Redis 연결 오류 시 긴 대기 시간 적용
-                try {
-                    if (e.getMessage() != null && e.getMessage().contains("Unable to connect to Redis")) {
-                        log.warn("⚠️ Redis 연결 실패, 30초 후 재시도...");
+
+                // Redis 연결 실패는 재시도 (인프라 문제)
+                if (e.getMessage() != null && e.getMessage().contains("Unable to connect to Redis")) {
+                    log.warn("⚠️ Redis 연결 실패, 30초 후 재시도...");
+                    try {
                         Thread.sleep(30000); // 30초 대기
-                    } else {
-                        Thread.sleep(5000); // 일반 오류는 5초 대기
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
                     }
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
+                } else {
+                    // 데이터 파싱 에러 등은 즉시 FAILED 처리 (재시도해도 소용없음)
+                    if (jobId != null) {
+                        log.error("❌ Training 작업 실패 처리: jobId={}", jobId);
+                        try {
+                            trainingService.failTraining(jobId, "작업 처리 중 오류: " + e.getMessage());
+                            queueService.fail(JobType.TRAINING, jobId);
+                        } catch (Exception failException) {
+                            log.error("❌ 작업 실패 처리 중 오류: {}", failException.getMessage());
+                        }
+                    }
+                    try {
+                        Thread.sleep(1000); // 1초 대기 후 다음 작업
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
                 }
             }
         }
@@ -189,12 +205,20 @@ public class JobQueueWorker {
                 String negativePrompt = jobDetail.get("negativePrompt");
                 Integer steps = Integer.parseInt(jobDetail.get("steps"));
                 Double guidanceScale = Double.parseDouble(jobDetail.get("guidanceScale"));
-                Double loraScale = Double.parseDouble(jobDetail.get("loraScale"));
-                Long seed = jobDetail.get("seed") != null ? Long.parseLong(jobDetail.get("seed")) : null;
+
+                // null 또는 빈 문자열 체크
+                String loraScaleStr = jobDetail.get("loraScale");
+                Double loraScale = (loraScaleStr != null && !loraScaleStr.isEmpty())
+                    ? Double.parseDouble(loraScaleStr) : 1.0; // 기본값 1.0
+
+                String seedStr = jobDetail.get("seed");
+                Long seed = (seedStr != null && !seedStr.isEmpty())
+                    ? Long.parseLong(seedStr) : null;
+
                 Integer numImages = Integer.parseInt(jobDetail.get("numImages"));
 
                 // FastAPI로 이미지 생성 요청 전송
-                String callbackUrl = callbackUrlBase + "/api/generate/callback";
+                String callbackUrl = callbackUrlBase + "/api/generate/history";
 
                 fastApiClient.startImageGeneration(
                     userId.toString(),      // String userId
@@ -222,17 +246,33 @@ public class JobQueueWorker {
 
             } catch (Exception e) {
                 log.error("❌ Generation 큐 처리 중 오류: {}", e.getMessage());
-                // Redis 연결 오류 시 긴 대기 시간 적용
-                try {
-                    if (e.getMessage() != null && e.getMessage().contains("Unable to connect to Redis")) {
-                        log.warn("⚠️ Redis 연결 실패, 30초 후 재시도...");
+
+                // Redis 연결 실패는 재시도 (인프라 문제)
+                if (e.getMessage() != null && e.getMessage().contains("Unable to connect to Redis")) {
+                    log.warn("⚠️ Redis 연결 실패, 30초 후 재시도...");
+                    try {
                         Thread.sleep(30000); // 30초 대기
-                    } else {
-                        Thread.sleep(5000); // 일반 오류는 5초 대기
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
                     }
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
+                } else {
+                    // 데이터 파싱 에러 등은 즉시 FAILED 처리 (재시도해도 소용없음)
+                    if (historyId != null) {
+                        log.error("❌ Generation 작업 실패 처리: historyId={}", historyId);
+                        try {
+                            generationService.failGeneration(historyId, "작업 처리 중 오류: " + e.getMessage());
+                            queueService.fail(JobType.GENERATION, historyId);
+                        } catch (Exception failException) {
+                            log.error("❌ 작업 실패 처리 중 오류: {}", failException.getMessage());
+                        }
+                    }
+                    try {
+                        Thread.sleep(1000); // 1초 대기 후 다음 작업
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
                 }
             }
         }
