@@ -173,6 +173,7 @@ springdoc:
 # 서버 설정
 server:
   port: 8080
+  forward-headers-strategy: framework  # CloudFront/로드밸런서의 X-Forwarded-* 헤더 인식
   compression:
     enabled: true
   error:
