@@ -88,9 +88,10 @@ public class JobQueueWorker {
         log.info("🔄 Training 큐 워커 시작");
 
         while (running) {
+            Long jobId = null; // 스코프 확장 (catch 블록에서 사용)
             try {
                 // Redis 큐에서 작업 꺼내기 (블로킹, 최대 5초 대기)
-                Long jobId = queueService.dequeue(JobType.TRAINING);
+                jobId = queueService.dequeue(JobType.TRAINING);
 
                 if (jobId == null) {
                     continue; // 큐가 비어있으면 다시 대기
@@ -120,10 +121,13 @@ public class JobQueueWorker {
                 // FastAPI로 학습 요청 전송
                 String callbackUrl = callbackUrlBase + "/api/training/callback";
 
+                // Lambda에서 사용하기 위한 final 변수
+                final Long finalJobId = jobId;
+
                 fastApiClient.startTraining(
                     userId,
                     null,  // datasetS3Path
-                    jobId,
+                    finalJobId,
                     modelName,
                     trainingImageUrls,  // null
                     triggerWord,
@@ -134,12 +138,12 @@ public class JobQueueWorker {
                     skipPreprocessing,
                     callbackUrl
                 ).subscribe(
-                    response -> log.info("✅ FastAPI 학습 요청 전송 성공: jobId={}", jobId),
+                    response -> log.info("✅ FastAPI 학습 요청 전송 성공: jobId={}", finalJobId),
                     error -> {
-                        log.error("❌ FastAPI 학습 요청 실패: jobId={}, error={}", jobId, error.getMessage());
+                        log.error("❌ FastAPI 학습 요청 실패: jobId={}, error={}", finalJobId, error.getMessage());
                         // 실패 처리
-                        trainingService.failTraining(jobId, "FastAPI 요청 실패: " + error.getMessage());
-                        queueService.fail(JobType.TRAINING, jobId);
+                        trainingService.failTraining(finalJobId, "FastAPI 요청 실패: " + error.getMessage());
+                        queueService.fail(JobType.TRAINING, finalJobId);
                     }
                 );
 
@@ -186,9 +190,10 @@ public class JobQueueWorker {
         log.info("🔄 Generation 큐 워커 시작");
 
         while (running) {
+            Long historyId = null; // 스코프 확장 (catch 블록에서 사용)
             try {
                 // Redis 큐에서 작업 꺼내기 (블로킹, 최대 5초 대기)
-                Long historyId = queueService.dequeue(JobType.GENERATION);
+                historyId = queueService.dequeue(JobType.GENERATION);
 
                 if (historyId == null) {
                     continue; // 큐가 비어있으면 다시 대기
@@ -220,10 +225,13 @@ public class JobQueueWorker {
                 // FastAPI로 이미지 생성 요청 전송
                 String callbackUrl = callbackUrlBase + "/api/generate/history";
 
+                // Lambda에서 사용하기 위한 final 변수
+                final Long finalHistoryId = historyId;
+
                 fastApiClient.startImageGeneration(
                     userId.toString(),      // String userId
                     modelId,                // Long modelId
-                    historyId,              // Long historyId
+                    finalHistoryId,         // Long historyId
                     prompt,                 // String prompt
                     negativePrompt,         // String negativePrompt
                     modelPath,              // String loraModelUrl
@@ -235,12 +243,12 @@ public class JobQueueWorker {
                     null,                   // String baseModel (선택사항)
                     callbackUrl             // String callbackUrl
                 ).subscribe(
-                    response -> log.info("✅ FastAPI 생성 요청 전송 성공: historyId={}", historyId),
+                    response -> log.info("✅ FastAPI 생성 요청 전송 성공: historyId={}", finalHistoryId),
                     error -> {
-                        log.error("❌ FastAPI 생성 요청 실패: historyId={}, error={}", historyId, error.getMessage());
+                        log.error("❌ FastAPI 생성 요청 실패: historyId={}, error={}", finalHistoryId, error.getMessage());
                         // 실패 처리
-                        generationService.failGeneration(historyId, "FastAPI 요청 실패: " + error.getMessage());
-                        queueService.fail(JobType.GENERATION, historyId);
+                        generationService.failGeneration(finalHistoryId, "FastAPI 요청 실패: " + error.getMessage());
+                        queueService.fail(JobType.GENERATION, finalHistoryId);
                     }
                 );
 

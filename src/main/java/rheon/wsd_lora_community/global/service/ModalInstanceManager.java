@@ -173,7 +173,7 @@ public class ModalInstanceManager {
                         },
                         error -> {
                             instance.markUnhealthy();
-                            log.warn("Health check FAILED: {} (failures: {})",
+                            log.debug("Health check FAILED: {} (failures: {})",
                                     instance.getUrl(), instance.getConsecutiveFailures());
                         }
                 );

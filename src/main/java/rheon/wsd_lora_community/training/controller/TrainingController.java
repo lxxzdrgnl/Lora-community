@@ -16,7 +16,8 @@ import rheon.wsd_lora_community.global.service.JobCallbackService;
 import rheon.wsd_lora_community.global.util.AuthenticationUtil;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.service.S3UploadService;
-import rheon.wsd_lora_community.global.websocket.GenerationProgressHandler;
+import rheon.wsd_lora_community.global.sse.SseEmitterService;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import rheon.wsd_lora_community.training.dto.TrainingCallbackRequest;
 import rheon.wsd_lora_community.training.dto.TrainingJobResponse;
 import rheon.wsd_lora_community.training.entity.TrainingJob;
@@ -47,6 +48,8 @@ public class TrainingController {
     private final S3UploadService s3UploadService;
     private final JobCallbackService jobCallbackService;
     private final RedisQueueService queueService;
+    private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
+    private final SseEmitterService sseEmitterService;
 
     @Value("${app.callback-url}")
     private String callbackUrlBase;
@@ -420,6 +423,39 @@ public class TrainingController {
         );
     }
 
+    /**
+     * 학습 진행률 조회 (Redis 캐시에서)
+     * - 새로고침 시 진행률 복원용
+     * - Redis에 TTL 1시간으로 저장된 진행 상황 반환
+     */
+    @GetMapping("/jobs/{jobId}/progress")
+    @Operation(
+            summary = "학습 진행률 조회 (캐시)",
+            description = "Redis 캐시에 저장된 학습 진행 상황을 조회합니다. " +
+                    "새로고침 후에도 진행률을 유지하기 위해 사용됩니다. " +
+                    "TTL 1시간 동안 유지되며, 없으면 null 반환합니다."
+    )
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTrainingProgress(
+            @Parameter(description = "학습 작업 ID", required = true)
+            @PathVariable Long jobId
+    ) {
+        String redisKey = "training:progress:" + jobId;
+        Object cachedProgress = redisTemplate.opsForValue().get(redisKey);
+
+        if (cachedProgress != null) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> progressData = (Map<String, Object>) cachedProgress;
+
+            return ResponseEntity.ok(
+                    ApiResponse.success("학습 진행률 조회 성공 (캐시)", progressData)
+            );
+        } else {
+            return ResponseEntity.ok(
+                    ApiResponse.success("캐시된 진행률 없음", null)
+            );
+        }
+    }
+
     // ========== FastAPI 콜백 엔드포인트 ==========
 
     /**
@@ -506,5 +542,25 @@ public class TrainingController {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("잘못된 status 값: " + status));
         }
+    }
+
+    // ========== SSE (Server-Sent Events) 엔드포인트 ==========
+
+    /**
+     * SSE 연결 (학습 진행률 실시간 스트리밍)
+     * - Redis Pub/Sub 메시지를 SSE로 전송
+     * - 새로고침 시 자동 재연결
+     */
+    @GetMapping("/stream")
+    @Operation(
+            summary = "학습 진행률 SSE 스트림",
+            description = "Server-Sent Events를 통해 학습 진행률을 실시간으로 받습니다. " +
+                    "Redis Pub/Sub 메시지가 도착하면 자동으로 전송됩니다."
+    )
+    public SseEmitter streamTrainingProgress(
+            @Parameter(hidden = true) Authentication authentication
+    ) {
+        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
+        return sseEmitterService.createEmitter(userId);
     }
 }

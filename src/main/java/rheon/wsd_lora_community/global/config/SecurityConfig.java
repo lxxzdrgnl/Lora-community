@@ -58,6 +58,16 @@ public class SecurityConfig {
 
                 // 요청별 인증 설정
                 .authorizeHttpRequests(auth -> auth
+                        // 보안 취약점 스캔 차단 (Vendor 경로 등)
+                        .requestMatchers(
+                                "/vendor/**",
+                                "/phpunit/**",
+                                "/wp-admin/**",
+                                "/wp-content/**",
+                                "/admin/**",
+                                "/phpmyadmin/**",
+                                "/*.php"  // 루트 레벨 PHP 파일만 차단
+                        ).denyAll()
                         .requestMatchers(
                                 "/",
                                 "/api/auth/**",
@@ -104,13 +114,17 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
                             String requestUri = request.getRequestURI();
-                            // WebSocket 또는 /api/auth/test 요청은 OAuth2 리다이렉트 방지
-                            if (requestUri.startsWith("/ws/") || requestUri.equals("/api/auth/test")) {
+                            // API 요청 또는 WebSocket은 OAuth2 리다이렉트 방지 (401 반환)
+                            if (requestUri.startsWith("/api/") || requestUri.startsWith("/ws/")) {
                                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
                             } else {
-                                // 기타 요청은 OAuth2 로그인 페이지로 리다이렉트
+                                // 브라우저 요청은 OAuth2 로그인 페이지로 리다이렉트
                                 response.sendRedirect("/oauth2/authorization/google");
                             }
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            // Access Denied 에러는 403 반환 (로그 없이 조용히 처리)
+                            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden");
                         })
                 )
 
@@ -130,9 +144,9 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 1. yml에서 가져온 Ngrok 주소 등을 리스트로 변환 (콤마로 구분)
+        // 1. yml에서 가져온 origin을 패턴으로 설정 (allowCredentials=true와 호환)
         List<String> origins = Arrays.asList(allowedOrigins.split(","));
-        configuration.setAllowedOrigins(origins);
+        configuration.setAllowedOriginPatterns(origins);
 
         // 2. 허용할 HTTP 메서드 (OPTIONS, POST 필수)
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
@@ -143,8 +157,8 @@ public class SecurityConfig {
         // 4. 자격 증명 허용 (쿠키, Authorization 헤더)
         configuration.setAllowCredentials(true);
 
-        // 5. 프론트엔드에서 헤더를 읽을 수 있게 허용
-        configuration.setExposedHeaders(Arrays.asList("Authorization", "Set-Cookie"));
+        // 5. 프론트엔드에서 헤더를 읽을 수 있게 허용 (자동 갱신된 토큰 포함)
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Set-Cookie", "X-New-Access-Token"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

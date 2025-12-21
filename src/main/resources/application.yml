@@ -121,7 +121,7 @@ modal:
     - ${MODAL_INSTANCE_2:http://127.0.0.1:8001}
     - ${MODAL_INSTANCE_3:http://127.0.0.1:8002}
   max-instances: ${MODAL_MAX_INSTANCES:10}
-  health-check-interval: 30000  # 30초
+  health-check-interval: 300000  # 5분 (개발 환경에서는 더 긴 주기 권장)
   retry-attempts: 3
   load-balancing-strategy: LEAST_LOAD  # ROUND_ROBIN, LEAST_LOAD, PRIORITY
 
@@ -186,6 +186,8 @@ logging:
     rheon.wsd_lora_community: INFO
     org.springframework.web: ERROR
     org.springframework.security: ERROR
+    org.springframework.web.servlet.resource.ResourceHttpRequestHandler: OFF  # 404 정적 리소스 에러 숨김
+    org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver: OFF  # 예외 핸들러 로그 숨김
     org.hibernate: ERROR
     org.hibernate.SQL: OFF
     org.hibernate.type: OFF

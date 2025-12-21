@@ -8,18 +8,14 @@ import rheon.wsd_lora_community.generation.dto.GenerationHistoryResponse;
 import rheon.wsd_lora_community.generation.service.GenerationService;
 import rheon.wsd_lora_community.global.queue.RedisQueueService;
 import rheon.wsd_lora_community.global.queue.RedisQueueService.JobType;
-import rheon.wsd_lora_community.global.websocket.GenerationProgressHandler;
 import rheon.wsd_lora_community.training.dto.TrainingJobResponse;
 import rheon.wsd_lora_community.training.entity.TrainingJob;
 import rheon.wsd_lora_community.training.service.TrainingService;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * 학습/생성 작업 콜백 처리 공통 서비스
  * - Training과 Generation의 콜백 로직을 통합
- * - Redis 작업 큐 관리 및 WebSocket 전송 처리
+ * - Redis 작업 큐 관리 (실시간 진행률은 SSE 엔드포인트에서 제공)
  */
 @Slf4j
 @Service
@@ -29,7 +25,6 @@ public class JobCallbackService {
     private final TrainingService trainingService;
     private final GenerationService generationService;
     private final RedisQueueService queueService;
-    private final GenerationProgressHandler webSocketHandler;
 
     /**
      * 학습 진행률 콜백 처리
@@ -41,17 +36,8 @@ public class JobCallbackService {
             return;
         }
 
-        // DB 업데이트
+        // DB 업데이트 (실시간 진행률은 SSE 엔드포인트에서 조회)
         trainingService.updateProgress(jobId, currentEpoch, phase);
-
-        // WebSocket으로 진행률 전송
-        TrainingJob job = trainingService.getTrainingJobEntity(jobId);
-        Map<String, Object> progressEvent = new HashMap<>();
-        progressEvent.put("status", phase);
-        progressEvent.put("jobId", jobId);
-        progressEvent.put("message", message);
-        progressEvent.put("currentEpoch", currentEpoch);
-        webSocketHandler.sendToUser(job.getUser().getId(), progressEvent);
 
         log.debug("✅ Training progress updated: jobId={}, epoch={}, phase={}", jobId, currentEpoch, phase);
     }
@@ -84,18 +70,6 @@ public class JobCallbackService {
         // Redis 작업 완료 처리
         queueService.complete(JobType.TRAINING, jobId);
 
-        // WebSocket으로 완료 이벤트 전송 (진행률 100% 포함)
-        TrainingJob job = trainingService.getTrainingJobEntity(jobId);
-        Map<String, Object> completionEvent = new HashMap<>();
-        completionEvent.put("status", "SUCCESS");
-        completionEvent.put("jobId", jobId);
-        completionEvent.put("modelId", modelId);
-        completionEvent.put("message", "Training completed successfully");
-        completionEvent.put("s3ModelKey", s3ModelKey);
-        completionEvent.put("currentEpoch", job.getCurrentEpoch()); // 100%로 설정된 값
-        completionEvent.put("totalEpochs", job.getTotalEpochs());
-        webSocketHandler.sendToUser(job.getUser().getId(), completionEvent);
-
         return modelId;
     }
 
@@ -123,15 +97,6 @@ public class JobCallbackService {
 
             // Redis 작업 실패 처리
             queueService.fail(JobType.TRAINING, jobId);
-
-            // WebSocket으로 실패 이벤트 전송
-            TrainingJob job = trainingService.getTrainingJobEntity(jobId);
-            Map<String, Object> failureEvent = new HashMap<>();
-            failureEvent.put("status", "FAILED");
-            failureEvent.put("jobId", jobId);
-            failureEvent.put("message", error);
-
-            webSocketHandler.sendToUser(job.getUser().getId(), failureEvent);
         }
     }
 
@@ -145,18 +110,8 @@ public class JobCallbackService {
             return;
         }
 
-        // DB 업데이트
+        // DB 업데이트 (실시간 진행률은 SSE 엔드포인트에서 조회)
         generationService.updateProgress(historyId, currentStep, totalSteps);
-
-        // WebSocket으로 진행률 전송
-        GenerationHistoryResponse history = generationService.getGenerationHistory(historyId);
-        Map<String, Object> progressEvent = new HashMap<>();
-        progressEvent.put("status", "GENERATING");
-        progressEvent.put("historyId", historyId);
-        progressEvent.put("message", message);
-        progressEvent.put("currentStep", currentStep);
-        progressEvent.put("totalSteps", totalSteps);
-        webSocketHandler.sendToUser(history.getUserId(), progressEvent);
 
         log.debug("✅ Generation progress updated: historyId={}, step={}/{}", historyId, currentStep, totalSteps);
     }
@@ -202,16 +157,6 @@ public class JobCallbackService {
         // Redis 작업 완료 처리
         queueService.complete(JobType.GENERATION, historyId);
 
-        // WebSocket으로 완료 이벤트 전송
-        Map<String, Object> completionEvent = new HashMap<>();
-        completionEvent.put("status", "SUCCESS");
-        completionEvent.put("historyId", history.getId());
-        completionEvent.put("modelId", history.getModelId());
-        completionEvent.put("message", "Image generation completed");
-        completionEvent.put("generatedImages", history.getGeneratedImages());
-
-        webSocketHandler.sendToUser(history.getUserId(), completionEvent);
-
         return history;
     }
 
@@ -239,15 +184,6 @@ public class JobCallbackService {
 
             // Redis 작업 실패 처리
             queueService.fail(JobType.GENERATION, historyId);
-
-            // WebSocket으로 실패 이벤트 전송
-            GenerationHistoryResponse history = generationService.getGenerationHistory(historyId);
-            Map<String, Object> failureEvent = new HashMap<>();
-            failureEvent.put("status", "FAILED");
-            failureEvent.put("historyId", historyId);
-            failureEvent.put("message", error);
-
-            webSocketHandler.sendToUser(history.getUserId(), failureEvent);
         }
     }
 }

@@ -6,6 +6,7 @@ import rheon.wsd_lora_community.model.entity.LoraModel;
 import rheon.wsd_lora_community.training.entity.TrainingJob;
 import rheon.wsd_lora_community.user.entity.User;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,4 +26,9 @@ public interface TrainingJobRepository extends JpaRepository<TrainingJob, Long> 
      */
     Optional<TrainingJob> findTopByUserAndStatusInOrderByCreatedAtDesc(
             User user, List<TrainingJob.TrainingStatus> statuses);
+
+    /**
+     * 특정 상태로 특정 시간 이전에 업데이트된 작업 조회 (복구용)
+     */
+    List<TrainingJob> findByStatusAndUpdatedAtBefore(TrainingJob.TrainingStatus status, LocalDateTime updatedAt);
 }

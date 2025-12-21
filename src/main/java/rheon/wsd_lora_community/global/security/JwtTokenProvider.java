@@ -90,15 +90,37 @@ public class JwtTokenProvider {
             parseClaims(token);
             return true;
         } catch (SecurityException | MalformedJwtException e) {
-            log.error("잘못된 JWT 서명입니다.");
+            log.debug("잘못된 JWT 서명입니다.");
         } catch (ExpiredJwtException e) {
-            log.error("만료된 JWT 토큰입니다.");
+            log.debug("만료된 JWT 토큰입니다.");
         } catch (UnsupportedJwtException e) {
-            log.error("지원되지 않는 JWT 토큰입니다.");
+            log.debug("지원되지 않는 JWT 토큰입니다.");
         } catch (IllegalArgumentException e) {
-            log.error("JWT 토큰이 잘못되었습니다.");
+            log.debug("JWT 토큰이 잘못되었습니다.");
         }
         return false;
+    }
+
+    /**
+     * 토큰이 곧 만료될 예정인지 확인 (갱신 필요 여부)
+     * @param token JWT 토큰
+     * @param thresholdMinutes 만료까지 남은 시간 (분)
+     * @return 갱신이 필요하면 true
+     */
+    public boolean shouldRefresh(String token, int thresholdMinutes) {
+        try {
+            Claims claims = parseClaims(token);
+            Date expiration = claims.getExpiration();
+            Date now = new Date();
+
+            // 만료까지 남은 시간 (밀리초)
+            long timeUntilExpiration = expiration.getTime() - now.getTime();
+            long thresholdMillis = thresholdMinutes * 60 * 1000L;
+
+            return timeUntilExpiration <= thresholdMillis && timeUntilExpiration > 0;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**

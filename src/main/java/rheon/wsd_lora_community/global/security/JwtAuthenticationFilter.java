@@ -20,6 +20,7 @@ import java.io.IOException;
  * JWT 인증 필터
  * - 요청 헤더에서 JWT 토큰 추출
  * - 토큰 검증 후 SecurityContext에 인증 정보 저장
+ * - 토큰 자동 갱신 (슬라이딩 세션)
  */
 @Slf4j
 @Component
@@ -43,6 +44,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
                 // 3. 토큰에서 사용자 ID 추출
                 Long userId = jwtTokenProvider.getUserIdFromToken(token);
+                String email = jwtTokenProvider.getEmailFromToken(token);
 
                 // 4. UserDetails 조회
                 UserDetails userDetails = userDetailsService.loadUserByUserId(userId);
@@ -58,9 +60,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
                 log.debug("Security Context에 '{}' 인증 정보를 저장했습니다.", userId);
+
+                // 6. 토큰 자동 갱신 (슬라이딩 세션): 만료 10분 전이면 새 토큰 발급
+                if (jwtTokenProvider.shouldRefresh(token, 10)) {
+                    String newAccessToken = jwtTokenProvider.createAccessToken(userId, email);
+                    response.setHeader("X-New-Access-Token", newAccessToken);
+                    log.debug("토큰 자동 갱신: userId={}, 만료 임박으로 새 토큰 발급", userId);
+                }
             }
         } catch (Exception e) {
-            log.error("Security Context에 인증 정보를 저장할 수 없습니다.", e);
+            log.debug("Security Context에 인증 정보를 저장할 수 없습니다: {}", e.getMessage());
         }
 
         filterChain.doFilter(request, response);
