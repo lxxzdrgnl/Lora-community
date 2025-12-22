@@ -6,8 +6,6 @@ import org.springframework.security.oauth2.client.web.DefaultOAuth2Authorization
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -18,6 +16,7 @@ import java.util.Map;
  * 커스텀 OAuth2 인증 요청 리졸버
  * - 모바일 지원을 위한 추가 파라미터 처리
  * - 동적 리디렉션을 위해 Referer를 state 파라미터에 포함
+ * - CloudFront 환경에서 redirect_uri 정확히 설정
  */
 @Component
 public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
@@ -50,6 +49,29 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
         if (authorizationRequest == null) {
             return null;
         }
+
+        // ✅ CloudFront 헤더로부터 정확한 baseUrl 계산
+        String scheme = request.getHeader("X-Forwarded-Proto");
+        if (scheme == null) {
+            scheme = request.getScheme();
+        }
+
+        String host = request.getHeader("X-Forwarded-Host");
+        if (host == null) {
+            host = request.getServerName();
+            int port = request.getServerPort();
+            if ((scheme.equals("http") && port != 80) || (scheme.equals("https") && port != 443)) {
+                host = host + ":" + port;
+            }
+        }
+
+        // CloudFront 환경이면 강제로 HTTPS 사용
+        if (host != null && host.contains("cloudfront.net")) {
+            scheme = "https";
+        }
+
+        String baseUrl = scheme + "://" + host;
+        String correctRedirectUri = baseUrl + "/login/oauth2/code/google";
 
         Map<String, Object> additionalParameters = new HashMap<>(authorizationRequest.getAdditionalParameters());
 
@@ -86,6 +108,7 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
         return OAuth2AuthorizationRequest.from(authorizationRequest)
                 .additionalParameters(additionalParameters)
                 .state(newState) // 커스텀 state 설정
+                .redirectUri(correctRedirectUri) // ✅ 올바른 redirect_uri 명시적 설정
                 .build();
     }
 }
