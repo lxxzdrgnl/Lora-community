@@ -2,6 +2,7 @@ package rheon.wsd_lora_community.global.queue;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,7 @@ import java.util.Map;
  */
 @Slf4j
 @Component
+@Profile("recovery")  // 프로필 활성화 시에만 동작 (기본적으로 비활성화)
 @RequiredArgsConstructor
 public class RedisRecoveryScheduler {
 
@@ -31,20 +33,20 @@ public class RedisRecoveryScheduler {
     private final RedisTemplate<String, Object> redisTemplate;
 
     /**
-     * 5분마다 실행: GENERATING 상태로 3분 이상 남아있는 작업 복구
+     * 1시간마다 실행: GENERATING 상태로 10분 이상 남아있는 작업 복구
      * - updatedAt 대신 createdAt 기준으로 변경 (진행률 업데이트로 인한 updatedAt 갱신 방지)
      */
-    @Scheduled(fixedDelay = 300000) // 5분마다
+    @Scheduled(fixedDelay = 3600000) // 1시간마다
     @Transactional
     public void recoverStuckGenerations() {
         try {
             log.debug("🔍 [Recovery] Generation 복구 스케줄러 실행 시작");
 
-            LocalDateTime threeMinutesAgo = LocalDateTime.now().minusMinutes(3);
+            LocalDateTime tenMinutesAgo = LocalDateTime.now().minusMinutes(10);
 
             // GENERATING 상태인 작업 모두 찾기 (createdAt 기준)
             List<GenerationHistory> allGenerating = generationHistoryRepository
-                    .findByStatusAndUpdatedAtBefore("GENERATING", threeMinutesAgo);
+                    .findByStatusAndUpdatedAtBefore("GENERATING", tenMinutesAgo);
 
             log.debug("🔍 [Recovery] GENERATING 상태 작업 {}개 발견", allGenerating.size());
 
@@ -53,17 +55,17 @@ public class RedisRecoveryScheduler {
                 return;
             }
 
-            // 3분 이상 된 작업만 필터링
+            // 10분 이상 된 작업만 필터링
             List<GenerationHistory> stuckGenerations = allGenerating.stream()
-                    .filter(h -> h.getCreatedAt().isBefore(threeMinutesAgo))
+                    .filter(h -> h.getCreatedAt().isBefore(tenMinutesAgo))
                     .toList();
 
             if (stuckGenerations.isEmpty()) {
-                log.info("🔍 [Recovery] 3분 이상 된 작업 없음 (모두 최근 생성)");
+                log.info("🔍 [Recovery] 10분 이상 된 작업 없음 (모두 최근 생성)");
                 return;
             }
 
-            log.warn("⚠️ [Recovery] 3분 이상 GENERATING 상태인 작업 {}개 발견", stuckGenerations.size());
+            log.warn("⚠️ [Recovery] 10분 이상 GENERATING 상태인 작업 {}개 발견", stuckGenerations.size());
 
             for (GenerationHistory history : stuckGenerations) {
                 Long historyId = history.getId();
@@ -90,7 +92,7 @@ public class RedisRecoveryScheduler {
                     } catch (Exception deleteErr) {
                         log.error("❌ [Recovery] Redis 키 삭제 실패: {}", jobKey, deleteErr);
                     }
-                    history.markAsFailed("3분 초과 타임아웃 (Redis 데이터 손상)");
+                    history.markAsFailed("10분 초과 타임아웃 (Redis 데이터 손상)");
                     generationHistoryRepository.save(history);
                     generationHistoryRepository.flush();
                     log.info("✅ [Recovery] FAILED 처리 완료 (corrupted data): historyId={}", historyId);
@@ -99,7 +101,7 @@ public class RedisRecoveryScheduler {
 
                 if (redisData.isEmpty()) {
                     log.warn("⚠️ [Recovery] Redis에 데이터 없음: historyId={}, DB를 FAILED 처리", historyId);
-                    history.markAsFailed("3분 초과 타임아웃 (Redis 데이터 없음)");
+                    history.markAsFailed("10분 초과 타임아웃 (Redis 데이터 없음)");
                     generationHistoryRepository.save(history);
                     generationHistoryRepository.flush(); // 즉시 DB 반영
                     log.info("✅ [Recovery] FAILED 처리 완료: historyId={}", historyId);
@@ -176,20 +178,20 @@ public class RedisRecoveryScheduler {
     }
 
     /**
-     * 5분마다 실행: TRAINING 상태로 3분 이상 남아있는 작업 복구
+     * 1시간마다 실행: TRAINING 상태로 10분 이상 남아있는 작업 복구
      * - updatedAt 대신 createdAt 기준으로 변경 (진행률 업데이트로 인한 updatedAt 갱신 방지)
      */
-    @Scheduled(fixedDelay = 300000) // 5분마다
+    @Scheduled(fixedDelay = 3600000) // 1시간마다
     @Transactional
     public void recoverStuckTrainings() {
         try {
             log.debug("🔍 [Recovery] Training 복구 스케줄러 실행 시작");
 
-            LocalDateTime threeMinutesAgo = LocalDateTime.now().minusMinutes(3);
+            LocalDateTime tenMinutesAgo = LocalDateTime.now().minusMinutes(10);
 
             // TRAINING 상태인 작업 모두 찾기
             List<TrainingJob> allTraining = trainingJobRepository
-                    .findByStatusAndUpdatedAtBefore(TrainingJob.TrainingStatus.TRAINING, threeMinutesAgo);
+                    .findByStatusAndUpdatedAtBefore(TrainingJob.TrainingStatus.TRAINING, tenMinutesAgo);
 
             log.debug("🔍 [Recovery] TRAINING 상태 작업 {}개 발견", allTraining.size());
 
@@ -198,17 +200,17 @@ public class RedisRecoveryScheduler {
                 return;
             }
 
-            // 3분 이상 된 작업만 필터링
+            // 10분 이상 된 작업만 필터링
             List<TrainingJob> stuckTrainings = allTraining.stream()
-                    .filter(job -> job.getCreatedAt().isBefore(threeMinutesAgo))
+                    .filter(job -> job.getCreatedAt().isBefore(tenMinutesAgo))
                     .toList();
 
             if (stuckTrainings.isEmpty()) {
-                log.info("🔍 [Recovery] 3분 이상 된 작업 없음 (모두 최근 생성)");
+                log.info("🔍 [Recovery] 10분 이상 된 작업 없음 (모두 최근 생성)");
                 return;
             }
 
-            log.warn("⚠️ [Recovery] 3분 이상 TRAINING 상태인 작업 {}개 발견", stuckTrainings.size());
+            log.warn("⚠️ [Recovery] 10분 이상 TRAINING 상태인 작업 {}개 발견", stuckTrainings.size());
 
             for (TrainingJob job : stuckTrainings) {
                 Long jobId = job.getId();
@@ -235,7 +237,7 @@ public class RedisRecoveryScheduler {
                     } catch (Exception deleteErr) {
                         log.error("❌ [Recovery] Redis 키 삭제 실패: {}", jobKey, deleteErr);
                     }
-                    job.fail("3분 초과 타임아웃 (Redis 데이터 손상)");
+                    job.fail("10분 초과 타임아웃 (Redis 데이터 손상)");
                     trainingJobRepository.save(job);
                     trainingJobRepository.flush();
                     log.info("✅ [Recovery] FAILED 처리 완료 (corrupted data): jobId={}", jobId);
@@ -244,7 +246,7 @@ public class RedisRecoveryScheduler {
 
                 if (redisData.isEmpty()) {
                     log.warn("⚠️ [Recovery] Redis에 데이터 없음: jobId={}, DB를 FAILED 처리", jobId);
-                    job.fail("3분 초과 타임아웃 (Redis 데이터 없음)");
+                    job.fail("10분 초과 타임아웃 (Redis 데이터 없음)");
                     trainingJobRepository.save(job);
                     trainingJobRepository.flush(); // 즉시 DB 반영
                     log.info("✅ [Recovery] FAILED 처리 완료: jobId={}", jobId);
@@ -292,7 +294,7 @@ public class RedisRecoveryScheduler {
                 } else {
                     // Redis에도 여전히 진행 중 → 타임아웃 처리
                     log.warn("⚠️ [Recovery] Redis에도 진행 중: jobId={}, redisStatus={}, 타임아웃 처리", jobId, redisStatus);
-                    job.fail("3분 초과 타임아웃 (Redis: " + redisStatus + ")");
+                    job.fail("10분 초과 타임아웃 (Redis: " + redisStatus + ")");
                     trainingJobRepository.save(job);
                     trainingJobRepository.flush();
                 }

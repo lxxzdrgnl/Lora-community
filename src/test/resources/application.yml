@@ -18,7 +18,16 @@ spring:
   sql:
     init:
       mode: never
-  
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      ssl:
+        enabled: false
+      timeout: 3000
+
   security:
     oauth2:
       client:
@@ -38,3 +47,50 @@ fastapi:
   url: http://localhost:8000
   connect-timeout: 10000
   read-timeout: 300000
+
+aws:
+  s3:
+    region: us-east-1
+    buckets:
+      training-data: test-training-bucket
+      models: test-models-bucket
+      generated-images: test-generated-bucket
+  credentials:
+    access-key: test-access-key
+    secret-key: test-secret-key
+
+app:
+  callback-url: http://localhost:8080
+
+frontend:
+  url: http://localhost:5173
+
+upstash:
+  redis:
+    url: redis://localhost:6379
+    token: test-token
+
+cors:
+  allowed-origins: http://localhost:5173
+  allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+  allowed-headers: "*"
+  allow-credentials: true
+  max-age: 3600
+
+pagination:
+  default-page-size: 20
+  max-page-size: 100
+
+file:
+  upload-dir: ./test-uploads
+  static-url: http://localhost:8080/static
+
+modal:
+  enabled: false
+  app-url: http://localhost:8000
+  instances:
+    - http://127.0.0.1:8000
+  max-instances: 1
+  health-check-interval: 300000
+  retry-attempts: 3
+  load-balancing-strategy: ROUND_ROBIN

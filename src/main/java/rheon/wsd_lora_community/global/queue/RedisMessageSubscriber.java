@@ -106,17 +106,12 @@ public class RedisMessageSubscriber implements MessageListener {
                 progressEvent.put("progress", progress);
             }
 
-            // 1. Redis에 진행 상황 저장 (TTL 1시간)
-            if (jobId != null) {
-                String redisKey = "training:progress:" + jobId;
-                redisTemplate.opsForValue().set(redisKey, progressEvent, PROGRESS_TTL);
-                log.debug("💾 [Redis Cache] Training 진행률 저장: key={}", redisKey);
-            }
+            // Redis 캐싱은 FastAPI에서 이미 처리하므로 Spring Boot에서는 생략 (중복 방지)
 
-            // 2. SSE로 실시간 전송
+            // SSE로 실시간 전송
             sseEmitterService.sendToUser(userId, "training_progress", progressEvent);
 
-            log.info("✅ [Hybrid SSE] Training 진행률 처리: userId={}, jobId={}, epoch={}/{} (Redis 저장 + SSE 전송)",
+            log.info("✅ [SSE] Training 진행률 처리: userId={}, jobId={}, epoch={}/{}",
                     userId, jobId, currentEpoch, totalEpochs);
 
         } catch (Exception e) {
@@ -166,17 +161,12 @@ public class RedisMessageSubscriber implements MessageListener {
                 progressEvent.put("progress", progress);
             }
 
-            // 1. Redis에 진행 상황 저장 (TTL 1시간)
-            if (historyId != null) {
-                String redisKey = "generation:progress:" + historyId;
-                redisTemplate.opsForValue().set(redisKey, progressEvent, PROGRESS_TTL);
-                log.debug("💾 [Redis Cache] Generation 진행률 저장: key={}", redisKey);
-            }
+            // Redis 캐싱은 FastAPI에서 이미 처리하므로 Spring Boot에서는 생략 (중복 방지)
 
-            // 2. SSE로 실시간 전송
+            // SSE로 실시간 전송
             sseEmitterService.sendToUser(userId, "generation_progress", progressEvent);
 
-            log.info("✅ [Hybrid SSE] Generation 진행률 처리: userId={}, historyId={}, step={}/{} (Redis 저장 + SSE 전송)",
+            log.info("✅ [SSE] Generation 진행률 처리: userId={}, historyId={}, step={}/{}",
                     userId, historyId, currentStep, totalSteps);
 
         } catch (Exception e) {

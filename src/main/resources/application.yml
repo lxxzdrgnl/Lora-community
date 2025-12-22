@@ -173,7 +173,7 @@ springdoc:
 # 서버 설정
 server:
   port: 8080
-  forward-headers-strategy: framework  # CloudFront/로드밸런서의 X-Forwarded-* 헤더 인식
+  forward-headers-strategy: native  # CloudFront/로드밸런서의 X-Forwarded-* 헤더 인식 (Tomcat 네이티브)
   compression:
     enabled: true
   error:
@@ -184,7 +184,8 @@ server:
 logging:
   level:
     root: WARN
-    rheon.wsd_lora_community: INFO
+    rheon.wsd_lora_community: DEBUG
+    rheon.wsd_lora_community.global.queue: DEBUG
     org.springframework.web: ERROR
     org.springframework.security: ERROR
     org.springframework.web.servlet.resource.ResourceHttpRequestHandler: OFF  # 404 정적 리소스 에러 숨김

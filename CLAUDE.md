@@ -1,7 +1,7 @@
 # LoRA 모델 공유 플랫폼 개발 가이드
 
 > **프로젝트명**: WSD_Lora_community
-> **현재 진행률**: Phase 6 완료 - Google OAuth 통합 및 프론트엔드 연동 완료 ✅
+> **현재 진행률**: Phase 8 완료 - FastAPI 즉시 콜백 + SSE 실시간 전송 완료 ✅
 
 ---
 
@@ -202,11 +202,51 @@ src/main/java/rheon/wsd_lora_community/
   - SUCCESS/FAIL 콜백 에러 처리 강화 (try-catch 추가)
   - 중복 완료/실패 방지 로직 추가
 
+#### 10. Phase 8: 실시간 진행률 전송 및 즉시 콜백 완료 ✅
+- **Status**: 빌드 성공 ✅
+- **FastAPI 수정** (`/home/rheon/Desktop/Study/lora/main.py`):
+  - `GenerateRequest`에 `model_id`, `history_id`, `lora_scale`, `callback_url` 필드 추가
+  - `run_generation_task()` 함수 수정:
+    - Redis 클라이언트를 통해 **실시간 진행률 전송** (Pub/Sub)
+    - 생성 완료 즉시 **HTTP 콜백을 Spring Boot로 전송** (큐 없이 즉시 전송)
+    - 실패 시에도 콜백 전송
+  - 로그: `✅ Success callback sent: status=200` 출력
+- **Spring Boot 수정**:
+  - `JobCallbackService.java`에 **SSE 전송 로직 추가**:
+    - `handleGenerationProgress()`: 진행률 SSE 전송 (`generation_progress` 이벤트)
+    - `handleGenerationSuccess()`: 완료 SSE 전송 (이미지 URL 포함)
+    - `handleGenerationFailure()`: 실패 SSE 전송
+    - `handleTrainingProgress()`: 학습 진행률 SSE 전송 (`training_progress` 이벤트)
+    - `handleTrainingSuccess()`, `handleTrainingFailure()`: 학습 완료/실패 SSE 전송
+  - `SseEmitterService.sendToUser()` 호출하여 **실시간 프론트엔드 알림**
+  - `JwtAuthenticationFilter.java` 수정: URL 파라미터 `?token=...`로도 JWT 인증 가능 (SSE 용)
+- **Redis 하이브리드 방식**:
+  1. FastAPI → Redis Pub/Sub (실시간) + 캐싱 (TTL 1시간)
+  2. FastAPI → Spring Boot HTTP 콜백 (DB 업데이트)
+  3. Spring Boot → 프론트엔드 SSE 전송 (실시간 UI 업데이트)
+- **이제 프론트엔드에서 진행률을 실시간으로 받을 수 있습니다!** 🎉
+
+---
+
+#### 11. Phase 9: 프론트엔드 History 폴링 및 인증 개선 ✅
+- **Status**: 프론트엔드 수정 완료 ✅
+- **Profile.vue 수정** (`/home/rheon/Desktop/Study/LoRA-Platform-Front/src/views/Profile.vue`):
+  - **폴링 로직 추가**: 진행 중인 작업(`GENERATING`, `TRAINING`)이 있으면 3초마다 히스토리 리프레시
+  - `startPolling()`: 폴링 시작, History 탭에서만 동작
+  - `stopPolling()`: 진행 중인 작업이 없으면 자동 중지
+  - `closeGenerateModal()`: 생성 완료 후 히스토리 리프레시 및 폴링 시작
+- **GenerationController.java 수정**:
+  - `streamGenerationProgress()`: Authentication null 체크 추가
+  - 로그인하지 않으면 `UNAUTHORIZED` 에러 반환
+- **JWT 토큰 필수**:
+  - SSE는 userId로 메시지를 필터링하므로 JWT 토큰 필수
+  - 프론트엔드에서 `?token=...` URL 파라미터로 전달
+
 ---
 
 ## 🚧 다음 작업 (우선순위 순)
 
-### Phase 8: 테스트 및 배포 준비
+### Phase 10: 테스트 및 배포 준비
 1. FastAPI 서버 실행 후 통합 테스트
 2. Swagger UI 문서 검증
 3. 프로덕션 환경 설정 (MySQL, S3, 환경변수)

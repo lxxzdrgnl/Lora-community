@@ -76,13 +76,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Request Header에서 토큰 정보 추출
+     * Request Header 또는 URL 파라미터에서 토큰 정보 추출
+     * - 우선순위 1: Authorization 헤더 (일반 API 요청)
+     * - 우선순위 2: URL 파라미터 token (SSE 연결 전용)
      */
     private String resolveToken(HttpServletRequest request) {
+        // 1. Authorization 헤더에서 토큰 추출 (우선순위)
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
+
+        // 2. URL 파라미터에서 토큰 추출 (SSE 연결용)
+        String tokenParam = request.getParameter("token");
+        if (StringUtils.hasText(tokenParam)) {
+            return tokenParam;
+        }
+
         return null;
     }
 }

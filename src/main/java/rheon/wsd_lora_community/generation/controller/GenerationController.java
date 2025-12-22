@@ -27,6 +27,8 @@ import rheon.wsd_lora_community.global.service.JobCallbackService;
 import rheon.wsd_lora_community.global.service.S3UploadService;
 import rheon.wsd_lora_community.global.util.AuthenticationUtil;
 import rheon.wsd_lora_community.global.sse.SseEmitterService;
+import rheon.wsd_lora_community.global.exception.CustomException;
+import rheon.wsd_lora_community.global.exception.ErrorCode;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.beans.factory.annotation.Value;
 
@@ -397,16 +399,22 @@ public class GenerationController {
      * SSE 연결 (이미지 생성 진행률 실시간 스트리밍)
      * - Redis Pub/Sub 메시지를 SSE로 전송
      * - 새로고침 시 자동 재연결
+     * - JWT 토큰 필수 (URL 파라미터 ?token=... 또는 Authorization 헤더)
      */
     @GetMapping("/stream")
     @Operation(
             summary = "이미지 생성 진행률 SSE 스트림",
             description = "Server-Sent Events를 통해 이미지 생성 진행률을 실시간으로 받습니다. " +
-                    "Redis Pub/Sub 메시지가 도착하면 자동으로 전송됩니다."
+                    "JWT 토큰이 필요합니다 (URL 파라미터 ?token=... 또는 Authorization 헤더)."
     )
     public SseEmitter streamGenerationProgress(
             @Parameter(hidden = true) Authentication authentication
     ) {
+        // 로그인하지 않으면 에러
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
+
         Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
         return sseEmitterService.createEmitter(userId);
     }

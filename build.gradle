@@ -41,8 +41,8 @@ dependencies {
     // Redis (작업 큐, 세션, 캐시)
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
-    // H2 Database (사용 안 함 - RDS MySQL로 전환)
-    // runtimeOnly 'com.h2database:h2'
+    // H2 Database (테스트 전용)
+    testRuntimeOnly 'com.h2database:h2'
 
     // MySQL Connector (개발/프로덕션 공통)
     runtimeOnly 'com.mysql:mysql-connector-j'

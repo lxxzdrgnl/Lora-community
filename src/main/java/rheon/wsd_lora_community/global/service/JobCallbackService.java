@@ -5,17 +5,27 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rheon.wsd_lora_community.generation.dto.GenerationHistoryResponse;
+import rheon.wsd_lora_community.generation.entity.GenerationHistory;
+import rheon.wsd_lora_community.generation.repository.GenerationHistoryRepository;
 import rheon.wsd_lora_community.generation.service.GenerationService;
+import rheon.wsd_lora_community.global.exception.CustomException;
+import rheon.wsd_lora_community.global.exception.ErrorCode;
 import rheon.wsd_lora_community.global.queue.RedisQueueService;
 import rheon.wsd_lora_community.global.queue.RedisQueueService.JobType;
+import rheon.wsd_lora_community.global.sse.SseEmitterService;
 import rheon.wsd_lora_community.training.dto.TrainingJobResponse;
 import rheon.wsd_lora_community.training.entity.TrainingJob;
+import rheon.wsd_lora_community.training.repository.TrainingJobRepository;
 import rheon.wsd_lora_community.training.service.TrainingService;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 학습/생성 작업 콜백 처리 공통 서비스
  * - Training과 Generation의 콜백 로직을 통합
- * - Redis 작업 큐 관리 (실시간 진행률은 SSE 엔드포인트에서 제공)
+ * - Redis 작업 큐 관리
+ * - SSE를 통한 실시간 진행률 전송
  */
 @Slf4j
 @Service
@@ -25,6 +35,9 @@ public class JobCallbackService {
     private final TrainingService trainingService;
     private final GenerationService generationService;
     private final RedisQueueService queueService;
+    private final SseEmitterService sseEmitterService;
+    private final GenerationHistoryRepository generationHistoryRepository;
+    private final TrainingJobRepository trainingJobRepository;
 
     /**
      * 학습 진행률 콜백 처리
@@ -36,10 +49,30 @@ public class JobCallbackService {
             return;
         }
 
-        // DB 업데이트 (실시간 진행률은 SSE 엔드포인트에서 조회)
+        // DB 업데이트
         trainingService.updateProgress(jobId, currentEpoch, phase);
 
-        log.debug("✅ Training progress updated: jobId={}, epoch={}, phase={}", jobId, currentEpoch, phase);
+        // SSE로 실시간 진행률 전송
+        try {
+            TrainingJob trainingJob = trainingJobRepository.findById(jobId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+            Long userId = trainingJob.getUser().getId();
+
+            Map<String, Object> progressData = new HashMap<>();
+            progressData.put("status", "TRAINING");
+            progressData.put("jobId", jobId);
+            progressData.put("currentEpoch", currentEpoch != null ? currentEpoch : 0);
+            progressData.put("phase", phase != null ? phase : "");
+            progressData.put("message", message != null ? message : "Training...");
+
+            sseEmitterService.sendToUser(userId, "training_progress", progressData);
+
+            log.debug("✅ Training progress SSE sent: jobId={}, epoch={}, phase={}", jobId, currentEpoch, phase);
+        } catch (Exception e) {
+            log.error("❌ SSE 전송 실패 (학습 진행률): jobId={}", jobId, e);
+            // SSE 전송 실패해도 DB는 업데이트되었으므로 무시
+        }
     }
 
     /**
@@ -66,6 +99,25 @@ public class JobCallbackService {
         // 모델 생성 및 TrainingJob 완료 처리
         Long modelId = trainingService.handleTrainingSuccess(jobId, s3ModelKey, fileSize);
         log.info("✅ 학습 완료 처리 성공: jobId={}, modelId={}", jobId, modelId);
+
+        // SSE로 완료 알림 전송
+        try {
+            TrainingJob trainingJob = trainingJobRepository.findById(jobId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+            Map<String, Object> successData = new HashMap<>();
+            successData.put("status", "COMPLETED");
+            successData.put("jobId", jobId);
+            successData.put("modelId", modelId);
+            successData.put("message", "Training completed successfully!");
+
+            sseEmitterService.sendToUser(trainingJob.getUser().getId(), "training_progress", successData);
+
+            log.info("✅ Training SUCCESS SSE sent: jobId={}, modelId={}, userId={}", jobId, modelId, trainingJob.getUser().getId());
+        } catch (Exception e) {
+            log.error("❌ SSE 전송 실패 (학습 완료): jobId={}", jobId, e);
+            // SSE 전송 실패해도 DB는 업데이트되었으므로 무시
+        }
 
         // Redis 작업 완료 처리
         queueService.complete(JobType.TRAINING, jobId);
@@ -95,6 +147,24 @@ public class JobCallbackService {
             trainingService.failTraining(jobId, error);
             log.info("✅ 학습 실패 처리 완료: jobId={}, error={}", jobId, error);
 
+            // SSE로 실패 알림 전송
+            try {
+                TrainingJob trainingJob = trainingJobRepository.findById(jobId)
+                        .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+                Map<String, Object> failData = new HashMap<>();
+                failData.put("status", "FAILED");
+                failData.put("jobId", jobId);
+                failData.put("message", error != null ? error : "Training failed");
+
+                sseEmitterService.sendToUser(trainingJob.getUser().getId(), "training_progress", failData);
+
+                log.info("✅ Training FAILED SSE sent: jobId={}, userId={}", jobId, trainingJob.getUser().getId());
+            } catch (Exception e) {
+                log.error("❌ SSE 전송 실패 (학습 실패): jobId={}", jobId, e);
+                // SSE 전송 실패해도 DB는 업데이트되었으므로 무시
+            }
+
             // Redis 작업 실패 처리
             queueService.fail(JobType.TRAINING, jobId);
         }
@@ -110,10 +180,30 @@ public class JobCallbackService {
             return;
         }
 
-        // DB 업데이트 (실시간 진행률은 SSE 엔드포인트에서 조회)
+        // DB 업데이트
         generationService.updateProgress(historyId, currentStep, totalSteps);
 
-        log.debug("✅ Generation progress updated: historyId={}, step={}/{}", historyId, currentStep, totalSteps);
+        // SSE로 실시간 진행률 전송
+        try {
+            GenerationHistory history = generationHistoryRepository.findById(historyId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+            Long userId = history.getUser().getId();
+
+            Map<String, Object> progressData = new HashMap<>();
+            progressData.put("status", "GENERATING");
+            progressData.put("historyId", historyId);
+            progressData.put("currentStep", currentStep != null ? currentStep : 0);
+            progressData.put("totalSteps", totalSteps != null ? totalSteps : 0);
+            progressData.put("message", message != null ? message : "Generating...");
+
+            sseEmitterService.sendToUser(userId, "generation_progress", progressData);
+
+            log.debug("✅ Generation progress SSE sent: historyId={}, step={}/{}", historyId, currentStep, totalSteps);
+        } catch (Exception e) {
+            log.error("❌ SSE 전송 실패 (진행률): historyId={}", historyId, e);
+            // SSE 전송 실패해도 DB는 업데이트되었으므로 무시
+        }
     }
 
     /**
@@ -154,6 +244,22 @@ public class JobCallbackService {
         );
         log.info("✅ 생성 완료 처리 성공: historyId={}, images={}", historyId, imageS3Keys.size());
 
+        // SSE로 완료 알림 전송 (프론트엔드가 이미지 표시)
+        try {
+            Map<String, Object> successData = new HashMap<>();
+            successData.put("status", "SUCCESS");
+            successData.put("historyId", historyId);
+            successData.put("message", "Generation completed!");
+            successData.put("generatedImages", history.getGeneratedImages()); // 프론트엔드에서 이미지 URL 추출
+
+            sseEmitterService.sendToUser(history.getUserId(), "generation_progress", successData);
+
+            log.info("✅ Generation SUCCESS SSE sent: historyId={}, userId={}", historyId, history.getUserId());
+        } catch (Exception e) {
+            log.error("❌ SSE 전송 실패 (완료): historyId={}", historyId, e);
+            // SSE 전송 실패해도 DB는 업데이트되었으므로 무시
+        }
+
         // Redis 작업 완료 처리
         queueService.complete(JobType.GENERATION, historyId);
 
@@ -181,6 +287,24 @@ public class JobCallbackService {
         if (historyId != null) {
             generationService.failGeneration(historyId, error);
             log.info("✅ 생성 실패 처리 완료: historyId={}, error={}", historyId, error);
+
+            // SSE로 실패 알림 전송
+            try {
+                GenerationHistory history = generationHistoryRepository.findById(historyId)
+                        .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+                Map<String, Object> failData = new HashMap<>();
+                failData.put("status", "FAILED");
+                failData.put("historyId", historyId);
+                failData.put("message", error != null ? error : "Generation failed");
+
+                sseEmitterService.sendToUser(history.getUser().getId(), "generation_progress", failData);
+
+                log.info("✅ Generation FAILED SSE sent: historyId={}, userId={}", historyId, history.getUser().getId());
+            } catch (Exception e) {
+                log.error("❌ SSE 전송 실패 (실패): historyId={}", historyId, e);
+                // SSE 전송 실패해도 DB는 업데이트되었으므로 무시
+            }
 
             // Redis 작업 실패 처리
             queueService.fail(JobType.GENERATION, historyId);

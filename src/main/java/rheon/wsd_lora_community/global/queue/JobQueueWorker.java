@@ -5,6 +5,7 @@ import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import rheon.wsd_lora_community.generation.service.GenerationService;
 import rheon.wsd_lora_community.global.client.FastApiClient;
@@ -24,6 +25,7 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Component
+@Profile("!test")  // 테스트 환경에서는 비활성화
 @RequiredArgsConstructor
 public class JobQueueWorker {
 

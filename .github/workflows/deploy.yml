@@ -28,8 +28,8 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build -x test
 
-      # 5. (중요) JAR 파일 이름 통일하기
-      # 버전(0.0.1)이 바뀌어도 스크립트 수정 없이 배포되도록 이름을 고정합니다.
+      # 5.JAR 파일 이름 통일
+      # 버전(0.0.1)이 바뀌어도 스크립트 수정 없이 배포되도록 이름을 고정
       - name: Rename JAR
         run: mv build/libs/*-SNAPSHOT.jar build/libs/application.jar
 
@@ -40,13 +40,12 @@ jobs:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           region: ap-northeast-2
-          
-          # 아래 두 이름은 AWS 콘솔에서 복사해오세요!
+
           application_name: Blueming-AI-env-1
           environment_name: Blueming-AI-env-1-env
           
           version_label: github-action-${{ github.sha }}
-          deployment_package: build/libs/application.jar  # 위에서 바꾼 이름 사용
+          deployment_package: build/libs/application.jar
           use_existing_version_if_available: false
           wait_for_deployment: true
           wait_for_environment_recovery: 60
