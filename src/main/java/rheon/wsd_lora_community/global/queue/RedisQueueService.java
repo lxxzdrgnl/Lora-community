@@ -164,7 +164,7 @@ public class RedisQueueService {
     }
 
     /**
-     * 타임아웃된 작업 조회 (30분 이상 처리 중인 작업)
+     * 타임아웃된 작업 조회 (30Input type (c10::Half) and bias type (float) should be the same분 이상 처리 중인 작업)
      *
      * @param jobType 작업 타입
      * @param timeoutMinutes 타임아웃 시간 (분)

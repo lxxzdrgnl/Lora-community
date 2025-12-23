@@ -28,6 +28,7 @@ import rheon.wsd_lora_community.user.repository.UserRepository;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -49,6 +50,7 @@ public class GenerationService {
     private final UserRepository userRepository;
     private final S3UploadService s3UploadService;
     private final S3Service s3Service;
+    private final rheon.wsd_lora_community.global.queue.RedisQueueService redisQueueService;
 
     /**
      * 이미지 생성 완료 처리 (FastAPI 콜백)
@@ -287,17 +289,47 @@ public class GenerationService {
 
     /**
      * 생성 기록 단건 조회
+     * - Redis 큐에서 상태 체크
+     * - 큐에 없으면 자동으로 FAILED 처리
      */
+    @Transactional
     public GenerationHistoryResponse getGenerationHistory(Long historyId) {
         GenerationHistory history = generationHistoryRepository.findById(historyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        // SUCCESS, FAILED가 아닌 경우 Redis 큐에서 상태 확인
+        if (!"SUCCESS".equals(history.getStatus()) && !"FAILED".equals(history.getStatus())) {
+
+            // Redis 큐에서 작업 정보 확인
+            Map<String, String> jobDetail = redisQueueService.getJobDetail(
+                    rheon.wsd_lora_community.global.queue.RedisQueueService.JobType.GENERATION,
+                    historyId
+            );
+
+            System.out.println("🔍 [Generation Detail] Redis 큐 체크: historyId=" + historyId + ", detail=" + jobDetail);
+
+            // Redis에 작업 정보가 없으면 (큐에서 누락됨) FAILED 처리
+            if (jobDetail == null || jobDetail.isEmpty()) {
+                System.out.println("⚠️ [Generation Detail] Redis 큐에 작업 정보가 없습니다. 자동 실패 처리: historyId=" + historyId + ", status=" + history.getStatus());
+                history.markAsFailed("작업이 큐에서 누락되었습니다.");
+                generationHistoryRepository.save(history);
+
+                // 저장 후 최신 상태 다시 조회
+                history = generationHistoryRepository.findById(historyId)
+                        .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+            } else {
+                System.out.println("✅ [Generation Detail] Redis 큐에 작업이 존재합니다: historyId=" + historyId + ", status=" + jobDetail.get("status"));
+            }
+        }
 
         return GenerationHistoryResponse.from(history);
     }
 
     /**
      * 사용자의 생성 기록 조회 (페이징)
+     * - Redis 큐에 없는 진행 중인 작업은 자동 실패 처리
      */
+    @Transactional
     public PageResponse<GenerationHistoryResponse> getUserGenerationHistory(Long userId, Pageable pageable) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -305,7 +337,30 @@ public class GenerationService {
         Page<GenerationHistory> historyPage = generationHistoryRepository.findByUser(user, pageable);
 
         List<GenerationHistoryResponse> responses = historyPage.getContent().stream()
-                .map(GenerationHistoryResponse::from)
+                .map(history -> {
+                    // SUCCESS, FAILED가 아닌 경우 Redis 큐에서 상태 확인
+                    if (!"SUCCESS".equals(history.getStatus()) && !"FAILED".equals(history.getStatus())) {
+
+                        // Redis 큐에서 작업 정보 확인
+                        Map<String, String> jobDetail = redisQueueService.getJobDetail(
+                                rheon.wsd_lora_community.global.queue.RedisQueueService.JobType.GENERATION,
+                                history.getId()
+                        );
+
+                        // Redis에 작업 정보가 없으면 (큐에서 누락됨) FAILED 처리
+                        if (jobDetail == null || jobDetail.isEmpty()) {
+                            System.out.println("⚠️ [Generation History] Redis 큐에 작업 정보가 없습니다. 자동 실패 처리: historyId=" +
+                                             history.getId() + ", status=" + history.getStatus());
+                            history.markAsFailed("작업이 큐에서 누락되었습니다.");
+                            generationHistoryRepository.save(history);
+                        } else {
+                            System.out.println("✅ [Generation History] Redis 큐에 작업이 존재합니다: historyId=" +
+                                             history.getId() + ", status=" + jobDetail.get("status"));
+                        }
+                    }
+
+                    return GenerationHistoryResponse.from(history);
+                })
                 .collect(Collectors.toList());
 
         return PageResponse.of(historyPage, responses);

@@ -17,6 +17,7 @@ import rheon.wsd_lora_community.user.entity.User;
 import rheon.wsd_lora_community.user.repository.UserRepository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -33,6 +34,7 @@ public class TrainingService {
     private final ModelSampleRepository modelSampleRepository;
     private final UserRepository userRepository;
     private final rheon.wsd_lora_community.model.repository.ModelPromptRepository modelPromptRepository;
+    private final rheon.wsd_lora_community.global.queue.RedisQueueService redisQueueService;
 
     /**
      * 학습 작업 생성
@@ -314,10 +316,39 @@ public class TrainingService {
 
     /**
      * 학습 작업 조회
+     * - Redis 큐에서 상태 체크
+     * - 큐에 없으면 자동으로 FAILED 처리
      */
+    @Transactional
     public TrainingJobResponse getTrainingJob(Long jobId) {
         TrainingJob job = trainingJobRepository.findById(jobId)
                 .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        // SUCCESS, FAILED를 제외한 모든 상태에서 Redis 큐 확인
+        if (job.getStatus() != TrainingJob.TrainingStatus.SUCCESS &&
+            job.getStatus() != TrainingJob.TrainingStatus.FAILED) {
+
+            // Redis 큐에서 작업 정보 확인
+            Map<String, String> jobDetail = redisQueueService.getJobDetail(
+                    rheon.wsd_lora_community.global.queue.RedisQueueService.JobType.TRAINING,
+                    jobId
+            );
+
+            System.out.println("🔍 [Detail] Redis 큐 체크: jobId=" + jobId + ", detail=" + jobDetail);
+
+            // Redis에 작업 정보가 없으면 (큐에서 누락됨) FAILED 처리
+            if (jobDetail == null || jobDetail.isEmpty()) {
+                System.out.println("⚠️ [Detail] Redis 큐에 작업 정보가 없습니다. 자동 실패 처리: jobId=" + jobId + ", status=" + job.getStatus());
+                job.fail("작업이 큐에서 누락되었습니다.");
+                trainingJobRepository.save(job);
+
+                // 저장 후 최신 상태 다시 조회
+                job = trainingJobRepository.findById(jobId)
+                        .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+            } else {
+                System.out.println("✅ [Detail] Redis 큐에 작업이 존재합니다: jobId=" + jobId + ", status=" + jobDetail.get("status"));
+            }
+        }
 
         return TrainingJobResponse.from(job);
     }
@@ -337,13 +368,37 @@ public class TrainingService {
 
     /**
      * 사용자의 모든 학습 작업 조회
+     * - Redis 큐에 없는 진행 중인 작업은 자동 실패 처리
      */
+    @Transactional
     public List<TrainingJobResponse> getUserTrainingJobs(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         return trainingJobRepository.findByUserOrderByCreatedAtDesc(user).stream()
                 .map(job -> {
+                    // SUCCESS, FAILED가 아닌 경우 Redis 큐에서 상태 확인
+                    if (job.getStatus() != TrainingJob.TrainingStatus.SUCCESS &&
+                        job.getStatus() != TrainingJob.TrainingStatus.FAILED) {
+
+                        // Redis 큐에서 작업 정보 확인
+                        Map<String, String> jobDetail = redisQueueService.getJobDetail(
+                                rheon.wsd_lora_community.global.queue.RedisQueueService.JobType.TRAINING,
+                                job.getId()
+                        );
+
+                        // Redis에 작업 정보가 없으면 (큐에서 누락됨) FAILED 처리
+                        if (jobDetail == null || jobDetail.isEmpty()) {
+                            System.out.println("⚠️ [History] Redis 큐에 작업 정보가 없습니다. 자동 실패 처리: jobId=" +
+                                             job.getId() + ", status=" + job.getStatus());
+                            job.fail("작업이 큐에서 누락되었습니다.");
+                            trainingJobRepository.save(job);
+                        } else {
+                            System.out.println("✅ [History] Redis 큐에 작업이 존재합니다: jobId=" +
+                                             job.getId() + ", status=" + jobDetail.get("status"));
+                        }
+                    }
+
                     // 모델이 있으면 대표 샘플 이미지 조회
                     if (job.getModel() != null) {
                         Optional<ModelSample> primarySample = modelSampleRepository

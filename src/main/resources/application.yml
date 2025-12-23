@@ -31,6 +31,8 @@ spring:
         show_sql: false
         use_sql_comments: false
         highlight_sql: false  # SQL 하이라이트 비활성화 (ANSI 색상 코드 제거)
+        jdbc:
+          time_zone: Asia/Seoul  # JPA 시간대 설정
     show-sql: false
     open-in-view: false  # 멀티 인스턴스 환경에서 권장
 
