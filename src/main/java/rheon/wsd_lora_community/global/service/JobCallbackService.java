@@ -2,6 +2,8 @@ package rheon.wsd_lora_community.global.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rheon.wsd_lora_community.generation.dto.GenerationHistoryResponse;
@@ -29,7 +31,6 @@ import java.util.Map;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class JobCallbackService {
 
     private final TrainingService trainingService;
@@ -38,6 +39,29 @@ public class JobCallbackService {
     private final SseEmitterService sseEmitterService;
     private final GenerationHistoryRepository generationHistoryRepository;
     private final TrainingJobRepository trainingJobRepository;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final rheon.wsd_lora_community.global.queue.DynamicRedisPubSubService pubSubService;
+
+    // 순환 참조 방지: DynamicRedisPubSubService를 @Lazy로 주입
+    public JobCallbackService(
+            TrainingService trainingService,
+            GenerationService generationService,
+            RedisQueueService queueService,
+            SseEmitterService sseEmitterService,
+            GenerationHistoryRepository generationHistoryRepository,
+            TrainingJobRepository trainingJobRepository,
+            RedisTemplate<String, Object> redisTemplate,
+            @Lazy rheon.wsd_lora_community.global.queue.DynamicRedisPubSubService pubSubService
+    ) {
+        this.trainingService = trainingService;
+        this.generationService = generationService;
+        this.queueService = queueService;
+        this.sseEmitterService = sseEmitterService;
+        this.generationHistoryRepository = generationHistoryRepository;
+        this.trainingJobRepository = trainingJobRepository;
+        this.redisTemplate = redisTemplate;
+        this.pubSubService = pubSubService;
+    }
 
     /**
      * 학습 진행률 콜백 처리
@@ -96,6 +120,15 @@ public class JobCallbackService {
             throw new IllegalArgumentException("학습 작업 ID 또는 사용자 ID가 필요합니다. (jobId or userId)");
         }
 
+        // ✅ 중복 방지: 이미 완료된 작업인지 확인
+        TrainingJob existingJob = trainingJobRepository.findById(jobId)
+                .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if ("COMPLETED".equals(existingJob.getStatus().name())) {
+            log.info("⏭️ [중복 방지] 이미 완료된 작업: jobId={}, 스킵합니다.", jobId);
+            return existingJob.getModel() != null ? existingJob.getModel().getId() : null;
+        }
+
         // 모델 생성 및 TrainingJob 완료 처리
         Long modelId = trainingService.handleTrainingSuccess(jobId, s3ModelKey, fileSize);
         log.info("✅ 학습 완료 처리 성공: jobId={}, modelId={}", jobId, modelId);
@@ -121,6 +154,20 @@ public class JobCallbackService {
 
         // Redis 작업 완료 처리
         queueService.complete(JobType.TRAINING, jobId);
+
+        // Redis 캐시 삭제 (TTL 만료 전에 수동 삭제)
+        try {
+            String cacheKey = "training:progress:" + jobId;
+            Boolean deleted = redisTemplate.delete(cacheKey);
+            if (Boolean.TRUE.equals(deleted)) {
+                log.info("🗑️ Redis 캐시 삭제 완료: {}", cacheKey);
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ Redis 캐시 삭제 실패 (무시): jobId={}", jobId, e);
+        }
+
+        // Redis Pub/Sub 비활성화 (비용 절감)
+        pubSubService.stopTrainingJob();
 
         return modelId;
     }
@@ -167,6 +214,20 @@ public class JobCallbackService {
 
             // Redis 작업 실패 처리
             queueService.fail(JobType.TRAINING, jobId);
+
+            // Redis 캐시 삭제 (TTL 만료 전에 수동 삭제)
+            try {
+                String cacheKey = "training:progress:" + jobId;
+                Boolean deleted = redisTemplate.delete(cacheKey);
+                if (Boolean.TRUE.equals(deleted)) {
+                    log.info("🗑️ Redis 캐시 삭제 완료 (실패): {}", cacheKey);
+                }
+            } catch (Exception e) {
+                log.warn("⚠️ Redis 캐시 삭제 실패 (무시): jobId={}", jobId, e);
+            }
+
+            // Redis Pub/Sub 비활성화 (비용 절감)
+            pubSubService.stopTrainingJob();
         }
     }
 
@@ -239,10 +300,19 @@ public class JobCallbackService {
             throw new IllegalArgumentException("생성 기록 ID 또는 사용자 ID가 필요합니다. (historyId or userId)");
         }
 
+        // ✅ 중복 방지: 이미 완료된 작업인지 확인
+        GenerationHistory existingHistory = generationHistoryRepository.findById(historyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if ("SUCCESS".equals(existingHistory.getStatus())) {
+            log.info("⏭️ [중복 방지] 이미 완료된 작업: historyId={}, 스킵합니다.", historyId);
+            return generationService.getGenerationHistory(historyId);
+        }
+
         GenerationHistoryResponse history = generationService.completeGeneration(
                 historyId, modelId, userId, prompt, negativePrompt, steps, guidanceScale, loraScale, seed, numImages, imageS3Keys
         );
-        log.info("✅ 생성 완료 처리 성공: historyId={}, images={}", historyId, imageS3Keys.size());
+        log.info("✅ 생성 완료 처리 성공: historyId={}, images={}", historyId, imageS3Keys != null ? imageS3Keys.size() : 0);
 
         // SSE로 완료 알림 전송 (프론트엔드가 이미지 표시)
         try {
@@ -262,6 +332,22 @@ public class JobCallbackService {
 
         // Redis 작업 완료 처리
         queueService.complete(JobType.GENERATION, historyId);
+
+        // Redis 캐시 삭제 (TTL 만료 전에 수동 삭제)
+        try {
+            String progressKey = "generation:progress:" + historyId;
+            String completionKey = "generation:completion:" + historyId;
+
+            Long deletedCount = redisTemplate.delete(java.util.Arrays.asList(progressKey, completionKey));
+            if (deletedCount != null && deletedCount > 0) {
+                log.info("🗑️ Redis 캐시 삭제 완료: {} 개 키 삭제", deletedCount);
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ Redis 캐시 삭제 실패 (무시): historyId={}", historyId, e);
+        }
+
+        // Redis Pub/Sub 비활성화 (비용 절감, 모든 작업 완료 시 자동 중지)
+        pubSubService.stopGenerationJob();
 
         return history;
     }
@@ -308,6 +394,22 @@ public class JobCallbackService {
 
             // Redis 작업 실패 처리
             queueService.fail(JobType.GENERATION, historyId);
+
+            // Redis 캐시 삭제 (TTL 만료 전에 수동 삭제)
+            try {
+                String progressKey = "generation:progress:" + historyId;
+                String completionKey = "generation:completion:" + historyId;
+
+                Long deletedCount = redisTemplate.delete(java.util.Arrays.asList(progressKey, completionKey));
+                if (deletedCount != null && deletedCount > 0) {
+                    log.info("🗑️ Redis 캐시 삭제 완료 (실패): {} 개 키 삭제", deletedCount);
+                }
+            } catch (Exception e) {
+                log.warn("⚠️ Redis 캐시 삭제 실패 (무시): historyId={}", historyId, e);
+            }
+
+            // Redis Pub/Sub 비활성화 (비용 절감, 모든 작업 완료 시 자동 중지)
+            pubSubService.stopGenerationJob();
         }
     }
 }

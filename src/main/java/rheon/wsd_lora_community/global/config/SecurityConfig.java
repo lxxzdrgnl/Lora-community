@@ -87,7 +87,9 @@ public class SecurityConfig {
                                 "/api/models/{modelId}/comments",
                                 "/api/tags",
                                 "/api/tags/popular",
-                                "/api/search/**"
+                                "/api/search/**",
+                                "/api/training/callback",  // FastAPI 학습 콜백
+                                "/api/generate/history"    // FastAPI 생성 콜백
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

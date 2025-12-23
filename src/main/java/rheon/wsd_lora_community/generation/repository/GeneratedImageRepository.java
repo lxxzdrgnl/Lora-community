@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import rheon.wsd_lora_community.generation.entity.GeneratedImage;
+import rheon.wsd_lora_community.generation.entity.GenerationHistory;
 
 import java.util.List;
 import java.util.Optional;
@@ -19,6 +20,11 @@ public interface GeneratedImageRepository extends JpaRepository<GeneratedImage, 
      * 특정 GenerationHistory에 속한 모든 이미지 조회 (표시 순서대로)
      */
     List<GeneratedImage> findByGenerationHistoryIdOrderByDisplayOrder(Long generationHistoryId);
+
+    /**
+     * 특정 GenerationHistory 엔티티에 속한 모든 이미지 조회 (표시 순서대로)
+     */
+    List<GeneratedImage> findByGenerationHistoryOrderByDisplayOrder(GenerationHistory generationHistory);
 
     /**
      * 특정 GenerationHistory에 속한 이미지 개수 조회

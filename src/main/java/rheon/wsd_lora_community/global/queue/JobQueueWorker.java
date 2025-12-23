@@ -33,6 +33,7 @@ public class JobQueueWorker {
     private final FastApiClient fastApiClient;
     private final TrainingService trainingService;
     private final GenerationService generationService;
+    private final DynamicRedisPubSubService pubSubService;
 
     @Value("${app.callback-url}")
     private String callbackUrlBase;
@@ -100,6 +101,9 @@ public class JobQueueWorker {
                 }
 
                 log.info("📤 Training 작업 처리 시작: jobId={}", jobId);
+
+                // Redis Pub/Sub 활성화 (진행률 수신용)
+                pubSubService.startTrainingJob();
 
                 // 작업 정보 조회
                 Map<String, String> jobDetail = queueService.getJobDetail(JobType.TRAINING, jobId);
@@ -202,6 +206,9 @@ public class JobQueueWorker {
                 }
 
                 log.info("📤 Generation 작업 처리 시작: historyId={}", historyId);
+
+                // Redis Pub/Sub 활성화 (진행률 수신용)
+                pubSubService.startGenerationJob();
 
                 // 작업 정보 조회
                 Map<String, String> jobDetail = queueService.getJobDetail(JobType.GENERATION, historyId);

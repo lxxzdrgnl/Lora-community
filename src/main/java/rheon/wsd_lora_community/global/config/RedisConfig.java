@@ -14,8 +14,12 @@ import org.springframework.data.redis.connection.lettuce.LettuceClientConfigurat
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import rheon.wsd_lora_community.global.queue.RedisMessageSubscriber;
 
 /**
  * Redis 설정
@@ -98,5 +102,26 @@ public class RedisConfig {
 
         template.afterPropertiesSet();
         return template;
+    }
+
+    /**
+     * Redis Pub/Sub 메시지 리스너 컨테이너 (동적 관리)
+     * - 작업 진행 중일 때만 활성화 (Redis 읽기 비용 절감)
+     * - DynamicRedisPubSubService에서 수동으로 시작/중지
+     * - 리스너를 추가하지 않고 생성만 하므로 자동 시작되지 않음
+     */
+    @Bean
+    public RedisMessageListenerContainer redisMessageListenerContainer(
+            RedisConnectionFactory connectionFactory
+    ) {
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+
+        // 리스너를 추가하지 않으면 자동으로 시작되지 않음
+        // DynamicRedisPubSubService에서 addMessageListener() 호출 시 start() 호출
+
+        log.info("✅ Redis Pub/Sub listener container created (inactive by default, cost optimization)");
+
+        return container;
     }
 }

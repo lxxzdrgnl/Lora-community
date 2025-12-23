@@ -58,6 +58,7 @@ public class GenerationController {
     private final RedisQueueService queueService;
     private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
     private final SseEmitterService sseEmitterService;
+    private final rheon.wsd_lora_community.global.queue.DynamicRedisPubSubService pubSubService;
 
     @Value("${app.callback-url}")
     private String callbackUrlBase;

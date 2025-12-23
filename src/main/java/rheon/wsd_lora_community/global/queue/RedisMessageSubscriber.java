@@ -7,6 +7,7 @@ import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
+import rheon.wsd_lora_community.global.service.JobCallbackService;
 import rheon.wsd_lora_community.global.sse.SseEmitterService;
 
 import java.time.Duration;
@@ -29,6 +30,7 @@ import java.util.Map;
 public class RedisMessageSubscriber implements MessageListener {
 
     private final SseEmitterService sseEmitterService;
+    private final JobCallbackService jobCallbackService;
     private final ObjectMapper objectMapper;
     private final RedisTemplate<String, Object> redisTemplate;
 
@@ -111,8 +113,18 @@ public class RedisMessageSubscriber implements MessageListener {
             // SSE로 실시간 전송
             sseEmitterService.sendToUser(userId, "training_progress", progressEvent);
 
-            log.info("✅ [SSE] Training 진행률 처리: userId={}, jobId={}, epoch={}/{}",
-                    userId, jobId, currentEpoch, totalEpochs);
+            log.info("✅ [SSE] Training 진행률 처리: userId={}, jobId={}, epoch={}/{}, status={}",
+                    userId, jobId, currentEpoch, totalEpochs, status);
+
+            // ✅ COMPLETED 상태이면 DB 업데이트 (진행률만 업데이트, 모델 파일은 HTTP 콜백에서 처리)
+            if ("COMPLETED".equals(status) && jobId != null) {
+                log.info("📊 [Pub/Sub] Training COMPLETED 감지 → DB 진행률 업데이트: jobId={}", jobId);
+                try {
+                    jobCallbackService.handleTrainingProgress(jobId, currentEpoch, phase, message);
+                } catch (Exception e) {
+                    log.error("❌ [Pub/Sub] Training COMPLETED DB 업데이트 실패: jobId={}", jobId, e);
+                }
+            }
 
         } catch (Exception e) {
             log.error("❌ [Pub/Sub] Training 진행률 처리 실패: {}", e.getMessage(), e);
@@ -134,19 +146,59 @@ public class RedisMessageSubscriber implements MessageListener {
      */
     private void handleGenerationProgress(Map<String, Object> data) {
         try {
+            String type = (String) data.get("type");
             Long userId = getLongValue(data, "userId");
             Long historyId = getLongValue(data, "historyId");
             String status = (String) data.get("status");
-            Integer currentStep = getIntegerValue(data, "currentStep");
-            Integer totalSteps = getIntegerValue(data, "totalSteps");
-            String message = (String) data.get("message");
 
             if (userId == null) {
                 log.warn("⚠️ [Pub/Sub] userId가 없습니다: {}", data);
                 return;
             }
 
-            // WebSocket으로 전송할 이벤트 생성
+            // ✅ 완료 메시지 처리 (generation_completion)
+            if ("generation_completion".equals(type) && "SUCCESS".equals(status)) {
+                log.info("📦 [Pub/Sub] Generation 완료 메시지 수신: historyId={}", historyId);
+
+                Long modelId = getLongValue(data, "modelId");
+                String prompt = (String) data.get("prompt");
+                String negativePrompt = (String) data.get("negativePrompt");
+                Integer steps = getIntegerValue(data, "steps");
+                Double guidanceScale = getDoubleValue(data, "guidanceScale");
+                Double loraScale = getDoubleValue(data, "loraScale");
+                Long seed = getLongValue(data, "seed");
+                Integer numImages = getIntegerValue(data, "numImages");
+
+                @SuppressWarnings("unchecked")
+                java.util.List<String> imageS3Keys = (java.util.List<String>) data.get("imageS3Keys");
+
+                // DB 업데이트 (중복 방지 로직 포함)
+                try {
+                    jobCallbackService.handleGenerationSuccess(
+                            historyId, userId, modelId, prompt, negativePrompt,
+                            steps, guidanceScale, loraScale, seed, numImages, imageS3Keys
+                    );
+                } catch (Exception e) {
+                    log.error("❌ [Pub/Sub] Generation 완료 DB 업데이트 실패: historyId={}", historyId, e);
+                }
+
+                // SSE로 완료 알림 전송
+                Map<String, Object> completionEvent = new HashMap<>();
+                completionEvent.put("type", "generation_progress");
+                completionEvent.put("historyId", historyId);
+                completionEvent.put("status", "SUCCESS");
+                completionEvent.put("message", "이미지 생성 완료!");
+                sseEmitterService.sendToUser(userId, "generation_progress", completionEvent);
+
+                return;
+            }
+
+            // 진행률 메시지 처리 (generation_progress)
+            Integer currentStep = getIntegerValue(data, "currentStep");
+            Integer totalSteps = getIntegerValue(data, "totalSteps");
+            String message = (String) data.get("message");
+
+            // SSE로 전송할 이벤트 생성
             Map<String, Object> progressEvent = new HashMap<>();
             progressEvent.put("type", "generation_progress");
             progressEvent.put("historyId", historyId);
@@ -161,13 +213,11 @@ public class RedisMessageSubscriber implements MessageListener {
                 progressEvent.put("progress", progress);
             }
 
-            // Redis 캐싱은 FastAPI에서 이미 처리하므로 Spring Boot에서는 생략 (중복 방지)
-
             // SSE로 실시간 전송
             sseEmitterService.sendToUser(userId, "generation_progress", progressEvent);
 
-            log.info("✅ [SSE] Generation 진행률 처리: userId={}, historyId={}, step={}/{}",
-                    userId, historyId, currentStep, totalSteps);
+            log.info("✅ [SSE] Generation 진행률 처리: userId={}, historyId={}, step={}/{}, status={}",
+                    userId, historyId, currentStep, totalSteps, status);
 
         } catch (Exception e) {
             log.error("❌ [Pub/Sub] Generation 진행률 처리 실패: {}", e.getMessage(), e);
@@ -209,6 +259,27 @@ public class RedisMessageSubscriber implements MessageListener {
         if (value instanceof String) {
             try {
                 return Integer.parseInt((String) value);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Map에서 Double 값 추출 (다양한 타입 지원)
+     */
+    private Double getDoubleValue(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        if (value instanceof String) {
+            try {
+                return Double.parseDouble((String) value);
             } catch (NumberFormatException e) {
                 return null;
             }

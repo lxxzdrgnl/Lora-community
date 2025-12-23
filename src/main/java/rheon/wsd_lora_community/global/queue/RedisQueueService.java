@@ -84,8 +84,8 @@ public class RedisQueueService {
     public Long dequeue(JobType jobType) {
         String queueKey = String.format(QUEUE_PENDING, jobType.name().toLowerCase());
 
-        // BLPOP: 블로킹 방식으로 큐에서 꺼내기 (최대 5초 대기)
-        var result = redisTemplate.opsForList().leftPop(queueKey, 5, TimeUnit.SECONDS);
+        // BLPOP: 블로킹 방식으로 큐에서 꺼내기 (최대 200초 대기, Redis 비용 절감)
+        var result = redisTemplate.opsForList().leftPop(queueKey, 200, TimeUnit.SECONDS);
 
         if (result != null) {
             Long jobId = Long.parseLong(result);

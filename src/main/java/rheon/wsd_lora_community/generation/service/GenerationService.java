@@ -121,23 +121,30 @@ public class GenerationService {
             history = generationHistoryRepository.save(history);
         }
 
-        // GeneratedImage 엔티티 생성 및 저장
+        // GeneratedImage 엔티티 생성 및 저장 (중복 방지)
         if (imageS3Keys != null && !imageS3Keys.isEmpty()) {
-            for (int i = 0; i < imageS3Keys.size(); i++) {
-                String s3Key = imageS3Keys.get(i);
+            // ✅ 이미 이미지가 저장되어 있으면 스킵 (중복 방지)
+            List<GeneratedImage> existingImages = generatedImageRepository.findByGenerationHistoryOrderByDisplayOrder(history);
+            if (!existingImages.isEmpty()) {
+                log.info("⏭️ [중복 방지] 이미 이미지가 저장되어 있습니다: historyId={}, count={}", history.getId(), existingImages.size());
+            } else {
+                // 이미지가 없을 때만 저장
+                for (int i = 0; i < imageS3Keys.size(); i++) {
+                    String s3Key = imageS3Keys.get(i);
 
-                // S3 URL 생성 (생성 이미지 버킷 사용)
-                String s3Url = s3UploadService.generateImageDownloadUrl(s3Key);
+                    // S3 URL 생성 (생성 이미지 버킷 사용)
+                    String s3Url = s3UploadService.generateImageDownloadUrl(s3Key);
 
-                GeneratedImage image = GeneratedImage.builder()
-                        .generationHistory(history)
-                        .s3Url(s3Url)
-                        .s3Key(s3Key)
-                        .displayOrder(i + 1)
-                        .build();
+                    GeneratedImage image = GeneratedImage.builder()
+                            .generationHistory(history)
+                            .s3Url(s3Url)
+                            .s3Key(s3Key)
+                            .displayOrder(i + 1)
+                            .build();
 
-                generatedImageRepository.save(image);
-                history.addGeneratedImage(image);
+                    generatedImageRepository.save(image);
+                    history.addGeneratedImage(image);
+                }
             }
         }
 
