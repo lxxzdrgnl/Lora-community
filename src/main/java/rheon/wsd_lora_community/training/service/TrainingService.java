@@ -501,16 +501,22 @@ public class TrainingService {
      */
     @Transactional
     public void deleteTrainingJob(Long jobId, Long userId) {
+        System.out.println("🗑️ Training Job 삭제 요청: jobId=" + jobId + ", userId=" + userId);
+
         TrainingJob job = trainingJobRepository.findById(jobId)
                 .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
 
+        System.out.println("✅ Training Job 조회 성공: jobId=" + jobId + ", status=" + job.getStatus() + ", ownerId=" + job.getUser().getId());
+
         // 권한 확인: 본인의 작업만 삭제 가능
         if (!job.getUser().getId().equals(userId)) {
+            System.out.println("❌ 권한 없음: jobId=" + jobId + ", userId=" + userId + ", ownerId=" + job.getUser().getId());
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
 
         // 진행 중인 작업은 삭제 불가
         if (job.isInProgress()) {
+            System.out.println("❌ 진행 중인 작업 삭제 시도: jobId=" + jobId + ", status=" + job.getStatus());
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "진행 중인 학습 작업은 삭제할 수 없습니다.");
         }
 
@@ -519,9 +525,11 @@ public class TrainingService {
             LoraModel model = job.getModel();
             model.setTrainingJobId(null);
             loraModelRepository.save(model);
+            System.out.println("✅ 연결된 모델의 trainingJobId를 null로 설정: modelId=" + model.getId());
         }
 
         // TrainingJob 삭제
         trainingJobRepository.delete(job);
+        System.out.println("✅ Training Job 삭제 완료: jobId=" + jobId);
     }
 }

@@ -373,11 +373,16 @@ public class GenerationService {
      */
     @Transactional
     public void deleteGenerationHistory(Long historyId, Long userId) {
+        System.out.println("🗑️ Generation History 삭제 요청: historyId=" + historyId + ", userId=" + userId);
+
         GenerationHistory history = generationHistoryRepository.findById(historyId)
                 .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
 
+        System.out.println("✅ Generation History 조회 성공: historyId=" + historyId + ", status=" + history.getStatus() + ", ownerId=" + history.getUser().getId());
+
         // 권한 확인: 생성한 사용자만 삭제 가능
         if (!history.getUser().getId().equals(userId)) {
+            System.out.println("❌ 권한 없음: historyId=" + historyId + ", userId=" + userId + ", ownerId=" + history.getUser().getId());
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
 
@@ -390,6 +395,7 @@ public class GenerationService {
                 .anyMatch(imageId -> modelSampleRepository.existsByGeneratedImageId(imageId));
 
         if (hasSampleImages) {
+            System.out.println("❌ 샘플로 사용 중인 이미지가 있어 삭제 불가: historyId=" + historyId);
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE,
                     "샘플로 사용 중인 이미지가 있어 삭제할 수 없습니다. 먼저 샘플 선택을 해제해주세요.");
         }
@@ -400,8 +406,11 @@ public class GenerationService {
                 .filter(s3Key -> s3Key != null && !s3Key.isEmpty())
                 .collect(Collectors.toList());
 
+        System.out.println("🗑️ S3 이미지 삭제 예정: " + s3Keys.size() + "개");
+
         // DB에서 먼저 삭제 (Cascade로 GeneratedImage도 함께 삭제됨)
         generationHistoryRepository.delete(history);
+        System.out.println("✅ Generation History DB 삭제 완료: historyId=" + historyId);
 
         // S3에서 이미지 삭제 (DB 삭제 후 실행하여 트랜잭션 롤백 시 S3도 복구 가능)
         for (String s3Key : s3Keys) {

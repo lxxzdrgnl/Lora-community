@@ -21,8 +21,8 @@ import java.util.concurrent.TimeUnit;
  * FastAPI 서버와 통신하는 HTTP 클라이언트 (Redis Pub/Sub 방식)
  *
  * FastAPI 엔드포인트:
- * - POST /train - 학습 시작 (진행률은 Redis Pub/Sub + WebSocket으로 전송)
- * - POST /generate - 이미지 생성 시작 (진행률은 Redis Pub/Sub + WebSocket으로 전송)
+ * - POST /train - 학습 시작 (진행률은 Redis Pub/Sub + SSE로 실시간 전송)
+ * - POST /generate - 이미지 생성 시작 (진행률은 Redis Pub/Sub + SSE로 실시간 전송)
  * - GET /generate/images - 생성된 이미지 S3 키 목록 조회
  * - GET / - 서버 상태 확인
  */

@@ -92,7 +92,7 @@ public class RedisMessageSubscriber implements MessageListener {
                 return;
             }
 
-            // WebSocket으로 전송할 이벤트 생성
+            // SSE로 전송할 이벤트 생성
             Map<String, Object> progressEvent = new HashMap<>();
             progressEvent.put("type", "training_progress");
             progressEvent.put("jobId", jobId);

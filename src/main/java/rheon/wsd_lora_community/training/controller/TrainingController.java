@@ -50,6 +50,7 @@ public class TrainingController {
     private final RedisQueueService queueService;
     private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
     private final SseEmitterService sseEmitterService;
+    private final rheon.wsd_lora_community.global.queue.DynamicRedisPubSubService pubSubService;
 
     @Value("${app.callback-url}")
     private String callbackUrlBase;
@@ -235,6 +236,9 @@ public class TrainingController {
         jobData.put("datasetS3Path", ""); // JobQueueWorker에서 사용할 S3 경로 (필요시)
 
         queueService.enqueue(JobType.TRAINING, job.getId(), jobData);
+
+        // ✅ Redis Pub/Sub 활성화 (실시간 진행률 전송)
+        pubSubService.startTrainingJob();
 
         return ResponseEntity.ok(
                 ApiResponse.success("학습 작업이 큐에 추가되었습니다. 순차적으로 처리됩니다.",
@@ -461,14 +465,14 @@ public class TrainingController {
     /**
      * FastAPI 학습 진행률/완료/실패 콜백
      * - FastAPI 서버에서 학습 진행 중 또는 완료 시 호출됨
-     * - 진행률을 DB에 저장하고 WebSocket으로 프론트엔드에 전달
+     * - 진행률을 DB에 저장 (SSE는 Redis Pub/Sub에서 실시간 전송)
      * - 인증 불필요 (FastAPI에서 직접 호출)
      */
     @PostMapping("/callback")
     @Operation(
             summary = "FastAPI 학습 콜백",
             description = "FastAPI 서버에서 학습 진행률 업데이트 또는 완료/실패 시 호출하는 콜백 엔드포인트입니다. " +
-                    "진행 상태를 DB에 저장하고 WebSocket으로 사용자에게 알립니다."
+                    "진행 상태를 DB에 저장합니다. 실시간 진행률은 Redis Pub/Sub을 통해 SSE로 전송됩니다."
     )
     public ResponseEntity<ApiResponse<?>> handleTrainingCallback(
             @Valid @RequestBody TrainingCallbackRequest request

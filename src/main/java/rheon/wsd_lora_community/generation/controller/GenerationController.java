@@ -100,6 +100,9 @@ public class GenerationController {
 
         queueService.enqueue(JobType.GENERATION, startResponse.getHistoryId(), jobData);
 
+        // ✅ Redis Pub/Sub 활성화 (실시간 진행률 전송)
+        pubSubService.startGenerationJob();
+
         return ResponseEntity.ok(
                 ApiResponse.success(
                         "이미지 생성 작업이 큐에 추가되었습니다. 순차적으로 처리됩니다.",

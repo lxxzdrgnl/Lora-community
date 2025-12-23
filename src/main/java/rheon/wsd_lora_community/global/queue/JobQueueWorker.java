@@ -121,8 +121,18 @@ public class JobQueueWorker {
                 Boolean skipPreprocessing = Boolean.parseBoolean(jobDetail.get("skipPreprocessing"));
 
                 // trainingImageUrls는 JSON으로 저장되어 있으므로 파싱 필요
-                // 간단하게 처리하기 위해 null로 전달 (FastAPI가 S3에서 직접 가져올 수 있다고 가정)
+                String trainingImageUrlsJson = jobDetail.get("trainingImageUrls");
                 java.util.List<String> trainingImageUrls = null;
+                if (trainingImageUrlsJson != null && !trainingImageUrlsJson.isEmpty()) {
+                    try {
+                        trainingImageUrls = new com.fasterxml.jackson.databind.ObjectMapper()
+                                .readValue(trainingImageUrlsJson,
+                                          new com.fasterxml.jackson.core.type.TypeReference<java.util.List<String>>() {});
+                    } catch (Exception e) {
+                        log.error("❌ trainingImageUrls JSON 파싱 실패: {}", e.getMessage());
+                        throw new RuntimeException("trainingImageUrls 파싱 실패", e);
+                    }
+                }
 
                 // FastAPI로 학습 요청 전송
                 String callbackUrl = callbackUrlBase + "/api/training/callback";
@@ -135,7 +145,7 @@ public class JobQueueWorker {
                     null,  // datasetS3Path
                     finalJobId,
                     modelName,
-                    trainingImageUrls,  // null
+                    trainingImageUrls,  // 이제 JSON에서 파싱된 실제 리스트
                     triggerWord,
                     totalEpochs,
                     learningRate,
