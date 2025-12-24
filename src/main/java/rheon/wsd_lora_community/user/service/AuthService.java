@@ -223,4 +223,12 @@ public class AuthService {
 
         return nickname;
     }
+
+    /**
+     * 사용자 ID로 사용자 조회
+     */
+    public User getUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    }
 }

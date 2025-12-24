@@ -144,6 +144,11 @@ public class LoraModelController {
      */
     @GetMapping("/popular")
     @Operation(summary = "인기 모델 목록 조회", description = "좋아요가 많은 순서로 모델 목록을 조회합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> getPopularModels(
             @Parameter(hidden = true)
             Authentication authentication,
@@ -171,6 +176,11 @@ public class LoraModelController {
      */
     @GetMapping("/{modelId}")
     @Operation(summary = "모델 상세 조회", description = "모델의 상세 정보를 조회합니다. (샘플, 프롬프트, 태그 포함)")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "모델을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<LoraModelDetailResponse>> getModelDetail(
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
@@ -200,6 +210,17 @@ public class LoraModelController {
     @PutMapping("/{modelId}")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "모델 수정", description = "모델 정보를 수정합니다. (작성자만 가능, 테스트 유저 불가)")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (유효성 검증 실패)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "권한 없음 (작성자만 수정 가능)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "모델을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<LoraModelResponse>> updateModel(
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
@@ -258,6 +279,11 @@ public class LoraModelController {
     @GetMapping("/my")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "내 모델 목록 조회", description = "현재 유저가 작성한 모델 목록을 조회합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> getMyModels(
             @Parameter(hidden = true)
             Authentication authentication,
@@ -295,6 +321,11 @@ public class LoraModelController {
      */
     @GetMapping("/search")
     @Operation(summary = "모델 검색", description = "제목 또는 설명에서 키워드를 검색합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "검색 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (검색 키워드 누락)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> searchModels(
             @Parameter(description = "검색 키워드", required = true)
             @RequestParam String query,
@@ -379,6 +410,15 @@ public class LoraModelController {
     @PostMapping("/{modelId}/samples/{generatedImageId}")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "샘플 이미지로 선택", description = "생성 이미지를 샘플로 선택합니다. (소유자만 가능, 테스트 유저 불가)")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "샘플 등록 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "권한 없음 (소유자만 가능)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "모델 또는 이미지를 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<ModelSampleResponse>> addSample(
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
@@ -493,6 +533,17 @@ public class LoraModelController {
     @PostMapping("/{modelId}/prompts")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "프롬프트 추가", description = "모델에 프롬프트 예시를 추가합니다. (작성자만 가능)")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "프롬프트 추가 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (유효성 검증 실패)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "권한 없음 (작성자만 가능)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "모델을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<PromptResponse>> addPrompt(
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,

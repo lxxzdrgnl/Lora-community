@@ -2,6 +2,10 @@ spring:
   application:
     name: WSD_Lora_community
 
+  # .env 파일 로드 설정
+  config:
+    import: optional:file:.env[.properties]
+
   # MySQL Database (기본 설정)
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver

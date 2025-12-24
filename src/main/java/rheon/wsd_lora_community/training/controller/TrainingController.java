@@ -2,6 +2,10 @@ package rheon.wsd_lora_community.training.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +19,7 @@ import rheon.wsd_lora_community.global.queue.RedisQueueService.JobType;
 import rheon.wsd_lora_community.global.service.JobCallbackService;
 import rheon.wsd_lora_community.global.util.AuthenticationUtil;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
+import rheon.wsd_lora_community.global.dto.ErrorResponse;
 import rheon.wsd_lora_community.global.service.S3UploadService;
 import rheon.wsd_lora_community.global.sse.SseEmitterService;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -54,26 +59,6 @@ public class TrainingController {
 
     @Value("${app.callback-url}")
     private String callbackUrlBase;
-
-    /**
-     * 학습 작업 생성
-     */
-    @PostMapping("/models/{modelId}")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "학습 작업 생성", description = "모델의 학습 작업을 생성합니다. (모델 소유자만 가능)")
-    public ResponseEntity<ApiResponse<TrainingJobResponse>> createTrainingJob(
-            @Parameter(description = "모델 ID", required = true)
-            @PathVariable Long modelId,
-            @Parameter(hidden = true)
-            Authentication authentication
-    ) {
-        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
-        TrainingJobResponse job = trainingService.createTrainingJob(modelId, userId);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("학습 작업 생성 성공", job)
-        );
-    }
 
     /**
      * 학습 이미지 업로드용 Presigned URL 생성
@@ -139,6 +124,15 @@ public class TrainingController {
      */
     @PostMapping("/start")
     @PreAuthorize("isAuthenticated()")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "학습 작업 시작 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (필수 파라미터 누락)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "서버 오류 (FastAPI 연동 실패)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     @Operation(
             summary = "학습 작업 시작",
             description = """
@@ -247,60 +241,6 @@ public class TrainingController {
     }
 
     /**
-     * 학습 진행률 업데이트
-     */
-    @PutMapping("/jobs/{jobId}/progress")
-    @Operation(summary = "학습 진행률 업데이트", description = "학습 진행 상황을 업데이트합니다. (FastAPI 서버 전용)")
-    public ResponseEntity<ApiResponse<TrainingJobResponse>> updateProgress(
-            @Parameter(description = "학습 작업 ID", required = true)
-            @PathVariable Long jobId,
-            @RequestBody Map<String, Object> request
-    ) {
-        Integer currentEpoch = (Integer) request.get("currentEpoch");
-        String phase = (String) request.get("phase");
-
-        TrainingJobResponse job = trainingService.updateProgress(jobId, currentEpoch, phase);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("진행률 업데이트 성공", job)
-        );
-    }
-
-    /**
-     * 학습 완료 처리
-     */
-    @PostMapping("/jobs/{jobId}/complete")
-    @Operation(summary = "학습 완료 처리", description = "학습 작업을 완료 처리합니다. (FastAPI 서버 전용)")
-    public ResponseEntity<ApiResponse<TrainingJobResponse>> completeTraining(
-            @Parameter(description = "학습 작업 ID", required = true)
-            @PathVariable Long jobId
-    ) {
-        TrainingJobResponse job = trainingService.completeTraining(jobId);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("학습 완료 처리 성공", job)
-        );
-    }
-
-    /**
-     * 학습 실패 처리
-     */
-    @PostMapping("/jobs/{jobId}/fail")
-    @Operation(summary = "학습 실패 처리", description = "학습 작업을 실패 처리합니다. (FastAPI 서버 전용)")
-    public ResponseEntity<ApiResponse<TrainingJobResponse>> failTraining(
-            @Parameter(description = "학습 작업 ID", required = true)
-            @PathVariable Long jobId,
-            @RequestBody Map<String, String> request
-    ) {
-        String errorMessage = request.get("errorMessage");
-        TrainingJobResponse job = trainingService.failTraining(jobId, errorMessage);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("학습 실패 처리 성공", job)
-        );
-    }
-
-    /**
      * 학습 작업 상세 조회
      */
     @GetMapping("/jobs/{jobId}")
@@ -313,22 +253,6 @@ public class TrainingController {
 
         return ResponseEntity.ok(
                 ApiResponse.success("학습 작업 조회 성공", job)
-        );
-    }
-
-    /**
-     * 모델의 최신 학습 작업 조회
-     */
-    @GetMapping("/models/{modelId}/latest")
-    @Operation(summary = "모델의 최신 학습 작업 조회", description = "모델의 가장 최근 학습 작업을 조회합니다.")
-    public ResponseEntity<ApiResponse<TrainingJobResponse>> getLatestTrainingJob(
-            @Parameter(description = "모델 ID", required = true)
-            @PathVariable Long modelId
-    ) {
-        TrainingJobResponse job = trainingService.getLatestTrainingJobByModel(modelId);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("최신 학습 작업 조회 성공", job)
         );
     }
 
@@ -393,37 +317,6 @@ public class TrainingController {
 
         return ResponseEntity.ok(
                 ApiResponse.success("진행 중인 학습 작업 조회 성공", activeJob)
-        );
-    }
-
-    /**
-     * 상태별 학습 작업 조회
-     */
-    @GetMapping("/status/{status}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "상태별 학습 작업 조회 (관리자)", description = "특정 상태의 학습 작업을 조회합니다. (관리자만 가능)")
-    public ResponseEntity<ApiResponse<List<TrainingJobResponse>>> getTrainingJobsByStatus(
-            @Parameter(description = "학습 상태 (PENDING, IN_PROGRESS, COMPLETED, FAILED)", required = true)
-            @PathVariable TrainingJob.TrainingStatus status
-    ) {
-        List<TrainingJobResponse> jobs = trainingService.getTrainingJobsByStatus(status);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("학습 작업 조회 성공", jobs)
-        );
-    }
-
-    /**
-     * 진행 중인 학습 작업 조회
-     */
-    @GetMapping("/in-progress")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "진행 중인 학습 작업 조회 (관리자)", description = "현재 진행 중인 모든 학습 작업을 조회합니다. (관리자만 가능)")
-    public ResponseEntity<ApiResponse<List<TrainingJobResponse>>> getInProgressJobs() {
-        List<TrainingJobResponse> jobs = trainingService.getInProgressJobs();
-
-        return ResponseEntity.ok(
-                ApiResponse.success("진행 중인 학습 작업 조회 성공", jobs)
         );
     }
 

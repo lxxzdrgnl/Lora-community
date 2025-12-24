@@ -2,6 +2,10 @@ package rheon.wsd_lora_community.user.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +22,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
+import rheon.wsd_lora_community.global.dto.ErrorResponse;
 import rheon.wsd_lora_community.user.dto.UserResponse;
 import rheon.wsd_lora_community.user.dto.UserUpdateRequest;
 import rheon.wsd_lora_community.user.service.UserService;
@@ -41,6 +46,13 @@ public class UserController {
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "내 프로필 조회", description = "현재 로그인된 유저의 프로필 정보를 조회합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "프로필 조회 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요 (JWT 토큰 없음 또는 만료)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "유저를 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<UserResponse>> getMyProfile(
             @Parameter(hidden = true)
             Authentication authentication
@@ -78,6 +90,11 @@ public class UserController {
      */
     @GetMapping("/{userId}")
     @Operation(summary = "유저 프로필 조회", description = "특정 유저의 프로필 정보를 조회합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "프로필 조회 성공"),
+            @ApiResponse(responseCode = "404", description = "유저를 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<UserResponse>> getUserProfile(
             @Parameter(description = "유저 ID", required = true)
             @PathVariable Long userId
@@ -95,6 +112,15 @@ public class UserController {
     @PutMapping("/me")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "내 프로필 수정", description = "현재 로그인된 유저의 프로필을 수정합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "프로필 수정 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (유효성 검증 실패)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 필요 (JWT 토큰 없음 또는 만료)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "닉네임 중복",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<UserResponse>> updateMyProfile(
             @Parameter(hidden = true)
             Authentication authentication,
@@ -113,6 +139,11 @@ public class UserController {
      */
     @GetMapping("/search")
     @Operation(summary = "유저 검색", description = "닉네임으로 유저를 검색합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "유저 검색 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (검색 키워드 누락)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<Page<UserResponse>>> searchUsers(
             @Parameter(description = "검색할 닉네임", required = true)
             @RequestParam String nickname,
@@ -131,6 +162,11 @@ public class UserController {
      */
     @GetMapping("/email/{email}")
     @Operation(summary = "이메일로 유저 조회", description = "이메일 주소로 유저를 조회합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "유저 조회 성공"),
+            @ApiResponse(responseCode = "404", description = "유저를 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<UserResponse>> getUserByEmail(
             @Parameter(description = "이메일 주소", required = true)
             @PathVariable String email

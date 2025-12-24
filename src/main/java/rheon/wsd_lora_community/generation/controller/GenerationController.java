@@ -2,6 +2,10 @@ package rheon.wsd_lora_community.generation.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +24,7 @@ import rheon.wsd_lora_community.generation.dto.GenerationHistoryResponse;
 import rheon.wsd_lora_community.generation.service.GenerationService;
 import rheon.wsd_lora_community.global.client.FastApiClient;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
+import rheon.wsd_lora_community.global.dto.ErrorResponse;
 import rheon.wsd_lora_community.global.dto.PageResponse;
 import rheon.wsd_lora_community.global.queue.RedisQueueService;
 import rheon.wsd_lora_community.global.queue.RedisQueueService.JobType;
@@ -74,6 +79,17 @@ public class GenerationController {
             description = "LoRA 모델을 사용하여 이미지 생성을 요청합니다. " +
                     "FastAPI 서버와 통신하여 이미지를 생성하고, 생성된 이미지 URL을 받아 기록을 저장합니다."
     )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "이미지 생성 요청 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (유효성 검증 실패)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "모델을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "서버 오류 (FastAPI 연동 실패)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateImage(
             @Parameter(hidden = true)
             Authentication authentication,
@@ -334,46 +350,6 @@ public class GenerationController {
 
         return ResponseEntity.ok(
                 ApiResponse.success("사용 가능한 모델 목록 조회 성공", models)
-        );
-    }
-
-    /**
-     * 모델의 생성 기록 목록 조회
-     */
-    @GetMapping("/history/models/{modelId}")
-    @Operation(summary = "모델의 생성 기록 조회", description = "특정 모델로 생성된 이미지 기록을 조회합니다.")
-    public ResponseEntity<ApiResponse<PageResponse<GenerationHistoryResponse>>> getModelGenerationHistory(
-            @Parameter(description = "모델 ID", required = true)
-            @PathVariable Long modelId,
-            @ParameterObject
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
-        PageResponse<GenerationHistoryResponse> history = generationService.getModelGenerationHistory(modelId, pageable);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("모델 생성 기록 조회 성공", history)
-        );
-    }
-
-    /**
-     * 내 특정 모델 생성 기록 조회
-     */
-    @GetMapping("/history/my/models/{modelId}")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "내 특정 모델 생성 기록 조회", description = "특정 모델로 내가 생성한 이미지 기록을 조회합니다.")
-    public ResponseEntity<ApiResponse<PageResponse<GenerationHistoryResponse>>> getMyModelGenerationHistory(
-            @Parameter(hidden = true)
-            Authentication authentication,
-            @Parameter(description = "모델 ID", required = true)
-            @PathVariable Long modelId,
-            @ParameterObject
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
-        Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
-        PageResponse<GenerationHistoryResponse> history = generationService.getUserModelGenerationHistory(userId, modelId, pageable);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("생성 기록 조회 성공", history)
         );
     }
 

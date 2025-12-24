@@ -2,6 +2,10 @@ package rheon.wsd_lora_community.global.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
@@ -15,6 +19,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
+import rheon.wsd_lora_community.global.dto.ErrorResponse;
 import rheon.wsd_lora_community.model.dto.LoraModelResponse;
 import rheon.wsd_lora_community.model.service.LoraModelService;
 import rheon.wsd_lora_community.user.dto.UserResponse;
@@ -48,6 +53,11 @@ public class SearchController {
             summary = "통합 검색",
             description = "키워드로 모델과 유저를 동시에 검색합니다."
     )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "통합 검색 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (검색 키워드 누락)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<Map<String, Object>>> search(
             @Parameter(description = "검색 키워드", required = true)
             @RequestParam String query,

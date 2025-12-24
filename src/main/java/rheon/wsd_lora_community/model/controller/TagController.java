@@ -2,6 +2,10 @@ package rheon.wsd_lora_community.model.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +15,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
+import rheon.wsd_lora_community.global.dto.ErrorResponse;
 import rheon.wsd_lora_community.global.exception.CustomException;
 import rheon.wsd_lora_community.global.exception.ErrorCode;
 import rheon.wsd_lora_community.model.dto.TagResponse;
@@ -138,6 +143,15 @@ public class TagController {
     @PostMapping("/models/{modelId}")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "모델에 태그 추가", description = "모델에 태그를 추가합니다. (모델 소유자만 가능)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "태그 추가 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "권한 없음 (소유자만 가능)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "모델을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<Void>> addTagToModel(
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
