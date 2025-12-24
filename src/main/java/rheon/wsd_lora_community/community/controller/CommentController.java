@@ -22,6 +22,7 @@ import rheon.wsd_lora_community.community.dto.CommentCreateRequest;
 import rheon.wsd_lora_community.community.dto.CommentResponse;
 import rheon.wsd_lora_community.community.service.CommentService;
 import rheon.wsd_lora_community.community.service.LikeService;
+import rheon.wsd_lora_community.global.config.CommonApiResponses;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.dto.ErrorResponse;
 import rheon.wsd_lora_community.global.dto.PageResponse;
@@ -39,6 +40,7 @@ import java.util.Map;
 @RequestMapping("/api/models")
 @RequiredArgsConstructor
 @Tag(name = "Community", description = "커뮤니티 API (댓글, 좋아요, 즐겨찾기)")
+@CommonApiResponses
 public class CommentController {
 
     private final CommentService commentService;
@@ -91,28 +93,6 @@ public class CommentController {
 
         return ResponseEntity.ok(
                 ApiResponse.success("댓글 목록 조회 성공", comments)
-        );
-    }
-
-    /**
-     * 댓글 단건 조회
-     */
-    @GetMapping("/{modelId}/comments/{commentId}")
-    @Operation(summary = "댓글 상세 조회", description = "특정 댓글의 상세 정보를 조회합니다.")
-    public ResponseEntity<ApiResponse<CommentResponse>> getComment(
-            @Parameter(description = "모델 ID", required = true)
-            @PathVariable Long modelId,
-            @Parameter(description = "댓글 ID", required = true)
-            @PathVariable Long commentId,
-            @Parameter(hidden = true)
-            Authentication authentication
-    ) {
-        Long currentUserId = getUserIdFromAuthentication(authentication);
-
-        CommentResponse comment = commentService.getComment(commentId, currentUserId);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("댓글 조회 성공", comment)
         );
     }
 

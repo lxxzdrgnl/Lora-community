@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import rheon.wsd_lora_community.global.config.CommonApiResponses;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -45,6 +46,7 @@ import java.util.HashMap;
 @RequestMapping("/api/training")
 @RequiredArgsConstructor
 @Tag(name = "Training", description = "학습 작업 API")
+@CommonApiResponses
 public class TrainingController {
 
     private final TrainingService trainingService;

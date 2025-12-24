@@ -16,8 +16,6 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
 
     boolean existsByName(String name);
 
-    List<Tag> findByCategory(Tag.TagCategory category);
-
     @Query("SELECT t FROM Tag t WHERE t.name LIKE %:search%")
     List<Tag> searchByName(@Param("search") String search);
 

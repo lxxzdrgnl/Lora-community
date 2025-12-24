@@ -47,15 +47,6 @@ public class TagService {
     }
 
     /**
-     * 카테고리별 태그 조회
-     */
-    public List<TagResponse> getTagsByCategory(Tag.TagCategory category) {
-        return tagRepository.findByCategory(category).stream()
-                .map(TagResponse::from)
-                .collect(Collectors.toList());
-    }
-
-    /**
      * 태그 검색
      */
     public List<TagResponse> searchTags(String keyword) {
@@ -78,12 +69,11 @@ public class TagService {
      * 태그 생성 또는 조회 (존재하면 조회, 없으면 생성)
      */
     @Transactional
-    public Tag getOrCreateTag(String tagName, Tag.TagCategory category) {
+    public Tag getOrCreateTag(String tagName) {
         return tagRepository.findByName(tagName)
                 .orElseGet(() -> {
                     Tag newTag = Tag.builder()
                             .name(tagName)
-                            .category(category != null ? category : Tag.TagCategory.OTHER)
                             .usageCount(0)
                             .build();
                     return tagRepository.save(newTag);
@@ -94,7 +84,7 @@ public class TagService {
      * 모델에 태그 추가
      */
     @Transactional
-    public void addTagToModel(Long modelId, String tagName, Tag.TagCategory category, Long userId) {
+    public void addTagToModel(Long modelId, String tagName, Long userId) {
         LoraModel model = loraModelRepository.findById(modelId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
 
@@ -104,7 +94,7 @@ public class TagService {
         }
 
         // 태그 생성 또는 조회
-        Tag tag = getOrCreateTag(tagName, category);
+        Tag tag = getOrCreateTag(tagName);
 
         // 이미 연결되어 있는지 확인
         if (modelTagRepository.existsByModelAndTag(model, tag)) {
@@ -159,18 +149,5 @@ public class TagService {
         return modelTagRepository.findByModel(model).stream()
                 .map(modelTag -> TagResponse.from(modelTag.getTag()))
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * 태그 카테고리 수정 (관리자용)
-     */
-    @Transactional
-    public TagResponse updateTagCategory(Long tagId, Tag.TagCategory category) {
-        Tag tag = tagRepository.findById(tagId)
-                .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
-
-        tag.updateCategory(category);
-
-        return TagResponse.from(tag);
     }
 }

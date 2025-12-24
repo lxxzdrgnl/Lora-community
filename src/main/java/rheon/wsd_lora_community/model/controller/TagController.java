@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
+import rheon.wsd_lora_community.global.config.CommonApiResponses;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.dto.ErrorResponse;
 import rheon.wsd_lora_community.global.exception.CustomException;
@@ -32,6 +33,7 @@ import java.util.Map;
 @RequestMapping("/api/tags")
 @RequiredArgsConstructor
 @Tag(name = "Tag", description = "태그 API")
+@CommonApiResponses
 public class TagController {
 
     private final TagService tagService;
@@ -85,22 +87,6 @@ public class TagController {
 
         return ResponseEntity.ok(
                 ApiResponse.success("인기 태그 조회 성공", tags)
-        );
-    }
-
-    /**
-     * 카테고리별 태그 조회
-     */
-    @GetMapping("/category/{category}")
-    @Operation(summary = "카테고리별 태그 조회", description = "특정 카테고리의 태그를 조회합니다.")
-    public ResponseEntity<ApiResponse<List<TagResponse>>> getTagsByCategory(
-            @Parameter(description = "태그 카테고리 (CHARACTER, STYLE, THEME, OTHER)", required = true)
-            @PathVariable rheon.wsd_lora_community.model.entity.Tag.TagCategory category
-    ) {
-        List<TagResponse> tags = tagService.getTagsByCategory(category);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("카테고리별 태그 조회 성공", tags)
         );
     }
 
@@ -160,14 +146,8 @@ public class TagController {
     ) {
         Long userId = getUserIdFromAuthentication(authentication);
         String tagName = (String) request.get("tagName");
-        String categoryStr = (String) request.get("category");
 
-        rheon.wsd_lora_community.model.entity.Tag.TagCategory category = null;
-        if (categoryStr != null) {
-            category = rheon.wsd_lora_community.model.entity.Tag.TagCategory.valueOf(categoryStr);
-        }
-
-        tagService.addTagToModel(modelId, tagName, category, userId);
+        tagService.addTagToModel(modelId, tagName, userId);
 
         return ResponseEntity.ok(
                 ApiResponse.success("태그 추가 성공")
@@ -209,28 +189,6 @@ public class TagController {
 
         return ResponseEntity.ok(
                 ApiResponse.success("모델 태그 조회 성공", tags)
-        );
-    }
-
-    /**
-     * 태그 카테고리 수정 (관리자용)
-     */
-    @PutMapping("/{tagId}/category")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "태그 카테고리 수정 (관리자)", description = "태그의 카테고리를 수정합니다. (관리자만 가능)")
-    public ResponseEntity<ApiResponse<TagResponse>> updateTagCategory(
-            @Parameter(description = "태그 ID", required = true)
-            @PathVariable Long tagId,
-            @RequestBody Map<String, String> request
-    ) {
-        String categoryStr = request.get("category");
-        rheon.wsd_lora_community.model.entity.Tag.TagCategory category =
-                rheon.wsd_lora_community.model.entity.Tag.TagCategory.valueOf(categoryStr);
-
-        TagResponse updatedTag = tagService.updateTagCategory(tagId, category);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("태그 카테고리 수정 성공", updatedTag)
         );
     }
 }

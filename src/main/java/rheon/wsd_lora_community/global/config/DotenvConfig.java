@@ -36,13 +36,13 @@ public class DotenvConfig {
 
                 // 민감정보는 로그에 출력하지 않음
                 if (key.contains("SECRET") || key.contains("PASSWORD") || key.contains("KEY")) {
-                    log.info("✅ Loaded env variable: {} = ****", key);
+                    log.debug("✅ Loaded env variable: {} = ****", key);
                 } else {
-                    log.info("✅ Loaded env variable: {} = {}", key, value);
+                    log.debug("✅ Loaded env variable: {} = {}", key, value);
                 }
             });
 
-            log.info("✅ .env file loaded successfully!");
+            log.debug("✅ .env file loaded successfully!");
 
         } catch (DotenvException e) {
             log.warn("⚠️ .env file not found or malformed: {}", e.getMessage());

@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.generation.dto.GeneratedImageResponse;
 import rheon.wsd_lora_community.generation.entity.GeneratedImage;
 import rheon.wsd_lora_community.generation.service.GenerationService;
+import rheon.wsd_lora_community.global.config.CommonApiResponses;
 import rheon.wsd_lora_community.global.config.SwaggerErrorExamples;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.dto.ErrorResponse;
@@ -47,6 +48,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/models")
 @RequiredArgsConstructor
 @Tag(name = "LoRA Model", description = "LoRA 모델 API")
+@CommonApiResponses
 public class LoraModelController {
 
     private final LoraModelService loraModelService;

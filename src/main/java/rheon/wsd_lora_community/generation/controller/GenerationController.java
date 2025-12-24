@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import rheon.wsd_lora_community.global.config.CommonApiResponses;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
@@ -53,6 +54,7 @@ import java.util.Map;
 @RequestMapping("/api/generate")
 @RequiredArgsConstructor
 @Tag(name = "Generation", description = "이미지 생성 API")
+@CommonApiResponses
 public class GenerationController {
 
     private final GenerationService generationService;

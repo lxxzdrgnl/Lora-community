@@ -20,9 +20,6 @@ public class TagResponse {
     @Schema(description = "태그 이름", example = "애니메이션")
     private String name;
 
-    @Schema(description = "태그 카테고리", example = "STYLE")
-    private String category;
-
     @Schema(description = "사용 횟수", example = "150")
     private Integer usageCount;
 
@@ -30,7 +27,6 @@ public class TagResponse {
         return TagResponse.builder()
                 .id(tag.getId())
                 .name(tag.getName())
-                .category(tag.getCategory().name())
                 .usageCount(tag.getUsageCount())
                 .build();
     }

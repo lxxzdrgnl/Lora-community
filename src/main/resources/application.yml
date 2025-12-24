@@ -118,19 +118,6 @@ fastapi:
   connect-timeout: 10000  # 10초
   read-timeout: 300000    # 5분 (학습/생성은 시간이 오래 걸림)
 
-# Modal 멀티 인스턴스 설정
-modal:
-  enabled: ${MODAL_ENABLED:true}  # Modal 사용 여부 (개발: false, 프로덕션: true)
-  app-url: ${MODAL_APP_URL:https://dldydwo9--lora-training-inference-fastapi-app.modal.run}
-  instances:
-    - ${MODAL_INSTANCE_1:http://127.0.0.1:8000}
-    - ${MODAL_INSTANCE_2:http://127.0.0.1:8001}
-    - ${MODAL_INSTANCE_3:http://127.0.0.1:8002}
-  max-instances: ${MODAL_MAX_INSTANCES:10}
-  health-check-interval: 300000  # 5분 (개발 환경에서는 더 긴 주기 권장)
-  retry-attempts: 3
-  load-balancing-strategy: LEAST_LOAD  # ROUND_ROBIN, LEAST_LOAD, PRIORITY
-
 # 파일 저장 경로 (로컬 - 개발용, 나중에 S3로 전환)
 file:
   upload-dir: ${FILE_UPLOAD_DIR:./uploads}
@@ -175,6 +162,17 @@ springdoc:
     doc-expansion: none
   default-consumes-media-type: application/json
   default-produces-media-type: application/json
+
+# Actuator 설정 (Health Check용)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
 
 # 서버 설정
 server:

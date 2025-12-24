@@ -17,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
+import rheon.wsd_lora_community.global.config.CommonApiResponses;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.dto.ErrorResponse;
 import rheon.wsd_lora_community.model.dto.LoraModelResponse;
@@ -39,6 +40,7 @@ import java.util.Map;
 @RequestMapping("/api/search")
 @RequiredArgsConstructor
 @Tag(name = "Search", description = "통합 검색 API")
+@CommonApiResponses
 public class SearchController {
 
     private final LoraModelService loraModelService;
@@ -192,34 +194,6 @@ public class SearchController {
 
         return ResponseEntity.ok(
                 ApiResponse.success("최신 모델 조회 성공", models)
-        );
-    }
-
-    /**
-     * 고급 검색 (복합 필터)
-     */
-    @PostMapping("/advanced")
-    @Operation(
-            summary = "고급 검색 (향후 구현)",
-            description = "여러 조건을 조합하여 모델을 검색합니다. (키워드 + 태그 + 정렬 등)"
-    )
-    public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> advancedSearch(
-            @Parameter(hidden = true)
-            Authentication authentication,
-            @RequestBody Map<String, Object> filters,
-            @ParameterObject
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
-        // TODO: 고급 검색 로직 구현
-        // 현재는 기본 검색만 지원
-        Long currentUserId = getUserIdFromAuthentication(authentication);
-        String query = (String) filters.get("query");
-        Page<LoraModelResponse> models = query != null
-                ? loraModelService.searchModels(query, currentUserId, pageable)
-                : loraModelService.getPublicModels(currentUserId, pageable);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("고급 검색 결과", models)
         );
     }
 

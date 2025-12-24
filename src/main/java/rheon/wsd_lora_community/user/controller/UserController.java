@@ -20,6 +20,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
+import rheon.wsd_lora_community.global.config.CommonApiResponses;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.dto.ErrorResponse;
 import rheon.wsd_lora_community.user.dto.UserResponse;
@@ -29,12 +30,12 @@ import rheon.wsd_lora_community.user.service.UserService;
 /**
  * 유저 관리 컨트롤러
  * - 프로필 조회/수정
- * - 유저 검색
  */
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @Tag(name = "User", description = "유저 API")
+@CommonApiResponses
 public class UserController {
 
     private final UserService userService;
@@ -85,27 +86,6 @@ public class UserController {
     }
 
     /**
-     * 특정 유저 프로필 조회
-     */
-    @GetMapping("/{userId}")
-    @Operation(summary = "유저 프로필 조회", description = "특정 유저의 프로필 정보를 조회합니다.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "프로필 조회 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "유저를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    })
-    public ResponseEntity<ApiResponse<UserResponse>> getUserProfile(
-            @Parameter(description = "유저 ID", required = true)
-            @PathVariable Long userId
-    ) {
-        UserResponse user = userService.getUserById(userId);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("프로필 조회 성공", user)
-        );
-    }
-
-    /**
      * 내 프로필 수정
      */
     @PutMapping("/me")
@@ -130,50 +110,6 @@ public class UserController {
 
         return ResponseEntity.ok(
                 ApiResponse.success("프로필 수정 성공", updatedUser)
-        );
-    }
-
-    /**
-     * 닉네임으로 유저 검색
-     */
-    @GetMapping("/search")
-    @Operation(summary = "유저 검색", description = "닉네임으로 유저를 검색합니다.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "유저 검색 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (검색 키워드 누락)",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    })
-    public ResponseEntity<ApiResponse<Page<UserResponse>>> searchUsers(
-            @Parameter(description = "검색할 닉네임", required = true)
-            @RequestParam String nickname,
-            @ParameterObject
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
-        Page<UserResponse> users = userService.searchUsersByNickname(nickname, pageable);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("유저 검색 성공", users)
-        );
-    }
-
-    /**
-     * 이메일로 유저 조회
-     */
-    @GetMapping("/email/{email}")
-    @Operation(summary = "이메일로 유저 조회", description = "이메일 주소로 유저를 조회합니다.")
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "유저 조회 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "유저를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    })
-    public ResponseEntity<ApiResponse<UserResponse>> getUserByEmail(
-            @Parameter(description = "이메일 주소", required = true)
-            @PathVariable String email
-    ) {
-        UserResponse user = userService.getUserByEmail(email);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("유저 조회 성공", user)
         );
     }
 }
