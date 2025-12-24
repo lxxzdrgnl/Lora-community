@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -54,8 +53,8 @@ public class SearchController {
             description = "키워드로 모델과 유저를 동시에 검색합니다."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "통합 검색 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 (검색 키워드 누락)",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "통합 검색 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (검색 키워드 누락)",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<ApiResponse<Map<String, Object>>> search(

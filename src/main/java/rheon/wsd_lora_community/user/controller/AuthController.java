@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
@@ -72,8 +71,8 @@ public class AuthController {
     @GetMapping("/google")
     @Operation(summary = "Google 로그인", description = "Google OAuth2 로그인을 시작합니다. (웹 프론트엔드용)")
     @ApiResponses({
-            @ApiResponse(responseCode = "302", description = "Google 인증 페이지로 리다이렉트"),
-            @ApiResponse(responseCode = "500", description = "서버 오류",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "302", description = "Google 인증 페이지로 리다이렉트"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public void googleLogin(
@@ -97,12 +96,12 @@ public class AuthController {
             description = "모바일 앱에서 받은 Google ID Token을 검증하고 JWT 토큰을 발급합니다. (모바일 앱용)"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "인증 성공, JWT 토큰 발급"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 (ID Token 검증 실패)",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "인증 성공, JWT 토큰 발급"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (ID Token 검증 실패)",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "500", description = "서버 오류",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<ApiResponse<TokenResponse>> authenticateWithGoogleToken(
@@ -125,12 +124,12 @@ public class AuthController {
     @PostMapping("/refresh")
     @Operation(summary = "액세스 토큰 갱신", description = "Refresh Token을 사용하여 새로운 Access Token을 발급받습니다.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "토큰 갱신 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 (Refresh Token 누락)",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "토큰 갱신 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (Refresh Token 누락)",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "401", description = "Refresh Token 만료 또는 유효하지 않음",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Refresh Token 만료 또는 유효하지 않음",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "500", description = "서버 오류",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<ApiResponse<Map<String, String>>> refreshAccessToken(
@@ -152,10 +151,10 @@ public class AuthController {
     @PostMapping("/logout")
     @Operation(summary = "로그아웃", description = "현재 Refresh Token을 삭제하여 로그아웃합니다.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "로그아웃 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 (Refresh Token 누락)",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그아웃 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (Refresh Token 누락)",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "404", description = "Refresh Token을 찾을 수 없음",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Refresh Token을 찾을 수 없음",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<ApiResponse<Void>> logout(
@@ -176,8 +175,8 @@ public class AuthController {
     @PostMapping("/logout-all")
     @Operation(summary = "모든 디바이스 로그아웃", description = "유저의 모든 Refresh Token을 삭제하여 모든 디바이스에서 로그아웃합니다.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "모든 디바이스 로그아웃 성공"),
-            @ApiResponse(responseCode = "401", description = "인증 필요 (JWT 토큰 없음 또는 만료)",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "모든 디바이스 로그아웃 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요 (JWT 토큰 없음 또는 만료)",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<ApiResponse<Void>> logoutAllDevices(
@@ -198,8 +197,8 @@ public class AuthController {
     @GetMapping("/me")
     @Operation(summary = "현재 인증 정보 확인", description = "현재 로그인된 유저의 정보를 확인합니다.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "인증 정보 조회 성공"),
-            @ApiResponse(responseCode = "401", description = "인증 필요 (JWT 토큰 없음 또는 만료)",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "인증 정보 조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요 (JWT 토큰 없음 또는 만료)",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCurrentUser(
@@ -234,8 +233,8 @@ public class AuthController {
     @GetMapping("/test")
     @Operation(summary = "테스트 로그인 (웹)", description = "테스트 유저로 자동 로그인하여 프론트엔드로 리다이렉트합니다. (개발용 - 웹용)")
     @ApiResponses({
-            @ApiResponse(responseCode = "302", description = "프론트엔드 콜백 페이지로 리다이렉트 (토큰 포함)"),
-            @ApiResponse(responseCode = "500", description = "서버 오류",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "302", description = "프론트엔드 콜백 페이지로 리다이렉트 (토큰 포함)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public void testLogin(HttpServletResponse response) throws IOException {
@@ -273,8 +272,8 @@ public class AuthController {
     @PostMapping("/test")
     @Operation(summary = "테스트 로그인 (모바일/API)", description = "테스트 유저로 자동 로그인하여 JWT 토큰을 JSON으로 반환합니다. (개발용 - 모바일/API용)")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "토큰 발급 성공"),
-            @ApiResponse(responseCode = "500", description = "서버 오류",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "토큰 발급 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<ApiResponse<TokenResponse>> testLoginJson() {

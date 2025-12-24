@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -125,12 +124,12 @@ public class TrainingController {
     @PostMapping("/start")
     @PreAuthorize("isAuthenticated()")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "학습 작업 시작 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 (필수 파라미터 누락)",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "학습 작업 시작 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (필수 파라미터 누락)",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "401", description = "인증 필요",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "500", description = "서버 오류 (FastAPI 연동 실패)",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류 (FastAPI 연동 실패)",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @Operation(

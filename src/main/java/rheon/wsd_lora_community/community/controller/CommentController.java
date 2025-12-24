@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -124,12 +123,12 @@ public class CommentController {
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "댓글 작성", description = "모델에 댓글을 작성합니다. parentCommentId가 있으면 대댓글이 됩니다.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "댓글 작성 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 (유효성 검증 실패)",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "댓글 작성 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (유효성 검증 실패)",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "401", description = "인증 필요",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "404", description = "모델을 찾을 수 없음",
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "모델을 찾을 수 없음",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<ApiResponse<CommentResponse>> createComment(
