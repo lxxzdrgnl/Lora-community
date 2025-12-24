@@ -1,5 +1,6 @@
 package rheon.wsd_lora_community.global.exception;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,10 +27,15 @@ public class GlobalExceptionHandler {
      * 커스텀 예외 처리
      */
     @ExceptionHandler(CustomException.class)
-    protected ResponseEntity<ErrorResponse> handleCustomException(CustomException e) {
+    protected ResponseEntity<ErrorResponse> handleCustomException(CustomException e, HttpServletRequest request) {
         log.error("CustomException: code={}, message={}", e.getErrorCode().getCode(), e.getMessage());
         ErrorCode errorCode = e.getErrorCode();
-        ErrorResponse response = new ErrorResponse(errorCode.getCode(), e.getMessage());
+        ErrorResponse response = new ErrorResponse(
+                request.getRequestURI(),
+                errorCode.getStatus().value(),
+                errorCode.getCode(),
+                e.getMessage()
+        );
         return new ResponseEntity<>(response, errorCode.getStatus());
     }
 
@@ -37,7 +43,10 @@ public class GlobalExceptionHandler {
      * Validation 예외 처리 (@Valid)
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    protected ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
+    protected ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(
+            MethodArgumentNotValidException e,
+            HttpServletRequest request
+    ) {
         log.error("MethodArgumentNotValidException: {}", e.getMessage());
         List<ErrorResponse.FieldError> errors = e.getBindingResult()
                 .getFieldErrors()
@@ -50,6 +59,8 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.toList());
 
         ErrorResponse response = new ErrorResponse(
+                request.getRequestURI(),
+                HttpStatus.BAD_REQUEST.value(),
                 ErrorCode.INVALID_INPUT_VALUE.getCode(),
                 ErrorCode.INVALID_INPUT_VALUE.getMessage(),
                 errors
@@ -61,7 +72,7 @@ public class GlobalExceptionHandler {
      * Binding 예외 처리
      */
     @ExceptionHandler(BindException.class)
-    protected ResponseEntity<ErrorResponse> handleBindException(BindException e) {
+    protected ResponseEntity<ErrorResponse> handleBindException(BindException e, HttpServletRequest request) {
         log.error("BindException: {}", e.getMessage());
         List<ErrorResponse.FieldError> errors = e.getBindingResult()
                 .getFieldErrors()
@@ -74,6 +85,8 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.toList());
 
         ErrorResponse response = new ErrorResponse(
+                request.getRequestURI(),
+                HttpStatus.BAD_REQUEST.value(),
                 ErrorCode.INVALID_INPUT_VALUE.getCode(),
                 ErrorCode.INVALID_INPUT_VALUE.getMessage(),
                 errors
@@ -85,9 +98,14 @@ public class GlobalExceptionHandler {
      * 타입 불일치 예외 처리
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    protected ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
+    protected ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatchException(
+            MethodArgumentTypeMismatchException e,
+            HttpServletRequest request
+    ) {
         log.error("MethodArgumentTypeMismatchException: {}", e.getMessage());
         ErrorResponse response = new ErrorResponse(
+                request.getRequestURI(),
+                HttpStatus.BAD_REQUEST.value(),
                 ErrorCode.INVALID_TYPE_VALUE.getCode(),
                 ErrorCode.INVALID_TYPE_VALUE.getMessage()
         );
@@ -98,9 +116,14 @@ public class GlobalExceptionHandler {
      * HTTP 메서드 불일치 예외 처리
      */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    protected ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException e) {
+    protected ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupportedException(
+            HttpRequestMethodNotSupportedException e,
+            HttpServletRequest request
+    ) {
         log.error("HttpRequestMethodNotSupportedException: {}", e.getMessage());
         ErrorResponse response = new ErrorResponse(
+                request.getRequestURI(),
+                HttpStatus.METHOD_NOT_ALLOWED.value(),
                 ErrorCode.METHOD_NOT_ALLOWED.getCode(),
                 ErrorCode.METHOD_NOT_ALLOWED.getMessage()
         );
@@ -111,9 +134,11 @@ public class GlobalExceptionHandler {
      * 접근 거부 예외 처리
      */
     @ExceptionHandler(AccessDeniedException.class)
-    protected ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException e) {
+    protected ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException e, HttpServletRequest request) {
         log.error("AccessDeniedException: {}", e.getMessage());
         ErrorResponse response = new ErrorResponse(
+                request.getRequestURI(),
+                HttpStatus.FORBIDDEN.value(),
                 ErrorCode.HANDLE_ACCESS_DENIED.getCode(),
                 ErrorCode.HANDLE_ACCESS_DENIED.getMessage()
         );
@@ -124,9 +149,11 @@ public class GlobalExceptionHandler {
      * 기타 예외 처리
      */
     @ExceptionHandler(Exception.class)
-    protected ResponseEntity<ErrorResponse> handleException(Exception e) {
+    protected ResponseEntity<ErrorResponse> handleException(Exception e, HttpServletRequest request) {
         log.error("Exception: {}", e.getMessage(), e);
         ErrorResponse response = new ErrorResponse(
+                request.getRequestURI(),
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 ErrorCode.INTERNAL_SERVER_ERROR.getCode(),
                 ErrorCode.INTERNAL_SERVER_ERROR.getMessage()
         );

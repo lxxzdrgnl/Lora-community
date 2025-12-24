@@ -7,6 +7,7 @@ import lombok.Getter;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 에러 응답 형식
@@ -17,29 +18,51 @@ import java.util.List;
 @Schema(description = "에러 응답")
 public class ErrorResponse {
 
-    @Schema(description = "에러 코드", example = "USER_NOT_FOUND")
-    private String errorCode;
+    @Schema(description = "에러 발생 시간", example = "2025-03-05T12:00:00")
+    private LocalDateTime timestamp;
 
-    @Schema(description = "에러 메시지", example = "사용자를 찾을 수 없습니다.")
+    @Schema(description = "요청 경로", example = "/api/models/123")
+    private String path;
+
+    @Schema(description = "HTTP 상태 코드", example = "404")
+    private int status;
+
+    @Schema(description = "에러 코드", example = "MODEL_NOT_FOUND")
+    private String code;
+
+    @Schema(description = "에러 메시지", example = "모델을 찾을 수 없습니다.")
     private String message;
 
     @Schema(description = "에러 상세 정보")
+    private Map<String, Object> details;
+
+    @Schema(description = "필드 에러 목록 (Validation 에러)")
     private List<FieldError> errors;
 
-    @Schema(description = "에러 발생 시간", example = "2025-01-15T12:00:00")
-    private LocalDateTime timestamp;
-
-    public ErrorResponse(String errorCode, String message) {
-        this.errorCode = errorCode;
-        this.message = message;
+    public ErrorResponse(String path, int status, String code, String message) {
         this.timestamp = LocalDateTime.now();
+        this.path = path;
+        this.status = status;
+        this.code = code;
+        this.message = message;
     }
 
-    public ErrorResponse(String errorCode, String message, List<FieldError> errors) {
-        this.errorCode = errorCode;
+    public ErrorResponse(String path, int status, String code, String message, List<FieldError> errors) {
+        this.timestamp = LocalDateTime.now();
+        this.path = path;
+        this.status = status;
+        this.code = code;
         this.message = message;
         this.errors = errors;
+    }
+
+    public ErrorResponse(String path, int status, String code, String message, Map<String, Object> details) {
         this.timestamp = LocalDateTime.now();
+        this.path = path;
+        this.status = status;
+        this.code = code;
+        this.message = message;
+        this.details = details;
     }
 
     /**

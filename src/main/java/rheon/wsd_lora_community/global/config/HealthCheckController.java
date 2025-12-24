@@ -11,6 +11,7 @@ import rheon.wsd_lora_community.global.queue.RedisQueueService;
 import rheon.wsd_lora_community.global.queue.RedisQueueService.JobType;
 import rheon.wsd_lora_community.global.queue.RedisQueueService.QueueStatus;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
@@ -23,10 +24,21 @@ import java.util.Map;
 public class HealthCheckController {
 
     private final RedisQueueService queueService;
+    private static final LocalDateTime BUILD_TIME = LocalDateTime.now();
 
     @Operation(summary = "서버 상태 확인", description = "서버가 정상적으로 실행 중인지 확인합니다.")
     @GetMapping
     public ApiResponse<Map<String, Object>> healthCheck() {
+        return getHealthStatus();
+    }
+
+    @Operation(summary = "서버 상태 확인 (/health)", description = "서버가 정상적으로 실행 중인지 확인합니다.")
+    @GetMapping("/health")
+    public ApiResponse<Map<String, Object>> healthCheckAlternative() {
+        return getHealthStatus();
+    }
+
+    private ApiResponse<Map<String, Object>> getHealthStatus() {
         QueueStatus trainingQueue = queueService.getQueueStatus(JobType.TRAINING);
         QueueStatus generationQueue = queueService.getQueueStatus(JobType.GENERATION);
 
@@ -34,6 +46,8 @@ public class HealthCheckController {
                 "status", "UP",
                 "service", "WSD_Lora_community",
                 "version", "1.0.0",
+                "buildTime", BUILD_TIME,
+                "currentTime", LocalDateTime.now(),
                 "queue", Map.of(
                         "training", Map.of(
                                 "pending", trainingQueue.pending(),

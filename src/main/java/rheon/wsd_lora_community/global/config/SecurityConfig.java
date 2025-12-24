@@ -70,7 +70,7 @@ public class SecurityConfig {
                         ).denyAll()
                         .requestMatchers(
                                 "/",
-                                "/api/auth/**",
+                                "/api/auth/**",  // 모든 인증 엔드포인트 (/api/auth/google/token 포함)
                                 "/login/oauth2/**",
                                 "/oauth2/**",
                                 "/h2-console/**",

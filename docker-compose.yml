@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # Spring Boot Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lora-app
+    restart: unless-stopped
+    environment:
+      # Database (RDS MySQL)
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      # Redis (Upstash)
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_SSL_ENABLED: ${REDIS_SSL_ENABLED:-true}
+
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+
+      # OAuth2
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+
+      # URLs
+      FRONTEND_URL: ${FRONTEND_URL}
+      CALLBACK_URL: ${CALLBACK_URL}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+
+      # AWS S3
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_S3_REGION: ${AWS_S3_REGION:-ap-northeast-2}
+      AWS_S3_TRAINING_BUCKET: ${AWS_S3_TRAINING_BUCKET:-lora-training-data-bucket}
+      AWS_S3_MODELS_BUCKET: ${AWS_S3_MODELS_BUCKET:-lora-models-bucket}
+      AWS_S3_GENERATED_BUCKET: ${AWS_S3_GENERATED_BUCKET:-lora-generated-image-bucket}
+
+      # FastAPI
+      FASTAPI_URL: ${FASTAPI_URL}
+
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  uploads:
+    driver: local

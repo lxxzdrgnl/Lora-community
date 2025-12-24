@@ -2,7 +2,11 @@ package rheon.wsd_lora_community.model.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+// Swagger 어노테이션 (fully qualified name으로 사용)
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
@@ -10,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -20,7 +25,9 @@ import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.generation.dto.GeneratedImageResponse;
 import rheon.wsd_lora_community.generation.entity.GeneratedImage;
 import rheon.wsd_lora_community.generation.service.GenerationService;
+import rheon.wsd_lora_community.global.config.SwaggerErrorExamples;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
+import rheon.wsd_lora_community.global.dto.ErrorResponse;
 import rheon.wsd_lora_community.model.dto.*;
 import rheon.wsd_lora_community.model.service.LoraModelService;
 import rheon.wsd_lora_community.model.service.PromptService;
@@ -79,6 +86,15 @@ public class LoraModelController {
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "모델 생성", description = "새로운 LoRA 모델을 생성합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "모델 생성 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<LoraModelResponse>> createModel(
             @Parameter(hidden = true)
             Authentication authentication,
@@ -87,9 +103,8 @@ public class LoraModelController {
         Long userId = getUserIdFromAuthentication(authentication);
         LoraModelResponse model = loraModelService.createModel(userId, request);
 
-        return ResponseEntity.ok(
-                ApiResponse.success("모델 생성 성공", model)
-        );
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("모델 생성 성공", model));
     }
 
     /**
@@ -97,6 +112,11 @@ public class LoraModelController {
      */
     @GetMapping
     @Operation(summary = "공개 모델 목록 조회", description = "공개된 모델 목록을 최신순으로 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<ApiResponse<Page<LoraModelResponse>>> getPublicModels(
             @Parameter(hidden = true)
             Authentication authentication,
@@ -205,7 +225,18 @@ public class LoraModelController {
     @DeleteMapping("/{modelId}")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "모델 삭제", description = "모델을 삭제합니다. (작성자만 가능, 테스트 유저 불가)")
-    public ResponseEntity<ApiResponse<Void>> deleteModel(
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "삭제 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "권한 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "모델을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<Void> deleteModel(
             @Parameter(description = "모델 ID", required = true)
             @PathVariable Long modelId,
             @Parameter(hidden = true)
@@ -218,9 +249,7 @@ public class LoraModelController {
 
         loraModelService.deleteModel(modelId, userId);
 
-        return ResponseEntity.ok(
-                ApiResponse.success("모델 삭제 성공")
-        );
+        return ResponseEntity.noContent().build();
     }
 
     /**

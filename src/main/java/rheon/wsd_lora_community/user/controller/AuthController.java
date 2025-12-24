@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +16,8 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.security.JwtTokenProvider;
+import rheon.wsd_lora_community.user.dto.GoogleTokenRequest;
+import rheon.wsd_lora_community.user.dto.TokenResponse;
 import rheon.wsd_lora_community.user.service.AuthService;
 
 import java.io.IOException;
@@ -59,10 +62,10 @@ public class AuthController {
     }
 
     /**
-     * Google OAuth2 로그인 시작
+     * Google OAuth2 로그인 시작 (웹 프론트엔드용)
      */
     @GetMapping("/google")
-    @Operation(summary = "Google 로그인", description = "Google OAuth2 로그인을 시작합니다.")
+    @Operation(summary = "Google 로그인", description = "Google OAuth2 로그인을 시작합니다. (웹 프론트엔드용)")
     public void googleLogin(
             @RequestParam(required = false) String prompt,
             HttpServletResponse response
@@ -73,6 +76,28 @@ public class AuthController {
             redirectUrl += "?prompt=" + prompt;
         }
         response.sendRedirect(redirectUrl);
+    }
+
+    /**
+     * Google ID Token 검증 및 JWT 발급 (모바일 앱용)
+     */
+    @PostMapping("/google/token")
+    @Operation(
+            summary = "Google ID Token 인증",
+            description = "모바일 앱에서 받은 Google ID Token을 검증하고 JWT 토큰을 발급합니다. (모바일 앱용)"
+    )
+    public ResponseEntity<ApiResponse<TokenResponse>> authenticateWithGoogleToken(
+            @Valid @RequestBody GoogleTokenRequest request
+    ) {
+        log.info("📱 Google ID Token authentication request received");
+
+        TokenResponse tokenResponse = authService.authenticateWithGoogleToken(request.getIdToken());
+
+        log.info("✅ JWT tokens issued successfully for user: {}", tokenResponse.getEmail());
+
+        return ResponseEntity.ok(
+                ApiResponse.success("인증에 성공했습니다.", tokenResponse)
+        );
     }
 
     /**

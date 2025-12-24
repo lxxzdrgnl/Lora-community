@@ -79,44 +79,77 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // state 파라미터에서 프론트엔드 URL 결정
         String targetFrontendUrl = determineTargetUrl(request);
 
-        // 프론트엔드로 리다이렉트 (URL Fragment를 사용하여 토큰 전달)
-        String redirectUrl = UriComponentsBuilder.fromUriString(targetFrontendUrl)
-                .path("/auth/callback")
-                .build()
-                .toUriString();
+        // React Native 앱 감지: targetFrontendUrl이 모바일 스킴(bluemingai://, exp://)인 경우
+        boolean isMobileApp = targetFrontendUrl.startsWith("bluemingai://") ||
+                              targetFrontendUrl.startsWith("exp://") ||
+                              targetFrontendUrl.startsWith("exps://");
 
-        // URL Fragment에 토큰 추가 (보안상 쿼리 파라미터보다 안전)
-        String fragment = String.format(
-                "accessToken=%s&refreshToken=%s&userId=%d&email=%s&name=%s&nickname=%s",
-                URLEncoder.encode(accessToken, StandardCharsets.UTF_8),
-                URLEncoder.encode(refreshToken, StandardCharsets.UTF_8),
-                user.getId(),
-                URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8),
-                URLEncoder.encode(user.getName(), StandardCharsets.UTF_8),
-                URLEncoder.encode(user.getNickname(), StandardCharsets.UTF_8)
-        );
+        String redirectUrl;
+        if (isMobileApp) {
+            // 모바일 앱: Query Parameter로 토큰 전달
+            redirectUrl = UriComponentsBuilder.fromUriString(targetFrontendUrl)
+                    .queryParam("accessToken", accessToken)
+                    .queryParam("refreshToken", refreshToken)
+                    .queryParam("userId", user.getId())
+                    .queryParam("email", user.getEmail())
+                    .queryParam("name", user.getName())
+                    .queryParam("nickname", user.getNickname())
+                    .build()
+                    .toUriString();
+            response.sendRedirect(redirectUrl);
+        } else {
+            // 웹 프론트엔드: URL Fragment로 토큰 전달 (보안상 안전)
+            redirectUrl = UriComponentsBuilder.fromUriString(targetFrontendUrl)
+                    .path("/auth/callback")
+                    .build()
+                    .toUriString();
 
-        response.sendRedirect(redirectUrl + "#" + fragment);
+            String fragment = String.format(
+                    "accessToken=%s&refreshToken=%s&userId=%d&email=%s&name=%s&nickname=%s",
+                    URLEncoder.encode(accessToken, StandardCharsets.UTF_8),
+                    URLEncoder.encode(refreshToken, StandardCharsets.UTF_8),
+                    user.getId(),
+                    URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8),
+                    URLEncoder.encode(user.getName(), StandardCharsets.UTF_8),
+                    URLEncoder.encode(user.getNickname(), StandardCharsets.UTF_8)
+            );
+            response.sendRedirect(redirectUrl + "#" + fragment);
+        }
     }
 
     private String determineTargetUrl(HttpServletRequest request) {
         String state = request.getParameter("state");
+        log.info("🔍 OAuth2 state parameter: {}", state);
+
         if (state != null && state.contains("::")) {
             try {
                 String[] parts = state.split("::");
                 if (parts.length > 1) {
-                    String encodedReferer = parts[1];
-                    String decodedReferer = URLDecoder.decode(encodedReferer, StandardCharsets.UTF_8);
+                    String encodedUrl = parts[1];
+                    String decodedUrl = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8);
+                    log.info("✅ Decoded redirect URL from state: {}", decodedUrl);
 
-                    // Referer의 Origin만 추출하여 사용
-                    URI uri = new URI(decodedReferer);
-                    return uri.getScheme() + "://" + uri.getAuthority();
+                    // 모바일 앱 스킴(exp://, bluemingai://)인 경우 전체 URL 반환
+                    if (decodedUrl.startsWith("exp://") ||
+                        decodedUrl.startsWith("exps://") ||
+                        decodedUrl.startsWith("bluemingai://")) {
+                        log.info("📱 Mobile app redirect detected: {}", decodedUrl);
+                        return decodedUrl;
+                    }
+
+                    // 웹 프론트엔드인 경우 Origin만 추출
+                    URI uri = new URI(decodedUrl);
+                    String webUrl = uri.getScheme() + "://" + uri.getAuthority();
+                    log.info("🌐 Web frontend redirect: {}", webUrl);
+                    return webUrl;
                 }
             } catch (Exception e) {
-                log.warn("Failed to parse state parameter for redirect URL: {}", state, e);
+                log.error("❌ Failed to parse state parameter for redirect URL: {}", state, e);
             }
         }
+
         // Fallback to default frontend URL
+        log.warn("⚠️ No valid redirect URL in state, using fallback: {}", frontendUrl);
         return frontendUrl;
     }
 

@@ -60,9 +60,12 @@ public class User extends BaseEntity {
 
     /**
      * 사용자 역할
+     * - USER: 일반 사용자
+     * - TEST: 테스트 사용자 (일부 기능 제한)
+     * - ADMIN: 관리자
      */
     public enum Role {
-        USER, ADMIN
+        USER, TEST, ADMIN
     }
 
     // 비즈니스 메서드

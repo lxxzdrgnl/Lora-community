@@ -1,6 +1,7 @@
 package rheon.wsd_lora_community.global.security;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
@@ -18,6 +19,7 @@ import java.util.Map;
  * - 동적 리디렉션을 위해 Referer를 state 파라미터에 포함
  * - CloudFront 환경에서 redirect_uri 정확히 설정
  */
+@Slf4j
 @Component
 public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
 
@@ -50,7 +52,7 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
             return null;
         }
 
-        // ✅ CloudFront 헤더로부터 정확한 baseUrl 계산
+        // ✅ CloudFront/ngrok 헤더로부터 정확한 baseUrl 계산
         String scheme = request.getHeader("X-Forwarded-Proto");
         if (scheme == null) {
             scheme = request.getScheme();
@@ -65,13 +67,14 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
             }
         }
 
-        // CloudFront 환경이면 강제로 HTTPS 사용
-        if (host != null && host.contains("cloudfront.net")) {
+        // CloudFront/ngrok 환경이면 강제로 HTTPS 사용
+        if (host != null && (host.contains("cloudfront.net") || host.contains("ngrok"))) {
             scheme = "https";
         }
 
         String baseUrl = scheme + "://" + host;
         String correctRedirectUri = baseUrl + "/login/oauth2/code/google";
+        log.info("🔗 OAuth2 redirect_uri: {}", correctRedirectUri);
 
         Map<String, Object> additionalParameters = new HashMap<>(authorizationRequest.getAdditionalParameters());
 
@@ -95,14 +98,28 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
         // refresh token을 받기 위해 access_type=offline 추가
         additionalParameters.put("access_type", "offline");
 
-        // Referer 헤더를 state 파라미터에 인코딩하여 추가
+        // mobile_redirect 파라미터 또는 Referer 헤더를 state 파라미터에 인코딩
+        String mobileRedirect = request.getParameter("mobile_redirect");
         String referer = request.getHeader("Referer");
         String originalState = authorizationRequest.getState();
         String newState = originalState;
 
-        if (referer != null && !referer.isEmpty()) {
+        log.info("🔍 OAuth2 Authorization Request:");
+        log.info("  - mobile_redirect parameter: {}", mobileRedirect);
+        log.info("  - Referer header: {}", referer);
+        log.info("  - Original state: {}", originalState);
+
+        // 우선순위: mobile_redirect > Referer
+        if (mobileRedirect != null && !mobileRedirect.isEmpty()) {
+            String encodedMobileRedirect = URLEncoder.encode(mobileRedirect, StandardCharsets.UTF_8);
+            newState = originalState + "::" + encodedMobileRedirect;
+            log.info("✅ Using mobile_redirect in state: {}", newState);
+        } else if (referer != null && !referer.isEmpty()) {
             String encodedReferer = URLEncoder.encode(referer, StandardCharsets.UTF_8);
             newState = originalState + "::" + encodedReferer;
+            log.info("✅ Using Referer in state: {}", newState);
+        } else {
+            log.warn("⚠️ No mobile_redirect or Referer found, using original state only");
         }
 
         return OAuth2AuthorizationRequest.from(authorizationRequest)
