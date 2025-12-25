@@ -142,10 +142,10 @@ public class TagController {
             @PathVariable Long modelId,
             @Parameter(hidden = true)
             Authentication authentication,
-            @RequestBody Map<String, Object> request
+            @jakarta.validation.Valid @RequestBody rheon.wsd_lora_community.model.dto.AddTagRequest request
     ) {
         Long userId = getUserIdFromAuthentication(authentication);
-        String tagName = (String) request.get("tagName");
+        String tagName = request.getTagName();
 
         tagService.addTagToModel(modelId, tagName, userId);
 

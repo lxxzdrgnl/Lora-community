@@ -143,14 +143,14 @@ public class CommentController {
             @PathVariable Long commentId,
             @Parameter(hidden = true)
             Authentication authentication,
-            @RequestBody Map<String, String> request
+            @jakarta.validation.Valid @RequestBody rheon.wsd_lora_community.community.dto.CommentUpdateRequest request
     ) {
         Long userId = getUserIdFromAuthentication(authentication);
         if (userId == null) {
             throw new IllegalArgumentException("인증 정보가 없습니다.");
         }
 
-        String content = request.get("content");
+        String content = request.getContent();
 
         CommentResponse updatedComment = commentService.updateComment(commentId, userId, content);
 

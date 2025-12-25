@@ -133,10 +133,9 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<ApiResponse<Map<String, String>>> refreshAccessToken(
-            @Parameter(description = "Refresh Token", required = true)
-            @RequestBody Map<String, String> request
+            @jakarta.validation.Valid @RequestBody rheon.wsd_lora_community.user.dto.RefreshTokenRequest request
     ) {
-        String refreshToken = request.get("refreshToken");
+        String refreshToken = request.getRefreshToken();
         String newAccessToken = authService.refreshAccessToken(refreshToken);
 
         return ResponseEntity.ok(
@@ -158,10 +157,9 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<ApiResponse<Void>> logout(
-            @Parameter(description = "Refresh Token", required = true)
-            @RequestBody Map<String, String> request
+            @jakarta.validation.Valid @RequestBody rheon.wsd_lora_community.user.dto.RefreshTokenRequest request
     ) {
-        String refreshToken = request.get("refreshToken");
+        String refreshToken = request.getRefreshToken();
         authService.logout(refreshToken);
 
         return ResponseEntity.ok(

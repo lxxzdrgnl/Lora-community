@@ -254,10 +254,10 @@ public class SwaggerConfig {
     private List<Server> serverList() {
         return List.of(
                 new Server()
-                        .url("http://localhost:8080")
+                        .url("http://localhost:5000")
                         .description("로컬 개발 서버"),
                 new Server()
-                        .url("http://blueming-ai-env.eba-gdfew9bx.ap-northeast-2.elasticbeanstalk.com")
+                        .url("https://d3ka730j70ocy8.cloudfront.net")
                         .description("프로덕션 서버")
         );
     }

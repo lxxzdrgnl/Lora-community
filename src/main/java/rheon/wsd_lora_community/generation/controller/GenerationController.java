@@ -144,68 +144,41 @@ public class GenerationController {
                     "S3에 업로드된 이미지 키 목록을 전달받거나 에러 메시지를 받습니다."
     )
     public ResponseEntity<ApiResponse<?>> handleGenerationCallback(
-            @RequestBody Map<String, Object> request
+            @jakarta.validation.Valid @RequestBody rheon.wsd_lora_community.generation.dto.GenerationCallbackRequest request
     ) {
-        String status = (String) request.get("status");
-        log.info("🔔 생성 콜백 수신: status={}, request={}", status, request);
+        String status = request.getStatus();
+        log.info("🔔 생성 콜백 수신: status={}, historyId={}, userId={}", status, request.getHistoryId(), request.getUserId());
 
         if ("GENERATING".equals(status)) {
             // 진행률 업데이트
-            Long historyId = request.get("historyId") != null
-                    ? Long.valueOf(request.get("historyId").toString())
-                    : null;
-            Integer currentStep = request.get("currentStep") != null
-                    ? Integer.valueOf(request.get("currentStep").toString())
-                    : null;
-            Integer totalSteps = request.get("totalSteps") != null
-                    ? Integer.valueOf(request.get("totalSteps").toString())
-                    : null;
-            String message = (String) request.get("message");
-
-            jobCallbackService.handleGenerationProgress(historyId, currentStep, totalSteps, message);
+            jobCallbackService.handleGenerationProgress(
+                    request.getHistoryId(),
+                    request.getCurrentStep(),
+                    request.getTotalSteps(),
+                    request.getMessage()
+            );
 
             return ResponseEntity.ok(
                     ApiResponse.success("진행률 업데이트 성공", Map.of(
-                            "historyId", historyId != null ? historyId : 0,
-                            "message", message != null ? message : ""
+                            "historyId", request.getHistoryId() != null ? request.getHistoryId() : 0,
+                            "message", request.getMessage() != null ? request.getMessage() : ""
                     ))
             );
         } else if ("SUCCESS".equals(status)) {
             // 성공 처리
-            Long historyId = request.get("historyId") != null
-                    ? Long.valueOf(request.get("historyId").toString())
-                    : null;
-            Long userId = request.get("userId") != null
-                    ? Long.valueOf(request.get("userId").toString())
-                    : null;
-            Long modelId = request.get("modelId") != null
-                    ? Long.valueOf(request.get("modelId").toString())
-                    : null;
-            String prompt = (String) request.get("prompt");
-            String negativePrompt = (String) request.get("negativePrompt");
-            Integer steps = request.get("steps") != null
-                    ? Integer.valueOf(request.get("steps").toString())
-                    : null;
-            Double guidanceScale = request.get("guidanceScale") != null
-                    ? Double.valueOf(request.get("guidanceScale").toString())
-                    : null;
-            Double loraScale = request.get("loraScale") != null
-                    ? Double.valueOf(request.get("loraScale").toString())
-                    : null;
-            Long seed = request.get("seed") != null
-                    ? Long.valueOf(request.get("seed").toString())
-                    : null;
-            Integer numImages = request.get("numImages") != null
-                    ? Integer.valueOf(request.get("numImages").toString())
-                    : 1;
-
-            // S3 키 목록 가져오기
-            @SuppressWarnings("unchecked")
-            java.util.List<String> imageS3Keys = (java.util.List<String>) request.get("imageS3Keys");
-
             try {
                 GenerationHistoryResponse history = jobCallbackService.handleGenerationSuccess(
-                        historyId, userId, modelId, prompt, negativePrompt, steps, guidanceScale, loraScale, seed, numImages, imageS3Keys
+                        request.getHistoryId(),
+                        request.getUserId(),
+                        request.getModelId(),
+                        request.getPrompt(),
+                        request.getNegativePrompt(),
+                        request.getSteps(),
+                        request.getGuidanceScale(),
+                        request.getLoraScale(),
+                        request.getSeed(),
+                        request.getNumImages() != null ? request.getNumImages() : 1,
+                        request.getImageS3Keys()
                 );
                 return ResponseEntity.ok(
                         ApiResponse.success("생성 완료 처리 성공", history)
@@ -219,18 +192,16 @@ public class GenerationController {
             }
         } else if ("FAIL".equals(status)) {
             // 실패 처리
-            Long historyId = request.get("historyId") != null
-                    ? Long.valueOf(request.get("historyId").toString())
-                    : null;
-            Long userId = request.get("userId") != null
-                    ? Long.valueOf(request.get("userId").toString())
-                    : null;
-            String error = (String) request.get("error");
-
-            jobCallbackService.handleGenerationFailure(historyId, userId, error);
+            jobCallbackService.handleGenerationFailure(
+                    request.getHistoryId(),
+                    request.getUserId(),
+                    request.getError()
+            );
 
             return ResponseEntity.ok(
-                    ApiResponse.success("생성 실패 처리 완료", Map.of("error", error != null ? error : "Unknown error"))
+                    ApiResponse.success("생성 실패 처리 완료", Map.of(
+                            "error", request.getError() != null ? request.getError() : "Unknown error"
+                    ))
             );
         } else {
             return ResponseEntity.badRequest()

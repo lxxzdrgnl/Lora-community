@@ -70,24 +70,15 @@ public class TrainingController {
     @Operation(
             summary = "학습 이미지 업로드용 Presigned URL 생성",
             description = "학습 이미지를 S3에 업로드하기 위한 Presigned URL을 생성합니다. " +
-                    "프론트엔드에서 이 URL로 이미지를 직접 업로드하고, 업로드된 이미지의 URL을 학습 시작 시 전달합니다. " +
-                    "**요청 바디**: {\"fileNames\": [\"image1.png\", \"image2.png\"]}"
+                    "프론트엔드에서 이 URL로 이미지를 직접 업로드하고, 업로드된 이미지의 URL을 학습 시작 시 전달합니다."
     )
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateUploadUrls(
             @Parameter(hidden = true)
             Authentication authentication,
-            @RequestBody Map<String, Object> request
+            @Valid @RequestBody rheon.wsd_lora_community.training.dto.UploadUrlsRequest request
     ) {
         Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
-
-        @SuppressWarnings("unchecked")
-        List<String> fileNames = (List<String>) request.get("fileNames");
-
-        if (fileNames == null || fileNames.isEmpty()) {
-            return ResponseEntity.badRequest().body(
-                    ApiResponse.error("파일명 리스트가 필요합니다. (fileNames)")
-            );
-        }
+        List<String> fileNames = request.getFileNames();
 
         // 각 파일에 대한 업로드 URL과 S3 키 생성 (userId + timestamp 기반)
         String folderName = "training-" + userId + "-" + System.currentTimeMillis();
@@ -140,6 +131,8 @@ public class TrainingController {
                     학습을 시작하고 Modal API로 학습 요청을 전송합니다.
                     학습 완료 후 모델이 자동으로 생성됩니다.
 
+                    **주의**: JWT 토큰이 필요합니다. 우측 상단 🔓 버튼을 클릭하여 로그인 후 사용하세요.
+
                     **요청 바디 (JSON):**
                     - `modelName` (String, 필수): 모델 이름
                     - `modelDescription` (String, 선택): 모델 설명
@@ -168,66 +161,37 @@ public class TrainingController {
                     """
     )
     public ResponseEntity<ApiResponse<Map<String, Object>>> startTraining(
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "학습 시작 요청 파라미터",
-                    required = true
-            )
-            @RequestBody Map<String, Object> request,
+            @Valid @RequestBody rheon.wsd_lora_community.training.dto.StartTrainingRequest request,
             @Parameter(hidden = true)
             Authentication authentication
     ) {
         Long userId = AuthenticationUtil.getUserIdFromAuthentication(authentication);
 
-        // 필수 파라미터 추출
-        String modelName = (String) request.get("modelName");
-        if (modelName == null || modelName.isEmpty()) {
-            return ResponseEntity.badRequest().body(
-                    ApiResponse.error("모델 이름이 필요합니다. (modelName)")
-            );
-        }
-
-        @SuppressWarnings("unchecked")
-        List<String> trainingImageUrls = (List<String>) request.get("trainingImageUrls");
-        if (trainingImageUrls == null || trainingImageUrls.isEmpty()) {
-            return ResponseEntity.badRequest().body(
-                    ApiResponse.error("학습 이미지 URL 리스트가 필요합니다. (trainingImageUrls)")
-            );
-        }
-
-        Integer epochs = request.get("epochs") != null
-                ? ((Number) request.get("epochs")).intValue()
-                : 10; // 기본값
-
-        // 선택 파라미터
-        String modelDescription = (String) request.get("modelDescription");
-        String triggerWord = (String) request.get("triggerWord");
-        Double learningRate = request.containsKey("learningRate")
-                ? ((Number) request.get("learningRate")).doubleValue()
-                : null;
-        Integer loraRank = request.containsKey("loraRank")
-                ? ((Number) request.get("loraRank")).intValue()
-                : null;
-        String baseModel = (String) request.getOrDefault("baseModel", "stablediffusionapi/anything-v5");
-        Boolean skipPreprocessing = (Boolean) request.getOrDefault("skipPreprocessing", false);
-
         // TrainingJob 생성 및 학습 시작
         TrainingJobResponse job = trainingService.createAndStartTrainingJob(
-                userId, modelName, modelDescription, trainingImageUrls.size(),
-                epochs, learningRate, loraRank, baseModel, triggerWord
+                userId,
+                request.getModelName(),
+                request.getModelDescription(),
+                request.getTrainingImageUrls().size(),
+                request.getEpochs(),
+                request.getLearningRate(),
+                request.getLoraRank(),
+                request.getBaseModel(),
+                request.getTriggerWord()
         );
 
         // Redis 큐에 작업 추가 (JobQueueWorker가 자동으로 처리)
         Map<String, Object> jobData = new HashMap<>();
         jobData.put("userId", userId);
-        jobData.put("modelName", modelName);
-        jobData.put("characterName", modelName);
-        jobData.put("totalEpochs", epochs);
-        jobData.put("trainingImageUrls", trainingImageUrls);
-        jobData.put("triggerWord", triggerWord);
-        jobData.put("learningRate", learningRate);
-        jobData.put("loraRank", loraRank);
-        jobData.put("baseModel", baseModel);
-        jobData.put("skipPreprocessing", skipPreprocessing);
+        jobData.put("modelName", request.getModelName());
+        jobData.put("characterName", request.getModelName());
+        jobData.put("totalEpochs", request.getEpochs());
+        jobData.put("trainingImageUrls", request.getTrainingImageUrls());
+        jobData.put("triggerWord", request.getTriggerWord());
+        jobData.put("learningRate", request.getLearningRate());
+        jobData.put("loraRank", request.getLoraRank());
+        jobData.put("baseModel", request.getBaseModel());
+        jobData.put("skipPreprocessing", request.getSkipPreprocessing());
         jobData.put("datasetS3Path", ""); // JobQueueWorker에서 사용할 S3 경로 (필요시)
 
         queueService.enqueue(JobType.TRAINING, job.getId(), jobData);

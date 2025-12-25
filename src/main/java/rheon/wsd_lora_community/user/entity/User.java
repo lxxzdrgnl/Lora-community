@@ -77,6 +77,10 @@ public class User extends BaseEntity {
         this.profileImageUrl = profileImageUrl;
     }
 
+    public void updateRole(Role role) {
+        this.role = role;
+    }
+
     public void updateOAuthInfo(String oauthProviderId, String profileImageUrl) {
         this.oauthProviderId = oauthProviderId;
         if (profileImageUrl != null) {

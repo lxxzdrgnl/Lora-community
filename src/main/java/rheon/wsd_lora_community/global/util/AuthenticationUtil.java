@@ -1,6 +1,7 @@
 package rheon.wsd_lora_community.global.util;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
@@ -33,5 +34,21 @@ public class AuthenticationUtil {
         }
 
         throw new IllegalStateException("Unknown principal type: " + principal.getClass());
+    }
+
+    /**
+     * 현재 사용자가 ADMIN 권한을 가지고 있는지 확인
+     * - SecurityContextHolder에서 Authentication을 가져와 권한 확인
+     *
+     * @return ADMIN 권한 보유 여부
+     */
+    public static boolean isAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return false;
+        }
+
+        return auth.getAuthorities().stream()
+                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
     }
 }

@@ -150,8 +150,8 @@ public class LoraModelService {
         LoraModel model = loraModelRepository.findById(modelId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MODEL_NOT_FOUND));
 
-        // 권한 확인
-        if (!model.getUser().getId().equals(userId)) {
+        // 권한 확인: 작성자 또는 ADMIN만 삭제 가능
+        if (!model.getUser().getId().equals(userId) && !rheon.wsd_lora_community.global.util.AuthenticationUtil.isAdmin()) {
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
 

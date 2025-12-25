@@ -97,7 +97,9 @@ public class JobQueueWorker {
                 jobId = queueService.dequeue(JobType.TRAINING);
 
                 if (jobId == null) {
-                    continue; // 큐가 비어있으면 다시 대기
+                    // 큐가 비어있으면 195초 대기 (BLPOP 5초 + 195초 = 총 200초 주기)
+                    Thread.sleep(195000);
+                    continue;
                 }
 
                 log.info("📤 Training 작업 처리 시작: jobId={}", jobId);
@@ -212,7 +214,9 @@ public class JobQueueWorker {
                 historyId = queueService.dequeue(JobType.GENERATION);
 
                 if (historyId == null) {
-                    continue; // 큐가 비어있으면 다시 대기
+                    // 큐가 비어있으면 195초 대기 (BLPOP 5초 + 195초 = 총 200초 주기)
+                    Thread.sleep(195000);
+                    continue;
                 }
 
                 log.info("📤 Generation 작업 처리 시작: historyId={}", historyId);

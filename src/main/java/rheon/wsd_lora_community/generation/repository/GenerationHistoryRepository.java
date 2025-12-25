@@ -44,4 +44,17 @@ public interface GenerationHistoryRepository extends JpaRepository<GenerationHis
      * 특정 상태로 특정 시간 이전에 업데이트된 작업 조회 (복구용)
      */
     List<GenerationHistory> findByStatusAndUpdatedAtBefore(String status, LocalDateTime updatedAt);
+
+    /**
+     * 최근 일주일간 가장 많이 사용된 모델 통계 조회 (관리자용)
+     */
+    @Query("SELECT new rheon.wsd_lora_community.admin.dto.ModelUsageStatistics(m.id, m.title, COUNT(gh), m.user.nickname) " +
+            "FROM GenerationHistory gh JOIN gh.model m " +
+            "WHERE gh.createdAt >= :weekAgo AND m.deletedAt IS NULL " +
+            "GROUP BY m.id, m.title, m.user.nickname " +
+            "ORDER BY COUNT(gh) DESC")
+    List<rheon.wsd_lora_community.admin.dto.ModelUsageStatistics> findMostUsedModelsInLastWeek(
+            @Param("weekAgo") LocalDateTime weekAgo,
+            Pageable pageable
+    );
 }

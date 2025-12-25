@@ -51,4 +51,8 @@ public interface LoraModelRepository extends JpaRepository<LoraModel, Long> {
     // 유저의 모델 조회 (학습 완료된 모델만, 삭제되지 않은 것만)
     @Query("SELECT m FROM LoraModel m WHERE m.user.id = :userId AND m.deletedAt IS NULL ORDER BY m.createdAt DESC")
     Page<LoraModel> findByUserIdExcludingFailedOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
+
+    // 가장 많이 조회된 모델 (관리자용)
+    @Query("SELECT m FROM LoraModel m WHERE m.deletedAt IS NULL ORDER BY m.viewCount DESC")
+    Page<LoraModel> findMostViewedModels(Pageable pageable);
 }

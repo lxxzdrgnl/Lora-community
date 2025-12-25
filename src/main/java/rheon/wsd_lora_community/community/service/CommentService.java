@@ -109,8 +109,8 @@ public class CommentService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 권한 확인: 작성자만 수정 가능
-        if (!comment.isOwner(user)) {
+        // 권한 확인: 작성자 또는 ADMIN만 수정 가능
+        if (!comment.isOwner(user) && !rheon.wsd_lora_community.global.util.AuthenticationUtil.isAdmin()) {
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
 
@@ -133,8 +133,8 @@ public class CommentService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 권한 확인: 작성자만 삭제 가능
-        if (!comment.isOwner(user)) {
+        // 권한 확인: 작성자 또는 ADMIN만 삭제 가능
+        if (!comment.isOwner(user) && !rheon.wsd_lora_community.global.util.AuthenticationUtil.isAdmin()) {
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
 

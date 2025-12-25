@@ -59,12 +59,12 @@ public class SecurityConfig {
                 // 요청별 인증 설정
                 .authorizeHttpRequests(auth -> auth
                         // 보안 취약점 스캔 차단 (Vendor 경로 등)
+                        // ⚠️ /api/admin은 제외 (관리자 API는 인증 필요)
                         .requestMatchers(
                                 "/vendor/**",
                                 "/phpunit/**",
                                 "/wp-admin/**",
                                 "/wp-content/**",
-                                "/admin/**",
                                 "/phpmyadmin/**",
                                 "/*.php"  // 루트 레벨 PHP 파일만 차단
                         ).denyAll()
@@ -91,6 +91,8 @@ public class SecurityConfig {
                                 "/api/training/callback",  // FastAPI 학습 콜백
                                 "/api/generate/history"    // FastAPI 생성 콜백
                         ).permitAll()
+                        // 관리자 API는 ROLE_ADMIN 권한 필요 (Controller @PreAuthorize에서 체크)
+                        .requestMatchers("/api/admin/**").authenticated()
                         .anyRequest().authenticated()
                 )
 
@@ -110,17 +112,21 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
                             String requestUri = request.getRequestURI();
-                            // API 요청은 OAuth2 리다이렉트 방지 (401 반환)
+                            // API 요청은 OAuth2 리다이렉트 방지 (401 JSON 반환)
                             if (requestUri.startsWith("/api/")) {
-                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                response.setContentType("application/json;charset=UTF-8");
+                                response.getWriter().write("{\"success\":false,\"message\":\"인증이 필요합니다.\",\"code\":\"UNAUTHORIZED\"}");
                             } else {
                                 // 브라우저 요청은 OAuth2 로그인 페이지로 리다이렉트
                                 response.sendRedirect("/oauth2/authorization/google");
                             }
                         })
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            // Access Denied 에러는 403 반환 (로그 없이 조용히 처리)
-                            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden");
+                            // Access Denied 에러는 403 JSON 반환
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("{\"success\":false,\"message\":\"접근 권한이 없습니다.\",\"code\":\"FORBIDDEN\"}");
                         })
                 )
 

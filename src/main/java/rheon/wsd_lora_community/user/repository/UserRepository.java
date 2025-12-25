@@ -22,4 +22,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByIdAndDeletedAtIsNull(Long id);
 
     Page<User> findByNicknameContainingIgnoreCase(String nickname, Pageable pageable);
+
+    // 모든 유저 조회 (관리자용, 삭제된 유저 포함)
+    Page<User> findAll(Pageable pageable);
+
+    // 삭제되지 않은 유저만 조회 (관리자용)
+    Page<User> findAllByDeletedAtIsNull(Pageable pageable);
 }
