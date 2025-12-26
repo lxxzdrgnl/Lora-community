@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import rheon.wsd_lora_community.global.dto.ApiResponse;
 import rheon.wsd_lora_community.global.dto.ErrorResponse;
 import rheon.wsd_lora_community.global.security.JwtTokenProvider;
+import rheon.wsd_lora_community.user.dto.FirebaseLoginRequest;
 import rheon.wsd_lora_community.user.dto.GoogleTokenRequest;
 import rheon.wsd_lora_community.user.dto.TokenResponse;
 import rheon.wsd_lora_community.user.service.AuthService;
@@ -112,6 +113,39 @@ public class AuthController {
         TokenResponse tokenResponse = authService.authenticateWithGoogleToken(request.getIdToken());
 
         log.info("✅ JWT tokens issued successfully for user: {}", tokenResponse.getEmail());
+
+        return ResponseEntity.ok(
+                ApiResponse.success("인증에 성공했습니다.", tokenResponse)
+        );
+    }
+
+    /**
+     * Firebase ID Token 검증 및 JWT 발급 (이메일/비밀번호 로그인)
+     */
+    @PostMapping("/firebase")
+    @Operation(
+            summary = "Firebase 이메일/비밀번호 로그인",
+            description = "Firebase Auth에서 받은 ID Token을 검증하고 JWT 토큰을 발급합니다. (웹/앱 공통)"
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "인증 성공, JWT 토큰 발급"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 (ID Token 검증 실패)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 다른 방식으로 가입된 이메일",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<ApiResponse<TokenResponse>> authenticateWithFirebase(
+            @Valid @RequestBody FirebaseLoginRequest request
+    ) {
+        log.info("🔥 Firebase ID Token authentication request received");
+
+        TokenResponse tokenResponse = authService.authenticateWithFirebase(request.getIdToken());
+
+        log.info("✅ JWT tokens issued successfully for Firebase user: {}", tokenResponse.getEmail());
 
         return ResponseEntity.ok(
                 ApiResponse.success("인증에 성공했습니다.", tokenResponse)

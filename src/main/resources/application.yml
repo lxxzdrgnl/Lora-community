@@ -57,7 +57,7 @@ spring:
             scope:
               - email
               - profile
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            redirect-uri: "${CALLBACK_URL:http://localhost:8080}/login/oauth2/code/{registrationId}"
             authorization-grant-type: authorization_code
         provider:
           google:
@@ -102,6 +102,14 @@ jwt:
   secret: ${JWT_SECRET:wsd-lora-community-jwt-secret-key-2024-for-hs256-algorithm-minimum-256-bits-required}
   access-token-validity: 3600000    # 1시간 (밀리초
   refresh-token-validity: 604800000  # 7일 (밀리초)
+
+# Firebase 설정 (로컬/프로덕션 공통 - 개별 필드로 분리)
+firebase:
+  project-id: ${FIREBASE_PROJECT_ID:}
+  private-key-id: ${FIREBASE_PRIVATE_KEY_ID:}
+  private-key: ${FIREBASE_PRIVATE_KEY:}
+  client-email: ${FIREBASE_CLIENT_EMAIL:}
+  client-id: ${FIREBASE_CLIENT_ID:}
 
 # Frontend URL (OAuth2 콜백용)
 frontend:

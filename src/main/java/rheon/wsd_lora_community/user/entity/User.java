@@ -55,7 +55,8 @@ public class User extends BaseEntity {
      * OAuth 제공자
      */
     public enum OAuthProvider {
-        GOOGLE
+        GOOGLE,
+        FIREBASE
     }
 
     /**

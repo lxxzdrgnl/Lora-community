@@ -11,9 +11,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
-import rheon.wsd_lora_community.user.entity.RefreshToken;
 import rheon.wsd_lora_community.user.entity.User;
-import rheon.wsd_lora_community.user.repository.RefreshTokenRepository;
 import rheon.wsd_lora_community.user.repository.UserRepository;
 
 import java.io.IOException;
@@ -35,7 +33,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
+    private final rheon.wsd_lora_community.user.service.AuthService authService;
     private final ObjectMapper objectMapper;
 
     @Value("${frontend.url:http://localhost:5173}")
@@ -73,8 +71,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
-        // Refresh Token 저장
-        saveRefreshToken(user, refreshToken);
+        // Refresh Token 저장 (기존 토큰 모두 삭제 후)
+        authService.replaceRefreshToken(user, refreshToken, jwtTokenProvider.getRefreshTokenExpiryDate());
 
         // state 파라미터에서 프론트엔드 URL 결정
         String targetFrontendUrl = determineTargetUrl(request);
@@ -186,20 +184,5 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         }
 
         return nickname;
-    }
-
-    /**
-     * Refresh Token 저장
-     */
-    private void saveRefreshToken(User user, String refreshToken) {
-        RefreshToken token = refreshTokenRepository.findByUser(user)
-                .orElseGet(() -> RefreshToken.builder()
-                        .user(user)
-                        .token(refreshToken)
-                        .expiresAt(jwtTokenProvider.getRefreshTokenExpiryDate())
-                        .build());
-
-        token.updateToken(refreshToken, jwtTokenProvider.getRefreshTokenExpiryDate());
-        refreshTokenRepository.save(token);
     }
 }

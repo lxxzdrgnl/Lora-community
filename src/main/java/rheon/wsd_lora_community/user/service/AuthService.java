@@ -2,6 +2,9 @@ package rheon.wsd_lora_community.user.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.FirebaseToken;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,6 +26,9 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AuthService {
+
+    private static final String DEFAULT_PROFILE_IMAGE =
+            "https://mblogthumb-phinf.pstatic.net/data42/2009/3/26/216/%BD%CC%C7%CF%C7%FC%BF%F8%BA%BB_juyeol1217.jpg?type=w420";
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -117,6 +123,23 @@ public class AuthService {
     }
 
     /**
+     * 기존 Refresh Token 모두 삭제 후 새 토큰 저장 (OAuth2 로그인 성공 시 사용)
+     */
+    @Transactional
+    public void replaceRefreshToken(User user, String token, LocalDateTime expiresAt) {
+        // 기존 토큰 모두 삭제
+        refreshTokenRepository.deleteByUser(user);
+
+        // 새 토큰 저장
+        RefreshToken refreshToken = RefreshToken.builder()
+                .user(user)
+                .token(token)
+                .expiresAt(expiresAt)
+                .build();
+        refreshTokenRepository.save(refreshToken);
+    }
+
+    /**
      * Google ID Token 검증 및 JWT 토큰 발급 (모바일 앱용)
      */
     @Transactional
@@ -166,8 +189,8 @@ public class AuthService {
             String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
             String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
-            // Refresh Token 저장
-            saveRefreshToken(user, refreshToken, jwtTokenProvider.getRefreshTokenExpiryDate());
+            // Refresh Token 저장 (기존 토큰 모두 삭제 후)
+            replaceRefreshToken(user, refreshToken, jwtTokenProvider.getRefreshTokenExpiryDate());
 
             log.info("✅ JWT tokens issued for user: userId={}, email={}", user.getId(), user.getEmail());
 
@@ -230,5 +253,93 @@ public class AuthService {
     public User getUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    /**
+     * Firebase ID Token 검증 및 JWT 토큰 발급 (이메일/비밀번호 로그인용)
+     */
+    @Transactional
+    public TokenResponse authenticateWithFirebase(String idToken) {
+        try {
+            log.info("🔍 Verifying Firebase ID Token...");
+
+            // Firebase ID Token 검증
+            FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
+            String email = decodedToken.getEmail();
+            String uid = decodedToken.getUid();
+            String name = decodedToken.getName() != null ? decodedToken.getName() : email.split("@")[0];
+            String picture = decodedToken.getPicture();
+
+            log.info("✅ Firebase ID Token verified: email={}, uid={}", email, uid);
+
+            // 이메일로 기존 유저 조회
+            User user = userRepository.findByEmail(email).orElse(null);
+
+            if (user != null) {
+                // 이미 다른 방식으로 가입된 경우 (Google 등)
+                if (user.getOauthProvider() != User.OAuthProvider.FIREBASE) {
+                    log.warn("❌ Email already exists with different provider: email={}, provider={}",
+                            email, user.getOauthProvider());
+                    throw new CustomException(ErrorCode.EMAIL_ALREADY_EXISTS);
+                }
+
+                // Firebase로 이미 가입된 경우: JWT 발급
+                log.info("✅ Existing Firebase user found: userId={}", user.getId());
+
+            } else {
+                // 신규 유저 생성
+                user = createFirebaseUser(email, name, uid, picture);
+                log.info("✅ New Firebase user created: userId={}, email={}", user.getId(), email);
+            }
+
+            // JWT 토큰 발급
+            String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
+            String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
+
+            // Refresh Token 저장 (기존 토큰 모두 삭제 후)
+            replaceRefreshToken(user, refreshToken, jwtTokenProvider.getRefreshTokenExpiryDate());
+
+            log.info("✅ JWT tokens issued for Firebase user: userId={}, email={}", user.getId(), user.getEmail());
+
+            return new TokenResponse(
+                    accessToken,
+                    refreshToken,
+                    user.getId(),
+                    user.getEmail(),
+                    user.getNickname(),
+                    user.getProfileImageUrl()
+            );
+
+        } catch (FirebaseAuthException e) {
+            log.error("❌ Firebase ID Token verification failed: {}", e.getMessage());
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("❌ Failed to authenticate with Firebase token", e);
+            throw new CustomException(ErrorCode.AUTHENTICATION_FAILED);
+        }
+    }
+
+    /**
+     * Firebase 신규 사용자 생성
+     */
+    private User createFirebaseUser(String email, String name, String uid, String picture) {
+        String nickname = generateNickname(name);
+
+        // 프로필 이미지가 없으면 기본 이미지 사용
+        String profileImageUrl = (picture != null && !picture.isEmpty()) ? picture : DEFAULT_PROFILE_IMAGE;
+
+        User user = User.builder()
+                .email(email)
+                .name(name)
+                .nickname(nickname)
+                .profileImageUrl(profileImageUrl)
+                .oauthProvider(User.OAuthProvider.FIREBASE)
+                .oauthProviderId(uid)
+                .role(User.Role.USER)
+                .build();
+
+        return userRepository.save(user);
     }
 }

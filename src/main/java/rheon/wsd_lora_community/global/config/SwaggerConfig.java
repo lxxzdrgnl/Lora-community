@@ -208,6 +208,7 @@ public class SwaggerConfig {
     private Info apiInfo() {
         return new Info()
                 .title("LoRA 모델 공유 플랫폼 API")
+                .version("1.0.0")
                 .description("""
                         ## LoRA 모델 학습, 생성, 공유 플랫폼 REST API 문서
 
@@ -254,11 +255,11 @@ public class SwaggerConfig {
     private List<Server> serverList() {
         return List.of(
                 new Server()
-                        .url("http://localhost:5000")
-                        .description("로컬 개발 서버"),
-                new Server()
                         .url("https://d3ka730j70ocy8.cloudfront.net")
-                        .description("프로덕션 서버")
+                        .description("프로덕션 서버"),
+                new Server()
+                        .url("http://localhost:5000")
+                        .description("로컬 개발 서버")
         );
     }
 }

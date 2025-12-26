@@ -36,6 +36,7 @@ public enum ErrorCode {
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "USER_002", "이미 존재하는 이메일입니다."),
     DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "USER_003", "이미 존재하는 닉네임입니다."),
     NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_004", "이미 사용 중인 닉네임입니다."),
+    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_005", "이미 다른 방식으로 가입된 이메일입니다. 다른 로그인 방법을 사용해주세요."),
 
     // LoRA 모델 에러
     MODEL_NOT_FOUND(HttpStatus.NOT_FOUND, "MODEL_001", "모델을 찾을 수 없습니다."),
