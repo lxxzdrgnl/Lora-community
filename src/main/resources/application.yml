@@ -9,15 +9,26 @@ spring:
   # MySQL Database (기본 설정)
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:loradb}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:loradb}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&connectTimeout=10000&socketTimeout=30000
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:10}
       minimum-idle: ${DB_MIN_IDLE:2}
-      connection-timeout: 30000
+      connection-timeout: 10000
       idle-timeout: 600000
       max-lifetime: 1800000
+      initialization-fail-timeout: -1
+      data-source-properties:
+        cachePrepStmts: true
+        prepStmtCacheSize: 250
+        prepStmtCacheSqlLimit: 2048
+        useServerPrepStmts: false
+        rewriteBatchedStatements: true
+        cacheResultSetMetadata: true
+        cacheServerConfiguration: true
+        elideSetAutoCommits: true
+        maintainTimeStats: false
 
   # Flyway 설정 (DB 마이그레이션) - 순환 의존성 문제로 비활성화
   flyway:
@@ -27,16 +38,20 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
-      ddl-auto: update  # Flyway 비활성화로 JPA가 스키마 관리
-    defer-datasource-initialization: true  # JPA 테이블 생성 후 data.sql 실행
+      ddl-auto: none  # 프로덕션: 스키마 관리 안 함 (메타데이터 쿼리 완전 차단)
+    defer-datasource-initialization: false  # 초기화 비활성화
     properties:
       hibernate:
         format_sql: false  # SQL 포맷팅 비활성화 (로그 간결화)
         show_sql: false
         use_sql_comments: false
         highlight_sql: false  # SQL 하이라이트 비활성화 (ANSI 색상 코드 제거)
+        temp:
+          use_jdbc_metadata_defaults: false  # JDBC 메타데이터 쿼리 최소화
         jdbc:
           time_zone: Asia/Seoul  # JPA 시간대 설정
+          lob:
+            non_contextual_creation: true  # LOB 생성 시 메타데이터 쿼리 생략
     show-sql: false
     open-in-view: false  # 멀티 인스턴스 환경에서 권장
 
@@ -184,7 +199,7 @@ management:
 
 # 서버 설정
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
   forward-headers-strategy: native  # CloudFront/로드밸런서의 X-Forwarded-* 헤더 인식 (Tomcat 네이티브)
   compression:
     enabled: true
@@ -195,11 +210,13 @@ server:
 # 로깅 설정
 logging:
   level:
-    root: WARN
+    root: INFO
     rheon.wsd_lora_community: DEBUG
     rheon.wsd_lora_community.global.queue: DEBUG
-    org.springframework.web: ERROR
-    org.springframework.security: ERROR
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.springframework.boot: INFO
+    org.springframework.context: DEBUG
     org.springframework.web.servlet.resource.ResourceHttpRequestHandler: OFF  # 404 정적 리소스 에러 숨김
     org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver: OFF  # 예외 핸들러 로그 숨김
     org.hibernate: ERROR

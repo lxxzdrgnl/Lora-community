@@ -178,7 +178,7 @@ jobs:
           echo 'echo "WORKDIR /app" >> Dockerfile.simple' >> deploy.sh
           echo 'echo "COPY application.jar app.jar" >> Dockerfile.simple' >> deploy.sh
           echo 'echo "EXPOSE 5000" >> Dockerfile.simple' >> deploy.sh
-          echo "echo 'ENTRYPOINT [\"java\", \"-jar\", \"app.jar\"]' >> Dockerfile.simple" >> deploy.sh
+          echo "echo 'ENTRYPOINT [\"java\", \"-Dserver.port=5000\", \"-jar\", \"app.jar\"]' >> Dockerfile.simple" >> deploy.sh
           echo '' >> deploy.sh
           echo 'sudo docker build -f Dockerfile.simple -t springboot-app:latest .' >> deploy.sh
           echo '' >> deploy.sh
@@ -187,7 +187,7 @@ jobs:
           echo 'sudo docker run -d \' >> deploy.sh
           echo '  --name springboot-app \' >> deploy.sh
           echo '  --restart unless-stopped \' >> deploy.sh
-          echo '  -p 17232:5000 \' >> deploy.sh
+          echo '  -p 127.0.0.1:5000:5000 \' >> deploy.sh
           echo '  --env-file ~/.env \' >> deploy.sh
           echo '  springboot-app:latest' >> deploy.sh
           echo '' >> deploy.sh

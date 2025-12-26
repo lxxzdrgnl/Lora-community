@@ -121,8 +121,6 @@
 - **Swagger UI (JCloud)**: https://113.198.66.68:17232/swagger-ui.html
 - **Health Check (AWS)**: https://d3ka730j70ocy8.cloudfront.net/actuator/health
 - **Health Check (JCloud)**: https://113.198.66.68:17232/actuator/health
-- **Test Endpoint (AWS)**: https://d3ka730j70ocy8.cloudfront.net/test
-- **Test Endpoint (JCloud)**: https://113.198.66.68:17232/test
 
 ### Repository Links
 - **Backend Github**: https://github.com/lxxzdrgnl/Lora-community
@@ -373,8 +371,6 @@ GET http://localhost:5000/
 - **Swagger UI (JCloud)**: https://113.198.66.68:17232/swagger-ui.html
 - **Health Check (AWS)**: https://d3ka730j70ocy8.cloudfront.net/actuator/health
 - **Health Check (JCloud)**: https://113.198.66.68:17232/actuator/health
-- **Test Endpoint (AWS)**: https://d3ka730j70ocy8.cloudfront.net/test
-- **Test Endpoint (JCloud)**: https://113.198.66.68:17232/test
 
 ### Database (AWS RDS)
 - **호스트**: `blueming-database.cr8gyu4cwsxv.ap-northeast-2.rds.amazonaws.com`
@@ -468,10 +464,8 @@ GET http://localhost:5000/
 
 ### `/test` 엔드포인트로 테스트 로그인 가능
 
-인증 없이 접근 가능한 `/test` 엔드포인트를 통해 테스트용 JWT 토큰을 발급받을 수 있습니다.
-
 ```bash
-GET http://localhost:5000/test
+POST http://localhost:5000/test
 ```
 
 **응답 예시:**
