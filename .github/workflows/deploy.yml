@@ -177,8 +177,8 @@ jobs:
           echo 'echo "FROM eclipse-temurin:17-jre-alpine" > Dockerfile.simple' >> deploy.sh
           echo 'echo "WORKDIR /app" >> Dockerfile.simple' >> deploy.sh
           echo 'echo "COPY application.jar app.jar" >> Dockerfile.simple' >> deploy.sh
-          echo 'echo "EXPOSE 5000" >> Dockerfile.simple' >> deploy.sh
-          echo "echo 'ENTRYPOINT [\"java\", \"-Dserver.port=5000\", \"-jar\", \"app.jar\"]' >> Dockerfile.simple" >> deploy.sh
+          echo 'echo "EXPOSE 80" >> Dockerfile.simple' >> deploy.sh
+          echo "echo 'ENTRYPOINT [\"java\", \"-Dserver.port=80\", \"-jar\", \"app.jar\"]' >> Dockerfile.simple" >> deploy.sh
           echo '' >> deploy.sh
           echo 'sudo docker build -f Dockerfile.simple -t springboot-app:latest .' >> deploy.sh
           echo '' >> deploy.sh
@@ -187,7 +187,7 @@ jobs:
           echo 'sudo docker run -d \' >> deploy.sh
           echo '  --name springboot-app \' >> deploy.sh
           echo '  --restart unless-stopped \' >> deploy.sh
-          echo '  -p 127.0.0.1:5000:5000 \' >> deploy.sh
+          echo '  --network host \' >> deploy.sh
           echo '  --env-file ~/.env \' >> deploy.sh
           echo '  springboot-app:latest' >> deploy.sh
           echo '' >> deploy.sh
@@ -208,7 +208,7 @@ jobs:
           ssh -i ~/.ssh/jcloud_key.pem -p 19232 -o StrictHostKeyChecking=no -o ServerAliveInterval=60 ubuntu@113.198.66.68 "cd ~/app && ./deploy.sh"
 
           echo "✅ JCloud deployment completed!"
-          echo "📌 Access: https://113.198.66.68:17232"
+          echo "📌 Access: http://113.198.66.68:18232"
 
       # 7. SSH 키 파일 정리
       - name: Cleanup

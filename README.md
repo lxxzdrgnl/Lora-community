@@ -114,13 +114,13 @@
 
 ### Production
 - **Frontend (AWS CloudFront)**: https://d2f4r8lrfwl0ez.cloudfront.net
-- **Frontend (JCloud)**: https://113.198.66.68:17196
+- **Frontend (JCloud)**: http://113.198.66.75:18196
 - **Backend (AWS CloudFront)**: https://d3ka730j70ocy8.cloudfront.net
-- **Backend (JCloud)**: https://113.198.66.68:17232
+- **Backend (JCloud)**: http://113.198.66.68:18232
 - **Swagger UI (AWS)**: https://d3ka730j70ocy8.cloudfront.net/swagger-ui.html
-- **Swagger UI (JCloud)**: https://113.198.66.68:17232/swagger-ui.html
+- **Swagger UI (JCloud)**: http://113.198.66.68:18232/swagger-ui.html
 - **Health Check (AWS)**: https://d3ka730j70ocy8.cloudfront.net/actuator/health
-- **Health Check (JCloud)**: https://113.198.66.68:17232/actuator/health
+- **Health Check (JCloud)**: http://113.198.66.68:18232/actuator/health
 
 ### Repository Links
 - **Backend Github**: https://github.com/lxxzdrgnl/Lora-community
@@ -366,11 +366,11 @@ GET http://localhost:5000/
 - **Frontend (AWS CloudFront)**: https://d2f4r8lrfwl0ez.cloudfront.net
 - **Frontend (JCloud)**: https://113.198.66.68:17196
 - **Backend (AWS CloudFront)**: https://d3ka730j70ocy8.cloudfront.net
-- **Backend (JCloud)**: https://113.198.66.68:17232
+- **Backend (JCloud)**: http://113.198.66.68:18232
 - **Swagger UI (AWS)**: https://d3ka730j70ocy8.cloudfront.net/swagger-ui.html
-- **Swagger UI (JCloud)**: https://113.198.66.68:17232/swagger-ui.html
+- **Swagger UI (JCloud)**: http://113.198.66.68:18232/swagger-ui.html
 - **Health Check (AWS)**: https://d3ka730j70ocy8.cloudfront.net/actuator/health
-- **Health Check (JCloud)**: https://113.198.66.68:17232/actuator/health
+- **Health Check (JCloud)**: http://113.198.66.68:18232/actuator/health
 
 ### Database (AWS RDS)
 - **호스트**: `blueming-database.cr8gyu4cwsxv.ap-northeast-2.rds.amazonaws.com`
@@ -870,7 +870,7 @@ docker-compose down
 4. **JCloud 배포 (병렬)**
    - SSH를 통한 JCloud 서버 접속
    - Docker 이미지 빌드 및 배포
-   - 배포 URL: https://113.198.66.68:17232
+   - 배포 URL: http://113.198.66.68:18232
 
 ---
 

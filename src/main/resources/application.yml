@@ -9,16 +9,19 @@ spring:
   # MySQL Database (기본 설정)
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:loradb}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&connectTimeout=10000&socketTimeout=30000
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:loradb}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&connectTimeout=10000&socketTimeout=60000
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:10}
       minimum-idle: ${DB_MIN_IDLE:2}
       connection-timeout: 10000
-      idle-timeout: 600000
-      max-lifetime: 1800000
+      idle-timeout: 300000
+      max-lifetime: 900000
       initialization-fail-timeout: -1
+      connection-test-query: SELECT 1
+      validation-timeout: 5000
+      leak-detection-threshold: 60000
       data-source-properties:
         cachePrepStmts: true
         prepStmtCacheSize: 250
@@ -29,6 +32,8 @@ spring:
         cacheServerConfiguration: true
         elideSetAutoCommits: true
         maintainTimeStats: false
+        autoReconnect: true
+        maxReconnects: 3
 
   # Flyway 설정 (DB 마이그레이션) - 순환 의존성 문제로 비활성화
   flyway:
