@@ -37,7 +37,10 @@ public class S3UploadService {
     private String generatedImagesBucketName;  // 생성 이미지용 버킷
 
     @Value("${aws.s3.region}")
-    private String region;  // S3 리전
+    private String region;
+
+    @Value("${aws.s3.public-endpoint:}")
+    private String publicEndpoint;
 
     /**
      * Presigned URL 생성
@@ -105,13 +108,14 @@ public class S3UploadService {
             return null;
         }
 
-        // Public URL 형식: https://{bucket}.s3.{region}.amazonaws.com/{key}
-        String publicUrl = String.format("https://%s.s3.%s.amazonaws.com/%s",
+        if (publicEndpoint != null && !publicEndpoint.isBlank()) {
+            // MinIO: https://storage.rheon.kr/{bucket}/{key}
+            return String.format("%s/%s/%s", publicEndpoint, generatedImagesBucketName, s3Key);
+        }
+
+        // AWS S3
+        return String.format("https://%s.s3.%s.amazonaws.com/%s",
                 generatedImagesBucketName, region, s3Key);
-
-        log.debug("Public S3 URL generated for s3Key: {}, bucket: {}", s3Key, generatedImagesBucketName);
-
-        return publicUrl;
     }
 
     /**

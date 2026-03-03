@@ -1,0 +1,24 @@
+# CI/CD 배포용 런타임 Dockerfile
+# GitHub Actions에서 미리 빌드한 application.jar를 복사하기만 함
+# 미니 PC에서 빌드하지 않으므로 CPU/RAM 부하 없음
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache curl
+
+RUN addgroup -S spring && adduser -S spring -G spring
+
+COPY application.jar app.jar
+
+RUN chown spring:spring app.jar
+
+USER spring:spring
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+  CMD curl -f http://localhost:8080/actuator/health || exit 1
+
+# JVM 메모리 제한: 최대 768MB (docker-compose limit 1G에 맞춤)
+ENTRYPOINT ["java", "-Xmx768m", "-Xms256m", "-jar", "app.jar"]

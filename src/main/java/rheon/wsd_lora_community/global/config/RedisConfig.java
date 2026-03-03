@@ -23,7 +23,6 @@ import rheon.wsd_lora_community.global.queue.RedisMessageSubscriber;
 
 /**
  * Redis 설정
- * - Upstash Redis 연결 (Modal과 공유)
  * - 작업 큐, 세션, 캐시, 레이트 리밋 용도
  */
 @Slf4j
@@ -55,7 +54,7 @@ public class RedisConfig {
             config.setPassword(redisPassword);
         }
 
-        // SSL 설정 (Upstash Redis용)
+        // SSL 설정 (ssl.enabled=true일 때만 활성화)
         LettuceClientConfiguration clientConfig;
         if (sslEnabled) {
             clientConfig = LettuceClientConfiguration.builder()

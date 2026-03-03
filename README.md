@@ -9,7 +9,8 @@
 ![Redis](https://img.shields.io/badge/Redis-7.0-DC382D?style=flat-square&logo=redis&logoColor=white)
 ![Spring Security](https://img.shields.io/badge/Spring%20Security-OAuth2%20%2B%20JWT-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
 ![Swagger](https://img.shields.io/badge/Swagger-API%20Docs-85EA2D?style=flat-square&logo=swagger&logoColor=black)
-![AWS Elastic Beanstalk](https://img.shields.io/badge/AWS%20Elastic%20Beanstalk-Deployed-232F3E?style=flat-square&logo=aws&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)
+![MinIO](https://img.shields.io/badge/MinIO-S3%20Compatible-C72E49?style=flat-square&logo=minio&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-Active-success?style=flat-square)
 
@@ -113,14 +114,12 @@
 ## 주요 링크
 
 ### Production
-- **Frontend (AWS CloudFront)**: https://d2f4r8lrfwl0ez.cloudfront.net
-- **Frontend (JCloud)**: http://113.198.66.75:18196
-- **Backend (AWS CloudFront)**: https://d3ka730j70ocy8.cloudfront.net
-- **Backend (JCloud)**: http://113.198.66.68:18232
-- **Swagger UI (AWS)**: https://d3ka730j70ocy8.cloudfront.net/swagger-ui.html
-- **Swagger UI (JCloud)**: http://113.198.66.68:18232/swagger-ui.html
-- **Health Check (AWS)**: https://d3ka730j70ocy8.cloudfront.net/actuator/health
-- **Health Check (JCloud)**: http://113.198.66.68:18232/actuator/health
+- **Frontend**: https://blueming.rheon.kr
+- **Backend API**: https://api-blueming.rheon.kr
+- **Swagger UI**: https://api-blueming.rheon.kr/swagger-ui.html
+- **Health Check**: https://api-blueming.rheon.kr/actuator/health
+- **MinIO Storage**: https://storage.rheon.kr
+- **MinIO Console**: https://minio.rheon.kr
 
 ### Repository Links
 - **Backend Github**: https://github.com/lxxzdrgnl/Lora-community
@@ -130,26 +129,78 @@
 
 ## 시스템 아키텍처
 
+### 과거 (AWS 인프라)
+
 ```
-┌─────────────┐      ┌───────────────────────────┐      ┌─────────────────┐
-│   Vue.js    │ <--> │ AWS Elastic Beanstalk     │ <--> │    FastAPI      │
-│  (Frontend) │      │ (Spring Boot 3 Backend)   │      │  (AI Service)   │
-└─────────────┘      └───────────┬───────────────┘      └─────────────────┘
-                                 │
-                    ┌────────────┴────────────┐
-                    │                         │
-                    v                         v
-            ┌─────────────────┐      ┌─────────────────┐
-            │   AWS RDS       │      │   AWS S3        │
-            │   (MySQL)       │      │   (Storage)     │
-            └─────────────────┘      └─────────────────┘
-                    │
-                    v
-            ┌─────────────────┐
-            │   Redis         │
-            │   (Upstash)     │
-            └─────────────────┘
+[사용자]
+   │
+   ▼
+[AWS CloudFront]──────────────────────────────────────────┐
+   │                                                       │
+   ▼                                                       ▼
+[Vue.js Frontend]          [AWS Elastic Beanstalk]     [FastAPI]
+(CloudFront CDN)     ───▶  (Spring Boot 3 Backend)  ───▶ (Modal GPU)
+                                     │
+                    ┌────────────────┼────────────────┐
+                    ▼                ▼                 ▼
+             [AWS RDS]          [AWS S3]         [Upstash]
+             (MySQL 8.0)       (3개 버킷)         (Redis)
 ```
+
+**과거 인프라 구성**:
+| 서비스 | 구성 |
+|--------|------|
+| Frontend | AWS CloudFront + S3 Static Hosting |
+| Backend | AWS Elastic Beanstalk (Spring Boot 3) |
+| Database | AWS RDS MySQL 8.0 |
+| Cache | Upstash Redis (SSL) |
+| Storage | AWS S3 (학습/모델/생성이미지 3개 버킷) |
+| AI Service | FastAPI on Modal (GPU A10G/T4) |
+
+### 현재 (Self-hosted 미니 PC)
+
+```
+[사용자]
+   │
+   ▼
+[Cloudflare] (DNS + SSL/TLS)
+   │  blueming.rheon.kr       → Frontend
+   │  api-blueming.rheon.kr   → Backend API
+   │  storage.rheon.kr        → MinIO S3 API
+   │  minio.rheon.kr          → MinIO Console
+   ▼
+[Nginx Proxy Manager] (Reverse Proxy, 80/443)
+   │
+   ├──────────────────────────────────────┐
+   ▼                                      ▼
+[Vue.js Frontend]           ┌─────────────────────────────┐
+(:3030, Docker)             │     Mini PC (Docker)         │
+                            │                             │
+                            │  [Spring Boot 3 Backend]    │
+                            │  (:8080)                    │
+                            │      │                      │
+                            │  ┌───┴───┬─────────┐       │
+                            │  ▼       ▼         ▼       │
+                            │ [MySQL] [Redis] [MinIO]    │
+                            │ (:3306) (:6379) (:9000)    │
+                            └─────────────────────────────┘
+                                       │
+                                       ▼ (HTTP 콜백)
+                            [FastAPI on Modal] ← 외부 플랫폼
+                            (GPU A10G/T4, Serverless)
+```
+
+**현재 인프라 구성**:
+| 서비스 | 구성 |
+|--------|------|
+| Frontend | Vue.js (Docker, Nginx Proxy Manager) |
+| Backend | Spring Boot 3 (Docker, GitHub Actions CI/CD) |
+| Database | MySQL 8.0 (Docker Container) |
+| Cache | Redis 7 (Docker Container) |
+| Storage | MinIO (Docker, S3 호환) |
+| AI Service | FastAPI on Modal (**외부 플랫폼**, GPU A10G/T4) |
+| DNS/SSL | Cloudflare |
+| Reverse Proxy | Nginx Proxy Manager |
 
 ---
 
@@ -169,32 +220,36 @@
 
 ### Database
 - **Development**: H2 (In-memory)
-- **Production**: MySQL 8.0+ on AWS RDS ✅
-- **Cache & Session**: Redis (Upstash) ✅
+- **Production**: MySQL 8.0 (Docker Container) ✅
+- **Cache & Session**: Redis 7 (Docker Container) ✅
 
 ### API & Communication
 - **API Documentation**: SpringDoc OpenAPI 3 (Swagger UI) ✅
 - **Real-time Communication**: Server-Sent Events (SSE)
 - **Async HTTP Client**: Spring WebFlux WebClient
 
-### AI Service Integration
+### AI Service Integration (외부 플랫폼)
 - **Framework**: FastAPI (Modal Serverless)
 - **GPU**: Modal A10G (Training), T4 (Generation)
 - **Communication**: Reactive Streams (Mono, Flux)
 - **Progress Tracking**: SSE Streaming
-- **Storage**: AWS S3 (Models, Images, Datasets) ✅
+
+### Storage
+- **현재**: MinIO (S3 호환, Docker Container) ✅
+- **과거**: AWS S3 (3개 버킷)
 
 ### Frontend
 - **Framework**: Vue.js 3 + TypeScript ✅
 - **State Management**: Pinia
 - **UI Library**: Vuetify
-- **Deployment**: AWS CloudFront ✅
+- **Deployment**: Mini PC (Cloudflare + Nginx Proxy Manager) ✅
 
 ### DevOps
-- **CI/CD**: GitHub Actions ✅
+- **CI/CD**: GitHub Actions → SSH → Mini PC ✅
 - **Container**: Docker + Docker Compose ✅
-- **Deployment**: AWS Elastic Beanstalk ✅
-- **Monitoring**: AWS CloudWatch
+- **Deployment**: Self-hosted Mini PC (Ubuntu 24.04, Ryzen R5 5600U) ✅
+- **Proxy**: Nginx Proxy Manager + Cloudflare (SSL/DNS)
+- **과거**: AWS Elastic Beanstalk + JCloud (병렬 배포)
 
 ---
 
@@ -347,38 +402,35 @@ GET http://localhost:5000/
 | `FIREBASE_PRIVATE_KEY` | Firebase Private Key (Base64) | `LS0tLS1...` |
 | `FIREBASE_CLIENT_EMAIL` | Firebase 클라이언트 이메일 | `firebase-adminsdk-...@....iam.gserviceaccount.com` |
 | `FIREBASE_CLIENT_ID` | Firebase 클라이언트 ID | `116885161361666385411` |
-| `AWS_ACCESS_KEY_ID` | AWS Access Key | `AKIA...` |
-| `AWS_SECRET_ACCESS_KEY` | AWS Secret Key | `...` |
-| `AWS_S3_REGION` | AWS S3 리전 | `ap-northeast-2` |
-| `AWS_S3_TRAINING_BUCKET` | S3 학습 데이터 버킷 | `lora-training-data-bucket` |
-| `AWS_S3_MODELS_BUCKET` | S3 모델 버킷 | `lora-models-bucket` |
-| `AWS_S3_GENERATED_BUCKET` | S3 생성 이미지 버킷 | `lora-generated-image-bucket` |
-| `FASTAPI_URL` | FastAPI 서버 URL | `https://...modal.run` |
-| `FRONTEND_URL` | 프론트엔드 URL | `http://localhost:5173` |
-| `CALLBACK_URL` | 백엔드 콜백 URL | `http://localhost:5000` |
-| `CORS_ORIGINS` | CORS 허용 Origin | `http://localhost:5173` |
+| `AWS_ACCESS_KEY_ID` | MinIO Access Key | `admin` |
+| `AWS_SECRET_ACCESS_KEY` | MinIO Secret Key | `your-password` |
+| `AWS_S3_ENDPOINT` | MinIO 내부 엔드포인트 | `http://minio:9000` |
+| `AWS_S3_PUBLIC_ENDPOINT` | MinIO 외부 URL (브라우저용) | `https://storage.rheon.kr` |
+| `AWS_S3_REGION` | S3 리전 (MinIO는 임의값) | `us-east-1` |
+| `AWS_S3_TRAINING_BUCKET` | 학습 데이터 버킷 | `lora-training-data` |
+| `AWS_S3_MODELS_BUCKET` | 모델 버킷 | `lora-models` |
+| `AWS_S3_GENERATED_BUCKET` | 생성 이미지 버킷 | `lora-generated-images` |
+| `FASTAPI_URL` | FastAPI 서버 URL (Modal) | `https://...modal.run` |
+| `FRONTEND_URL` | 프론트엔드 URL | `https://blueming.rheon.kr` |
+| `CALLBACK_URL` | 백엔드 콜백 URL | `https://api-blueming.rheon.kr` |
+| `CORS_ORIGINS` | CORS 허용 Origin | `https://blueming.rheon.kr` |
 
 ---
 
 ## 배포 주소
 
-### Production
-- **Frontend (AWS CloudFront)**: https://d2f4r8lrfwl0ez.cloudfront.net
-- **Frontend (JCloud)**: https://113.198.66.68:17196
-- **Backend (AWS CloudFront)**: https://d3ka730j70ocy8.cloudfront.net
-- **Backend (JCloud)**: http://113.198.66.68:18232
-- **Swagger UI (AWS)**: https://d3ka730j70ocy8.cloudfront.net/swagger-ui.html
-- **Swagger UI (JCloud)**: http://113.198.66.68:18232/swagger-ui.html
-- **Health Check (AWS)**: https://d3ka730j70ocy8.cloudfront.net/actuator/health
-- **Health Check (JCloud)**: http://113.198.66.68:18232/actuator/health
+### Production (현재 - Self-hosted 미니 PC)
+- **Frontend**: https://blueming.rheon.kr
+- **Backend API**: https://api-blueming.rheon.kr
+- **Swagger UI**: https://api-blueming.rheon.kr/swagger-ui.html
+- **Health Check**: https://api-blueming.rheon.kr/actuator/health
+- **MinIO Storage**: https://storage.rheon.kr
+- **MinIO Console**: https://minio.rheon.kr
 
-### Database (AWS RDS)
-- **호스트**: `blueming-database.cr8gyu4cwsxv.ap-northeast-2.rds.amazonaws.com`
-- **포트**: `3306`
-- **데이터베이스**: `loradb`
-- **유저명**: `admin` (읽기 전용 권장)
-
-⚠️ **주의**: 테스트용 DB 접근 시 읽기 전용으로만 사용하세요.
+### 과거 배포 주소 (AWS + JCloud)
+- **Frontend (AWS CloudFront)**: https://d2f4r8lrfwl0ez.cloudfront.net _(종료)_
+- **Backend (AWS CloudFront)**: https://d3ka730j70ocy8.cloudfront.net _(종료)_
+- **Backend (JCloud)**: http://113.198.66.68:18232 _(종료)_
 
 ---
 
@@ -770,7 +822,7 @@ POST http://localhost:5000/test
 - **SSE**: 실시간 진행률 전송
 
 #### 4. 파일 저장
-- **AWS S3**: 이미지, 모델 파일 저장 ✅
+- **MinIO**: 이미지, 모델 파일 저장 (S3 호환, Docker Container) ✅
 
 #### 5. 로깅
 - **레벨 제어**: WARN (root), DEBUG (application) ✅
@@ -779,98 +831,167 @@ POST http://localhost:5000/test
 
 ## Docker 배포
 
-### Dockerfile
+### Dockerfile.runtime (CI/CD용)
+
+CI/CD에서 빌드된 JAR를 복사해 실행하는 경량 이미지입니다. 미니 PC에서 컴파일하지 않아 배포 시 CPU/RAM 부담이 없습니다.
+
 ```dockerfile
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-COPY build/libs/*.jar app.jar
-EXPOSE 5000
-ENTRYPOINT ["java", "-jar", "app.jar"]
+RUN apk add --no-cache curl
+RUN addgroup -S spring && adduser -S spring -G spring
+COPY application.jar app.jar
+RUN chown spring:spring app.jar
+USER spring:spring
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+  CMD curl -f http://localhost:8080/actuator/health || exit 1
+ENTRYPOINT ["java", "-Xmx768m", "-Xms256m", "-jar", "app.jar"]
 ```
 
-### docker-compose.yml
+### docker-compose.yml (미니 PC)
+
 ```yaml
 version: '3.8'
 
 services:
   app:
-    build: .
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.runtime
+    container_name: lora-app
+    restart: always
+    env_file: ./backend/.env
     ports:
-      - "5000:5000"
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - DB_HOST=mysql
-      - REDIS_HOST=redis
+      - "8080:8080"
     depends_on:
-      - mysql
+      - db
       - redis
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+    networks:
+      - blueming-net
 
-  mysql:
+  db:
     image: mysql:8.0
+    container_name: mysql
+    restart: always
     environment:
-      MYSQL_DATABASE: loradb
-      MYSQL_ROOT_PASSWORD: password
-    ports:
-      - "3306:3306"
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: blooming
     volumes:
-      - mysql-data:/var/lib/mysql
+      - ./mysql_data:/var/lib/mysql
+    networks:
+      - blueming-net
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    container_name: redis
+    restart: always
     volumes:
-      - redis-data:/data
+      - ./redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - blueming-net
 
-volumes:
-  mysql-data:
-  redis-data:
+  minio:
+    image: minio/minio
+    container_name: minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: your-password
+      MINIO_SERVER_URL: https://storage.rheon.kr
+      MINIO_BROWSER_REDIRECT_URL: https://minio.rheon.kr
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - blueming-net
+
+networks:
+  blueming-net:
+    external: true
 ```
 
-### 실행
+### 로그 확인
 ```bash
-# 빌드
-./gradlew clean build -x test
+# 전체 로그
+docker compose logs -f
 
-# Docker Compose 실행
-docker-compose up -d
-
-# 로그 확인
-docker-compose logs -f
-
-# 종료
-docker-compose down
+# 앱만
+docker compose logs -f app
 ```
 
 ---
 
 ## CI/CD
 
-### GitHub Actions를 통한 멀티 배포
+### GitHub Actions → 미니 PC SSH 배포
 
 `.github/workflows/deploy.yml`:
 - **트리거**: `main` 브랜치 push ✅
-- **배포 환경**: AWS Elastic Beanstalk + JCloud (병렬 배포) ✅
+- **배포 환경**: Self-hosted 미니 PC (SSH) ✅
 
-#### 배포 단계
-1. **빌드 준비**
-   - Java 17 설치
-   - Gradle 캐싱
-   - 환경 변수 설정 (AWS, JCloud)
+#### 배포 흐름
 
-2. **빌드**
-   - `./gradlew clean build -x test`
-   - JAR 파일 생성
+```
+[git push main]
+      │
+      ▼
+[GitHub Actions Runner] (ubuntu-latest)
+      │
+      ├─ 1. Checkout + JDK 17 + Gradle 캐시
+      │
+      ├─ 2. Build
+      │      ./gradlew build -x test
+      │      → build/libs/application.jar
+      │
+      ├─ 3. Upload artifact (GitHub)
+      │
+      └─ 4. Deploy job
+             │
+             ├─ SSH 키 설정 (secrets.PC_SSH_KEY)
+             │
+             ├─ SCP 전송
+             │    application.jar → ~/blueming/backend/
+             │    Dockerfile.runtime → ~/blueming/backend/
+             │
+             └─ SSH 명령 실행
+                  cd ~/blueming
+                  docker compose up -d --build app --no-deps
+                  ✅ 배포 완료
+```
 
-3. **AWS Elastic Beanstalk 배포**
-   - AWS 자격 증명 구성
-   - Elastic Beanstalk 환경에 배포
-   - 배포 URL: https://d3ka730j70ocy8.cloudfront.net
+#### 필요한 GitHub Secrets
 
-4. **JCloud 배포 (병렬)**
-   - SSH를 통한 JCloud 서버 접속
-   - Docker 이미지 빌드 및 배포
-   - 배포 URL: http://113.198.66.68:18232
+| Secret | 설명 |
+|--------|------|
+| `PC_SSH_KEY` | 미니 PC SSH 개인키 |
+| `PC_SSH_HOST` | 미니 PC 외부 IP (`61.99.168.118`) |
+| `PC_SSH_USER` | SSH 사용자명 (`rheon`) |
+
+#### 특징
+- **컴파일 없음**: 미니 PC에서 빌드하지 않음 (RAM 절약)
+- **Dockerfile.runtime**: JRE만 포함한 경량 이미지 (eclipse-temurin:17-jre-alpine)
+- **JVM 메모리 제한**: `-Xmx768m -Xms256m` (총 RAM 8GB 중 최대 1.5G)
+- **헬스체크**: `/actuator/health` 90초 기다린 후 3회 재시도
+
+#### 과거 CI/CD (AWS + JCloud 병렬 배포)
+```
+[git push main]
+      │
+      ├─ AWS Elastic Beanstalk 배포
+      │    → https://d3ka730j70ocy8.cloudfront.net
+      │
+      └─ JCloud SSH 배포 (병렬)
+           → http://113.198.66.68:18232
+```
 
 ---
 

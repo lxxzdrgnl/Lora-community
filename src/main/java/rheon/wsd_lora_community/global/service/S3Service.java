@@ -40,6 +40,9 @@ public class S3Service {
     @Value("${aws.s3.buckets.generated-images}")
     private String generatedImagesBucket;
 
+    @Value("${aws.s3.public-endpoint:}")
+    private String publicEndpoint;
+
     /**
      * 버킷 타입 Enum
      */
@@ -244,10 +247,12 @@ public class S3Service {
      * @return 공개 URL
      */
     private String getPublicUrl(String bucketName, String s3Key) {
-        // AWS S3 URL 형식으로 반환
-        return String.format("https://%s.s3.amazonaws.com/%s",
-                bucketName,
-                s3Key);
+        if (publicEndpoint != null && !publicEndpoint.isBlank()) {
+            // MinIO: https://storage.rheon.kr/{bucket}/{key}
+            return String.format("%s/%s/%s", publicEndpoint, bucketName, s3Key);
+        }
+        // AWS S3
+        return String.format("https://%s.s3.amazonaws.com/%s", bucketName, s3Key);
     }
 
     /**

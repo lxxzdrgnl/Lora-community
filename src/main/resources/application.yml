@@ -101,14 +101,14 @@ spring:
     time-zone: Asia/Seoul
     default-property-inclusion: non_null
 
-  # Redis 설정 (Upstash Redis - Modal과 공유)
+  # Redis 설정
   data:
     redis:
-      host: ${REDIS_HOST:super-gator-36826.upstash.io}
+      host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       ssl:
-        enabled: ${REDIS_SSL_ENABLED:true}
+        enabled: ${REDIS_SSL_ENABLED:false}
       timeout: 210000  # 210초 (BLPOP 200초 + 여유 10초)
       lettuce:
         pool:
@@ -151,17 +151,19 @@ file:
   upload-dir: ${FILE_UPLOAD_DIR:./uploads}
   static-url: ${FILE_STATIC_URL:http://localhost:8080/static}
 
-# AWS S3 설정
+# AWS S3 / MinIO 설정
 aws:
   s3:
+    endpoint: ${AWS_S3_ENDPOINT:}            # MinIO 내부 URL (Docker: http://minio:9000)
+    public-endpoint: ${AWS_S3_PUBLIC_ENDPOINT:}  # MinIO 외부 URL (브라우저용: https://storage.rheon.kr)
     region: ${AWS_S3_REGION:ap-northeast-2}
     buckets:
-      training-data: ${AWS_S3_TRAINING_BUCKET:lora-training-data-bucket}  # 학습 데이터셋
-      models: ${AWS_S3_MODELS_BUCKET:lora-models-bucket}                  # 학습된 모델 파일
-      generated-images: ${AWS_S3_GENERATED_BUCKET:lora-generated-image-bucket}  # 생성된 이미지
+      training-data: ${AWS_S3_TRAINING_BUCKET:lora-training-data-bucket}
+      models: ${AWS_S3_MODELS_BUCKET:lora-models-bucket}
+      generated-images: ${AWS_S3_GENERATED_BUCKET:lora-generated-image-bucket}
   credentials:
-    access-key: ${AWS_ACCESS_KEY_ID:your-access-key}
-    secret-key: ${AWS_SECRET_ACCESS_KEY:your-secret-key}
+    access-key: ${AWS_ACCESS_KEY_ID:minioadmin}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:minioadmin}
 
 # 페이징 기본 설정
 pagination:
